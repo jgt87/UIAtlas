@@ -1,11 +1,10 @@
 // Web extractor: drives a headless browser over a site's pages and produces a normalized atlas —
-// screenshots, a per-page element inventory, and design tokens aggregated from COMPUTED styles
+// design tokens aggregated from COMPUTED styles plus text-free per-page style samples (screenshots only when opted in)
 // (the real colors/type/spacing the browser applied, not just declared CSS). JS is run by the page as
 // normal browsing; nothing is injected into the site beyond read-only measurement in page.evaluate.
 // Also measures local HTML/SVG files (file:// URLs) and, via capturePage, Storybook stories.
-import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { launchBrowser, sha8 } from './atlas-util.mjs';
+import { launchBrowser, sha8, prepareOut, writeAtlas } from './atlas-util.mjs';
 
 // Runs inside the page. Returns {tokens, inventory, elements, links} measured from computed styles;
 // rootSel limits measurement to the first matching element's subtree (e.g. a Storybook story root).
@@ -45,9 +44,9 @@ function collect(rootSel) {
   const roleOf = el => { const t = el.tagName.toLowerCase(); if (t === 'button' || el.getAttribute('role') === 'button') return 'button'; if (t === 'a') return 'link'; if (t === 'input' || t === 'textarea' || t === 'select') return 'input'; if (/^h[1-6]$/.test(t)) return 'heading'; if (t === 'img' || t === 'svg') return 'image'; if (t === 'nav') return 'nav'; if (t === 'text' && el instanceof SVGElement) return 'text'; return null; };
   for (const el of all) { const role = roleOf(el); if (!role) continue; bump(role);
     if (catalogue.length < 400) { const s = getComputedStyle(el); const r = el.getBoundingClientRect();
-      catalogue.push({ role, tag: el.tagName.toLowerCase(), text: (el.innerText || el.value || el.getAttribute('aria-label') || (el instanceof SVGElement ? el.textContent : '') || '').trim().slice(0, 80),
+      catalogue.push({ role, tag: el.tagName.toLowerCase(), // styles only: the element's text is never read
         bbox: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
-        color: norm(s.color), bg: norm(s.backgroundColor), fontSize: Math.round(parseFloat(s.fontSize)) + 'px', weight: s.fontWeight, radius: radius(s) || '0px' }); } }
+        color: el instanceof SVGElement ? norm(s.fill) : norm(s.color), bg: norm(s.backgroundColor), fontSize: Math.round(parseFloat(s.fontSize)) + 'px', weight: s.fontWeight, radius: radius(s) || '0px', font: s.fontFamily.split(',')[0].replace(/["']/g, '').trim() }); } }
   const top = (k, n = 40) => [...(tally[k] || new Map())].sort((a, b) => b[1] - a[1]).slice(0, n).map(([value, count]) => ({ value, count }));
   // same-origin links for crawling (fragments stripped, so #anchors aren't treated as pages)
   const links = [...new Set([...document.querySelectorAll('a[href]')].map(a => { try { const u = new URL(a.href); if (u.origin !== location.origin || u.protocol !== location.protocol) return null; u.hash = ''; return u.href; } catch { return null; } }).filter(Boolean))].slice(0, 200);
@@ -70,8 +69,9 @@ const finalizeTokens = acc => {
   return { colors: top('colors', 60), fonts: top('fonts', 24), fontSizes: top('fontSizes', 24), fontWeights: top('fontWeights', 12), spacing: top('spacing', 32), radii: top('radii', 20), shadows: top('shadows', 16), cssVars: [...(acc.cssVars || new Map())].map(([name, value]) => ({ name, value })).slice(0, 300) };
 };
 
-// Load one URL and measure it: screenshot (full page, or just rootSel's box), tokens, inventory, elements, links.
-export async function capturePage(page, url, shotsDir, { waitMs = 1200, rootSel = null, waitFor = null, viewport } = {}) {
+// Load one URL and measure it: tokens, inventory, text-free elements, links; plus a screenshot (full page, or just
+// rootSel's box) only when screenshots are opted into.
+export async function capturePage(page, url, shotsDir, { waitMs = 1200, rootSel = null, waitFor = null, viewport, screenshots = false } = {}) {
   try { await page.goto(url, { waitUntil: url.startsWith('file:') ? 'load' : 'networkidle', timeout: 30000 }); } // networkidle never settles on a bare SVG document
   catch { try { await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 }); } catch { return null; } }
   if (waitFor) await waitFor(page).catch(() => {});
@@ -85,22 +85,21 @@ export async function capturePage(page, url, shotsDir, { waitMs = 1200, rootSel 
   // a story root can be 0-high when the component renders in a portal; fall back to the viewport then.
   // Around a root, keep a 16px margin: components often overflow their root slightly.
   const clip = boxed && !svgDoc ? (({ x, y }) => ({ x, y, width: Math.ceil(box.x + box.width + 16 - x), height: Math.ceil(box.y + box.height + 16 - y) }))({ x: Math.max(0, Math.floor(box.x - 16)), y: Math.max(0, Math.floor(box.y - 16)) }) : null;
-  try { if (svgDoc && boxed) { await page.setViewportSize({ width: Math.ceil(box.width), height: Math.ceil(box.height) }); await page.screenshot({ path: file }); if (viewport) await page.setViewportSize(viewport); }
+  if (screenshots) try { if (svgDoc && boxed) { await page.setViewportSize({ width: Math.ceil(box.width), height: Math.ceil(box.height) }); await page.screenshot({ path: file }); if (viewport) await page.setViewportSize(viewport); }
     else if (clip) await page.screenshot({ path: file, fullPage: true, clip }); else await page.screenshot({ path: file, fullPage: !rootSel }); }
   catch { try { await page.screenshot({ path: file }); } catch {} }
-  const title = await page.title().catch(() => '') || url;
+  const title = (() => { try { const u = new URL(url); return u.protocol === 'file:' ? url : u.pathname + u.search; } catch { return url; } })(); // the page's own <title> is content
   const dims = clip ? { w: clip.width, h: clip.height } : boxed ? { w: Math.round(box.width), h: Math.round(box.height) }
     : await page.evaluate(() => ({ w: document.documentElement.scrollWidth || innerWidth, h: document.documentElement.scrollHeight || innerHeight })).catch(() => ({ w: viewport?.width, h: viewport?.height }));
   if (clip) for (const e of data.elements) { e.bbox.x -= clip.x; e.bbox.y -= clip.y; } // element boxes relative to the cropped screenshot
-  return { tokens: data.tokens, links: data.links, screen: { id, url, title, screenshot: `screens/${id}.png`, width: dims.w, height: dims.h, inventory: data.inventory, elements: data.elements } };
+  return { tokens: data.tokens, links: data.links, screen: { id, url, title, screenshot: screenshots ? `screens/${id}.png` : null, width: dims.w, height: dims.h, inventory: data.inventory, elements: data.elements } };
 }
 export const newMeasuringPage = async (browser, viewport) => (await browser.newContext({ viewport, deviceScaleFactor: 1 })).newPage(); // fresh context = signed out
 export { mergeTokens, finalizeTokens };
 
 // Crawl from startUrl (http(s) or file://). For file URLs only files under `scope` (the start folder's URL) are followed.
-export async function extractSite({ startUrl, maxPages = 1, outDir, viewport = { width: 1280, height: 900 }, waitMs = 1200, name, kind = 'web', source, scope }) {
-  const shotsDir = path.join(outDir, 'screens');
-  mkdirSync(shotsDir, { recursive: true });
+export async function extractSite({ startUrl, maxPages = 1, outDir, viewport = { width: 1280, height: 900 }, waitMs = 1200, name, kind = 'web', source, scope, screenshots = false }) {
+  const shotsDir = prepareOut(outDir, { screenshots });
   const browser = await launchBrowser();
   const page = await newMeasuringPage(browser, viewport);
   const normalize = u => { try { const x = new URL(u); x.hash = ''; if (x.pathname !== '/' && x.pathname.endsWith('/')) x.pathname = x.pathname.replace(/\/+$/, ''); return x.href; } catch { return u; } };
@@ -108,19 +107,14 @@ export async function extractSite({ startUrl, maxPages = 1, outDir, viewport = {
   try {
     while (queue.length && screens.length < maxPages) {
       const url = normalize(queue.shift()); if (seen.has(url)) continue; seen.add(url);
-      const got = await capturePage(page, url, shotsDir, { waitMs, viewport }); if (!got) continue;
+      const got = await capturePage(page, url, shotsDir, { waitMs, viewport, screenshots }); if (!got) continue;
       mergeTokens(tokenAcc, got.tokens);
       // local files are recorded relative to the start folder, never as an absolute local path
-      if (scope) { got.screen.url = decodeURIComponent(url.slice(scope.length)); if (got.screen.title === url) got.screen.title = got.screen.url; }
+      if (scope) got.screen.url = got.screen.title = decodeURIComponent(url.slice(scope.length));
       screens.push(got.screen);
       console.log(`  [${screens.length}/${maxPages}] ${got.screen.url}  (${Object.entries(got.screen.inventory).map(([k, v]) => `${v} ${k}`).join(', ')})`);
       if (screens.length < maxPages) for (const l of got.links.map(normalize)) if (!seen.has(l) && !queue.includes(l) && (!scope || l.startsWith(scope))) queue.push(l);
     }
   } finally { await browser.close(); }
-  const atlas = {
-    project: { name: name || new URL(startUrl).hostname, kind, source: source || startUrl, created: new Date().toISOString(), pages: screens.length, viewport },
-    tokens: finalizeTokens(tokenAcc), screens,
-  };
-  writeFileSync(path.join(outDir, 'atlas.json'), JSON.stringify(atlas, null, 0));
-  return atlas;
+  return writeAtlas(outDir, { project: { name: name || new URL(startUrl).hostname, kind, source: source || startUrl, viewport }, tokens: finalizeTokens(tokenAcc), screens }, { screenshots });
 }

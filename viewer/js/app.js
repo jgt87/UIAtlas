@@ -39,7 +39,8 @@ function renderScreens() {
   const scr = atlas.screens.filter(s => !q || (s.title + ' ' + s.url).toLowerCase().includes(q));
   const base = `/data/${atlas.name}/`;
   main.replaceChildren(h('div', { class: 'grid' }, scr.map(s => h(s.screenshot ? 'a' : 'div', { class: 'card', href: s.screenshot ? base + s.screenshot : null, target: s.screenshot ? '_blank' : null },
-    h('div', { class: 'shot' }, s.screenshot ? h('img', { src: base + s.screenshot, loading: 'lazy', alt: s.title }) : h('div', { class: 'empty' }, 'No preview')),
+    // without --screenshots there is no image at all: compact cards instead of empty boxes
+    atlas.project.screenshots === false ? null : h('div', { class: 'shot' }, s.screenshot ? h('img', { src: base + s.screenshot, loading: 'lazy', alt: s.title }) : h('div', { class: 'empty' }, 'No preview')),
     h('div', { class: 'card-body' },
       h('div', { class: 'card-title' }, s.title || s.url),
       h('div', { class: 'card-url' }, s.purpose || s.url),
@@ -84,17 +85,17 @@ function renderElements() {
   // group by role, count, and list examples
   const byRole = {};
   for (const r of rows) (byRole[r.role] ||= []).push(r);
-  const filtered = rows.filter(r => !q || (r.text + ' ' + r.role + ' ' + r.tag).toLowerCase().includes(q));
+  const filtered = rows.filter(r => !q || [r.name, r.role, r.tag, r.screen].join(' ').toLowerCase().includes(q));
   const summary = h('div', { class: 'chips-row', style: 'margin-bottom:16px' }, Object.entries(byRole).sort((a, b) => b[1].length - a[1].length).map(([role, list]) => h('span', { class: 'pill' }, role, ' ', h('small', {}, `${list.length}`))));
   const body = filtered.slice(0, 600).map(e => h('tr', {},
     h('td', { class: 'rolecell' }, e.role),
-    h('td', {}, e.text || h('span', { style: 'color:var(--ink-3)' }, `<${e.tag}>`)),
+    h('td', {}, e.name || h('span', { style: 'color:var(--ink-3)' }, `<${e.tag}>`)), // atlases hold no text content
     h('td', { class: 'mono' }, e.bg ? h('span', {}, h('span', { class: 'dot', style: `background:${e.bg}` }), e.bg) : '—'),
     h('td', { class: 'mono' }, e.color ? h('span', {}, h('span', { class: 'dot', style: `background:${e.color}` }), e.color) : '—'),
     h('td', { class: 'mono' }, e.fontSize || '—'), h('td', { class: 'mono' }, e.weight || '—'), h('td', { class: 'mono' }, (fontCol ? e.font : e.radius) || '—'),
     h('td', { style: 'color:var(--ink-3);font-size:12px' }, e.screen)));
   main.replaceChildren(summary, h('table', { class: 'tbl' },
-    h('thead', {}, h('tr', {}, ['Role', 'Text', 'Background', 'Text colour', 'Size', 'Weight', fontCol ? 'Font' : 'Radius', k.screen].map(x => h('th', {}, x)))),
+    h('thead', {}, h('tr', {}, ['Role', 'Element', 'Background', 'Text colour', 'Size', 'Weight', fontCol ? 'Font' : 'Radius', k.screen].map(x => h('th', {}, x)))),
     h('tbody', {}, body)));
 }
 

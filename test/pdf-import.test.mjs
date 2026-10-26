@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { launchBrowser } from '../src/atlas-util.mjs';
 import { importPdf, parseFontName } from '../src/pdf-import.mjs';
+import { assertNoContent } from './helpers/no-content.mjs';
 
 // Fixture: a two-page brochure for an invented bakery, with known fonts, sizes and colours.
 const html = `<!doctype html><style>
@@ -29,7 +30,7 @@ test('parseFontName strips subset prefixes and style suffixes', () => {
   assert.equal(parseFontName('Lato').weight, '400');
 });
 
-test('importPdf: pages, text, fonts, sizes and colours', async () => {
+test('importPdf: pages, fonts, sizes and colours, and no text or page images stored', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-pdf-')), out = path.join(tmp, 'out'), pdf = path.join(tmp, 'brochure.pdf');
   fs.mkdirSync(out);
   const browser = await launchBrowser();
@@ -45,20 +46,20 @@ test('importPdf: pages, text, fonts, sizes and colours', async () => {
   assert.ok(p1.width >= 1200 && p1.width <= 1300, String(p1.width));
   assert.ok(Math.abs(p1.height / p1.width - 297 / 210) < 0.02);
   assert.deepEqual(atlas.project.viewport, { width: p1.width, height: p1.height });
-  for (const s of atlas.screens) assert.ok(fs.statSync(path.join(out, s.screenshot)).size > 1000);
+  assertNoContent(atlas, out, ['Copper Kettle', 'Fresh sourdough', 'Closed on', 'Opening hours']);
 
-  const h1 = p1.elements.find(e => e.text === 'Copper Kettle Bakery');
-  assert.ok(h1, JSON.stringify(p1.elements.map(e => e.text)));
+  const h1 = p1.elements.find(e => e.role === 'heading');
+  assert.ok(h1, JSON.stringify(p1.elements));
   assert.equal(h1.role, 'heading');
   assert.equal(h1.fontSize, '32pt');
   assert.equal(h1.weight, '700');
   assert.equal(h1.font, 'Georgia');
   assert.equal(h1.color, '#8a2be2');
   assert.ok(h1.bbox.x > 50 && h1.bbox.y > 50 && h1.bbox.w > 300 && h1.bbox.h > 30, JSON.stringify(h1.bbox));
-  const body = p1.elements.find(e => e.text.startsWith('Fresh sourdough'));
+  const body = p1.elements.find(e => e.fontSize === '11pt');
   assert.equal(body.role, 'text'); assert.equal(body.fontSize, '11pt'); assert.equal(body.color, '#333333'); assert.equal(body.weight, '400');
-  assert.equal(p2.elements.find(e => e.text.startsWith('Closed on')).color, '#e4572e');
-  assert.equal(p1.elements[0].text, 'Copper Kettle Bakery'); // largest first
+  assert.ok(p2.elements.some(e => e.fontSize === '11pt' && e.color === '#e4572e'));
+  assert.equal(p1.elements[0], h1); // largest first
   assert.deepEqual(p1.inventory, { text: 3, heading: 1, image: 0 });
 
   const values = k => atlas.tokens[k].map(t => t.value);
@@ -67,9 +68,12 @@ test('importPdf: pages, text, fonts, sizes and colours', async () => {
   assert.deepEqual(values('fontSizes').sort(), ['11pt', '32pt']);
   assert.deepEqual(values('fontWeights').sort(), ['400', '700']);
 
-  const cut = await importPdf({ source: pdf, outDir: out, maxPages: 1 });
+  // page images only with screenshots opted in
+  const cut = await importPdf({ source: pdf, outDir: out, maxPages: 1, screenshots: true });
   assert.equal(cut.screens.length, 1);
   assert.match(cut.project.notes.join(' '), /first 1 of 2 pages/);
   assert.equal(fs.readdirSync(path.join(out, 'screens')).length, 1);
+  assert.ok(fs.statSync(path.join(out, cut.screens[0].screenshot)).size > 1000);
+  assert.ok(cut.screens[0].elements.every(e => !('text' in e)), 'text stays out even with screenshots');
   fs.rmSync(tmp, { recursive: true, force: true });
 });

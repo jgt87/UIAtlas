@@ -1,10 +1,11 @@
 // Retheme adapter: converts a Retheme template package (folder or .zip with template.json + previews/) into an
 // atlas. Each slide layout becomes a screen; theme colours, fonts and placeholder formatting become tokens;
-// placeholders, static texts and layout assets become elements. Positions are converted from inches to the
-// pixel space of the layout previews so element boxes line up with the screenshots.
-import { readFileSync, readdirSync, statSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+// placeholders, static texts and layout assets become text-free elements. Positions are converted from inches to the
+// pixel space of the layout previews so element boxes line up with the previews (copied only when screenshots are opted in).
+import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { readZip } from './zip.mjs';
+import { prepareOut, writeAtlas } from './atlas-util.mjs';
 
 // Same slug Retheme uses for preview file names (preview.py _slug).
 const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'layout';
@@ -25,7 +26,7 @@ function readPackage(src) {
   return { manifest: JSON.parse(files.get(manifestKey).toString('utf8')), file: rel => files.get(prefix + rel) };
 }
 
-export function importRetheme({ source, outDir }) {
+export function importRetheme({ source, outDir, screenshots = false }) {
   const { manifest: m, file } = readPackage(source);
   const geo = m.slide_geometry || {};
   const widthIn = geo.width_in || m.grid?.slide_width_in || 13.333, heightIn = geo.height_in || m.grid?.slide_height_in || 7.5;
@@ -55,9 +56,7 @@ export function importRetheme({ source, outDir }) {
   add('fonts', m.fonts?.heading, 0); add('fonts', m.fonts?.body, 0);
 
   const assetsById = new Map((m.assets || []).map(a => [a.asset_id, a]));
-  const shotsDir = path.join(outDir, 'screens');
-  rmSync(shotsDir, { recursive: true, force: true }); // an import fully replaces the previous one, screenshots included
-  mkdirSync(shotsDir, { recursive: true });
+  const shotsDir = prepareOut(outDir, { screenshots });
 
   const screens = (m.layouts || []).map(layout => {
     const id = slug(layout.name);
@@ -69,13 +68,13 @@ export function importRetheme({ source, outDir }) {
       const levels = ph.format_levels || {}; for (const f of Object.values(levels)) fmtTokens(f);
       const l1 = levels['1'] || {};
       bump(ph.type);
-      elements.push({ role: ph.type, tag: 'placeholder', text: ph.name || '', bbox: bbox(ph), color: hex(l1.color), bg: null,
+      elements.push({ role: ph.type, tag: 'placeholder', bbox: bbox(ph), color: hex(l1.color), bg: null,
         fontSize: l1.size_pt ? `${l1.size_pt}pt` : null, weight: l1.size_pt ? (l1.bold ? '700' : '400') : null, radius: null, font: l1.font || null, align: l1.align || null });
     }
     for (const t of layout.static_texts || []) {
       const f = t.format || {}; fmtTokens(f);
       bump('text');
-      elements.push({ role: 'text', tag: 'static text', text: (t.paragraphs || []).join(' ').slice(0, 80), bbox: bbox(t), color: hex(f.color), bg: null,
+      elements.push({ role: 'text', tag: 'static text', bbox: bbox(t), color: hex(f.color), bg: null,
         fontSize: f.size_pt ? `${f.size_pt}pt` : null, weight: f.size_pt ? (f.bold ? '700' : '400') : null, radius: null, font: f.font || null, align: f.align || null });
     }
     const ids = new Set(layout.static_assets || []);
@@ -83,12 +82,12 @@ export function importRetheme({ source, outDir }) {
     for (const aid of ids) {
       const a = assetsById.get(aid); if (!a) continue;
       bump(a.type);
-      elements.push({ role: a.type, tag: a.source_format || 'asset', text: a.asset_id, bbox: bbox(a), color: null, bg: null, fontSize: null, weight: null, radius: null });
+      elements.push({ role: a.type, tag: a.source_format || 'asset', bbox: bbox(a), color: null, bg: null, fontSize: null, weight: null, radius: null });
     }
     const png = previewOf(layout);
-    if (png) writeFileSync(path.join(shotsDir, `${id}.png`), png);
+    if (png && screenshots) writeFileSync(path.join(shotsDir, `${id}.png`), png);
     return { id, url: `${m.source_file || 'template'} › ${layout.name}`, title: layout.name, purpose: layout.purpose || null,
-      screenshot: png ? `screens/${id}.png` : null, width: px(widthIn), height: px(heightIn), inventory, elements };
+      screenshot: png && screenshots ? `screens/${id}.png` : null, width: px(widthIn), height: px(heightIn), inventory, elements };
   });
 
   const cssVars = [];
@@ -98,13 +97,11 @@ export function importRetheme({ source, outDir }) {
   for (const [k, v] of Object.entries(m.grid || {})) if (k.endsWith('_in') && v != null) cssVars.push({ name: `--${k.slice(0, -3).replace(/_/g, '-')}`, value: `${v}in` });
 
   const colors = top('colors').map(c => labels.has(c.value) ? { ...c, label: labels.get(c.value) } : c);
-  const atlas = {
-    project: { name: m.template_name || path.basename(source), kind: 'pptx', source: m.source_file || path.basename(source), created: new Date().toISOString(),
-      pages: screens.length, viewport: { width: px(widthIn), height: px(heightIn) }, units: { ppi: Math.round(ppi * 100) / 100, slideInches: { width: widthIn, height: heightIn } },
+  return writeAtlas(outDir, {
+    project: { name: m.template_name || path.basename(source), kind: 'pptx', source: m.source_file || path.basename(source),
+      viewport: { width: px(widthIn), height: px(heightIn) }, units: { ppi: Math.round(ppi * 100) / 100, slideInches: { width: widthIn, height: heightIn } },
       previews: m.preview_mode || null, notes: m.extraction_notes || [] },
     tokens: { colors, fonts: top('fonts'), fontSizes: top('fontSizes'), fontWeights: top('fontWeights'), spacing: [], radii: [], shadows: [], cssVars },
     screens,
-  };
-  writeFileSync(path.join(outDir, 'atlas.json'), JSON.stringify(atlas, null, 0));
-  return atlas;
+  }, { screenshots });
 }

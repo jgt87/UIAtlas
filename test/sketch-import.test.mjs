@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { writeZip } from './helpers/zip-writer.mjs';
+import { assertNoContent } from './helpers/no-content.mjs';
 import { importSketch } from '../src/sketch-import.mjs';
 
 // Invented fixture: a small "Lumen Notes" app design.
@@ -58,7 +59,7 @@ test('imports artboards, symbol masters, tokens and elements from a .sketch file
   assert.deepEqual(atlas.project.viewport, { width: 375, height: 812 });
   assert.deepEqual(atlas.screens.map(s => [s.id, s.url, s.purpose]), [
     ['home', 'Mobile › Home', 'Artboard'], ['note-detail', 'Mobile › Note Detail', 'Artboard'], ['button-primary', 'Mobile › Button / Primary', 'Symbol master']]);
-  assert.ok(existsSync(path.join(out, 'atlas.json')));
+  assertNoContent(atlas, out, ['Today &', 'tomorrow', 'Save note', 'Secret draft', 'Groceries']);
 
   const tk = atlas.tokens, tok = (k, v) => tk[k].find(x => x.value === v);
   assert.equal(tok('colors', '#ff6600').label, 'Brand/Accent');
@@ -75,20 +76,18 @@ test('imports artboards, symbol masters, tokens and elements from a .sketch file
   const home = atlas.screens[0], by = r => home.elements.filter(e => e.role === r);
   assert.deepEqual(home.inventory, { heading: 1, text: 2, shape: 1, component: 1, image: 1 });
   const h = by('heading')[0];
-  assert.equal(h.text, 'Today & <tomorrow>\nsecond line');
   assert.deepEqual(h.bbox, { x: 16, y: 40, w: 200, h: 36 });
   assert.deepEqual([h.fontSize, h.weight, h.font, h.color], ['28px', '600', 'Inter', '#1a1a33']);
   const card = by('shape')[0];
   assert.deepEqual([card.bbox, card.bg, card.radius, card.tag], [{ x: 16, y: 90, w: 343, h: 60 }, '#ffffff', '12px', 'rectangle']);
-  assert.equal(by('component')[0].text, 'Button / Primary');
+  assert.equal(by('component')[0].name, 'Button / Primary'); // the symbol's name is design structure, kept
   assert.equal(by('image')[0].tag, 'bitmap');
-  assert.ok(!home.elements.some(e => /Secret|Ghost/.test(e.text)));
   assert.deepEqual(atlas.screens[1].inventory, { shape: 1, text: 1 }); // a lone text is its own median, so not a heading
 });
 
-test('writes well-formed schematic SVGs', async t => {
+test('writes well-formed schematic SVGs when screenshots are opted in', async t => {
   const { dir, file, out } = fixture(); t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const atlas = await importSketch({ source: file, outDir: out });
+  const atlas = await importSketch({ source: file, outDir: out, screenshots: true });
   for (const s of atlas.screens) {
     assert.match(s.screenshot, /^screens\/.+\.svg$/);
     const svg = readFileSync(path.join(out, s.screenshot), 'utf8');
@@ -106,12 +105,12 @@ test('writes well-formed schematic SVGs', async t => {
   assert.ok(readFileSync(path.join(out, 'screens/note-detail.svg'), 'utf8').includes('<ellipse'));
 });
 
-test('copies previews/preview.png as a first screen', async t => {
+test('copies previews/preview.png as a first screen when screenshots are opted in', async t => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'sketch-import-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
   const png = Buffer.alloc(33); png.write('\x89PNG\r\n\x1a\n', 0, 'latin1'); png.writeUInt32BE(13, 8); png.write('IHDR', 12); png.writeUInt32BE(640, 16); png.writeUInt32BE(480, 20);
   const file = path.join(dir, 'Preview Only.sketch'), out = path.join(dir, 'out');
   writeZip(file, { 'document.json': document, 'pages/PAGE-1.json': { _class: 'page', name: 'Mobile', layers: [detail] }, 'previews/preview.png': png });
-  const atlas = await importSketch({ source: file, outDir: out });
+  const atlas = await importSketch({ source: file, outDir: out, screenshots: true });
   assert.deepEqual(atlas.screens.map(s => s.title), ['Document preview', 'Note Detail']);
   assert.deepEqual([atlas.screens[0].screenshot, atlas.screens[0].width, atlas.screens[0].height], ['screens/preview.png', 640, 480]);
   assert.ok(existsSync(path.join(out, 'screens/preview.png')));

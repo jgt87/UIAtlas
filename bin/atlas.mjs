@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// UI Atlas CLI.
+// UI Atlas CLI. Atlases hold design tokens and text-free style samples only; --screenshots (any extract/import
+// command) additionally stores screenshots. Text content is never stored.
 //   atlas extract <url> [--pages N] [--name NAME]   crawl a site into data/<name>/atlas.json + screenshots
 //   atlas import <path> [--name NAME] [--kind K]     import a file/folder; the adapter is picked from its type (see src/detect.mjs)
 //   atlas storybook <url> [--pages N] [--name NAME]  measure every story of a deployed Storybook
@@ -14,26 +15,27 @@ const dataDir = path.join(root, 'data');
 const argv = process.argv.slice(2);
 const cmd = argv[0];
 const opt = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : d; };
+const screenshots = argv.includes('--screenshots');
 const safe = s => s.replace(/[^a-z0-9.-]/gi, '_');
 const outFor = name => { const d = path.join(dataDir, safe(name)); mkdirSync(d, { recursive: true }); return d; };
 const pages = d => Math.max(1, Number(opt('pages', String(d))) || d);
-const done = (atlas, what = 'screens') => console.log(`Done: ${atlas.screens.length} ${what}, ${atlas.tokens.colors.length} colours, ${atlas.tokens.fonts.length} fonts. Run: atlas serve`);
+const done = (atlas, what = 'screens') => console.log(`Done: ${atlas.screens.length} ${what}, ${atlas.tokens.colors.length} colours, ${atlas.tokens.fonts.length} fonts${screenshots ? ', with screenshots' : ''}. Run: atlas serve`);
 
 // Each importer: (absolute source, outDir) -> atlas. Loaded lazily so a missing optional dependency only affects its own kind.
 const importers = {
-  retheme: async (src, out) => (await import('../src/retheme-import.mjs')).importRetheme({ source: src, outDir: out }),
-  storybook: async (src, out) => (await import('../src/storybook-import.mjs')).importStorybook({ source: src, outDir: out, maxStories: pages(60) }),
-  image: async (src, out) => (await import('../src/image-import.mjs')).importImages({ source: src, outDir: out }),
+  retheme: async (src, out) => (await import('../src/retheme-import.mjs')).importRetheme({ source: src, outDir: out, screenshots }),
+  storybook: async (src, out) => (await import('../src/storybook-import.mjs')).importStorybook({ source: src, outDir: out, maxStories: pages(60), screenshots }),
+  image: async (src, out) => (await import('../src/image-import.mjs')).importImages({ source: src, outDir: out, screenshots }),
   tokens: async (src, out) => (await import('../src/tokens-import.mjs')).importTokens({ source: src, outDir: out }),
-  sketch: async (src, out) => (await import('../src/sketch-import.mjs')).importSketch({ source: src, outDir: out }),
-  pdf: async (src, out) => (await import('../src/pdf-import.mjs')).importPdf({ source: src, outDir: out, maxPages: pages(40) }),
+  sketch: async (src, out) => (await import('../src/sketch-import.mjs')).importSketch({ source: src, outDir: out, screenshots }),
+  pdf: async (src, out) => (await import('../src/pdf-import.mjs')).importPdf({ source: src, outDir: out, maxPages: pages(40), screenshots }),
   html: async (src, out) => {
     // local HTML/SVG: crawl from the file (or the folder's index.html) but only within that folder
     const dir = statSync(src).isDirectory() ? src : path.dirname(src);
     const start = statSync(src).isDirectory() ? path.join(src, existsSync(path.join(src, 'index.html')) ? 'index.html' : readdirSync(src).find(f => /\.(html?|svg)$/i.test(f))) : src;
     const { extractSite } = await import('../src/web-extract.mjs');
     return extractSite({ startUrl: pathToFileURL(start).href, scope: pathToFileURL(dir + path.sep).href, maxPages: pages(statSync(src).isDirectory() ? 20 : 1),
-      outDir: out, name: path.basename(src), kind: 'file', source: path.basename(src) });
+      outDir: out, name: path.basename(src), kind: 'file', source: path.basename(src), screenshots });
   },
 };
 
@@ -44,7 +46,7 @@ if (cmd === 'extract') {
   const maxPages = pages(1);
   const { extractSite } = await import('../src/web-extract.mjs');
   console.log(`Extracting ${url} -> data/${safe(name)}  (up to ${maxPages} page${maxPages > 1 ? 's' : ''})`);
-  done(await extractSite({ startUrl: url, maxPages, outDir: outFor(name) }));
+  done(await extractSite({ startUrl: url, maxPages, outDir: outFor(name), screenshots }));
 } else if (cmd === 'import') {
   const src = argv[1] && path.resolve(argv[1]);
   if (!src || !existsSync(src)) { console.error(`Usage: atlas import <file or folder> [--name NAME] [--kind ${Object.keys(importers).join('|')}]`); process.exit(1); }
@@ -83,6 +85,9 @@ if (cmd === 'extract') {
                                                      HTML/SVG, images, design-token JSON, .sketch, .pdf
   atlas export <atlas> [--format pdf,json,css] [--out DIR]
                                                      token sheet PDF, W3C design tokens JSON, CSS variables
-  atlas serve [--port P]`);
+  atlas serve [--port P]
+
+Atlases store design tokens and text-free style samples only. Add --screenshots to an extract/storybook/import
+command to also keep screenshots; text content is never stored.`);
   if (existsSync(dataDir)) { const sets = readdirSync(dataDir).filter(d => existsSync(path.join(dataDir, d, 'atlas.json'))); if (sets.length) console.log('\nExtracted atlases: ' + sets.join(', ')); }
 }

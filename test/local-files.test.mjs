@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { extractSite } from '../src/web-extract.mjs';
 import { importStorybook } from '../src/storybook-import.mjs';
 import { detectKind } from '../src/detect.mjs';
+import { assertNoContent } from './helpers/no-content.mjs';
 
 const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'atlas-test-'));
 const values = list => list.map(x => x.value);
@@ -27,10 +28,10 @@ test('local HTML folder: crawls linked pages inside the folder only, records rel
   for (const c of ['#123456', '#654321', '#c0ffee']) assert.ok(values(atlas.tokens.colors).includes(c), c);
   assert.ok(values(atlas.tokens.fonts).includes('Georgia'));
   for (const r of ['6px', '50%', '8px 8px 0px 0px']) assert.ok(values(atlas.tokens.radii).includes(r), r); // all corners; % kept as %
-  assert.ok(atlas.screens.every(s => existsSync(path.join(out, s.screenshot))));
+  assertNoContent(atlas, out, ['Home', 'About', 'outside']); // headings and link labels are content
 });
 
-test('SVG file: fill and stroke colours and text are measured', async () => {
+test('SVG file: fill and stroke colours and text styles are measured, the text itself is not stored', async () => {
   const dir = tmp(), out = path.join(dir, 'out'); mkdirSync(out);
   const svg = path.join(dir, 'logo.svg');
   writeFileSync(svg, `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="120"><rect width="300" height="120" fill="#fafafa"/>
@@ -39,7 +40,8 @@ test('SVG file: fill and stroke colours and text are measured', async () => {
   const atlas = await extractSite({ startUrl: pathToFileURL(svg).href, scope: pathToFileURL(dir + path.sep).href, outDir: out, name: 'logo.svg', kind: 'file', source: 'logo.svg' });
   for (const c of ['#fafafa', '#e4572e', '#29335c']) assert.ok(values(atlas.tokens.colors).includes(c), c);
   const text = atlas.screens[0].elements.find(e => e.role === 'text');
-  assert.equal(text?.text, 'Acme');
+  assert.ok(text && text.color === '#29335c');
+  assertNoContent(atlas, out, ['Acme']);
 });
 
 test('Storybook static folder: one screen per story, docs entries skipped, measured inside the story root', async () => {
@@ -55,7 +57,7 @@ test('Storybook static folder: one screen per story, docs entries skipped, measu
     const bg = id.endsWith('primary') ? '#1a73e8' : '#e8eaed', fg = id.endsWith('primary') ? '#ffffff' : '#202124';
     setTimeout(() => { document.getElementById('storybook-root').innerHTML = '<button style="background:' + bg + ';color:' + fg + ';border:0;border-radius:8px;padding:10px 16px;font:600 14px Arial">Click</button>'; }, 100);</script>`);
   assert.equal(detectKind(sb), 'storybook');
-  const atlas = await importStorybook({ source: sb, outDir: out });
+  const atlas = await importStorybook({ source: sb, outDir: out, screenshots: true });
   assert.deepEqual(atlas.screens.map(s => s.title), ['Button / Primary', 'Button / Secondary']);
   assert.equal(atlas.project.kind, 'storybook');
   const cols = values(atlas.tokens.colors);
@@ -63,5 +65,7 @@ test('Storybook static folder: one screen per story, docs entries skipped, measu
   assert.ok(!cols.includes('#ff00ff'), 'chrome outside the story root is not measured');
   assert.ok(values(atlas.tokens.radii).includes('8px'));
   assert.ok(atlas.screens.every(s => s.url.startsWith('iframe.html?id=') && existsSync(path.join(out, s.screenshot))));
-  assert.ok(!readFileSync(path.join(out, 'atlas.json'), 'utf8').includes('127.0.0.1'), 'no temporary server address recorded');
+  const json = readFileSync(path.join(out, 'atlas.json'), 'utf8');
+  assert.ok(!json.includes('127.0.0.1'), 'no temporary server address recorded');
+  assert.ok(!json.includes('Click') && !json.includes('sidebar'), 'no text content, even with screenshots');
 });

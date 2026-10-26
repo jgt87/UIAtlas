@@ -25,7 +25,7 @@ export function parseFontName(raw) {
 }
 
 // Runs inside the page: opens the document once (kept on window) and reports one page per call.
-async function readPage({ n, maxWidth }) {
+async function readPage({ n, maxWidth, png: wantPng }) {
   const lib = window.pdfjsLib ||= await import('/pdfjs/build/pdf.min.mjs');
   lib.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.min.mjs';
   const doc = window.pdfDoc ||= await lib.getDocument({ url: '/doc.pdf', cMapUrl: '/pdfjs/cmaps/', cMapPacked: true,
@@ -35,7 +35,7 @@ async function readPage({ n, maxWidth }) {
   const scale = Math.min(maxWidth / base.width, 3), vp = page.getViewport({ scale });
   const canvas = document.createElement('canvas'); canvas.width = Math.ceil(vp.width); canvas.height = Math.ceil(vp.height);
   await page.render({ canvas, canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-  const png = canvas.toDataURL('image/png').split(',')[1];
+  const png = wantPng ? canvas.toDataURL('image/png').split(',')[1] : null; // rendering is still needed: it loads the real font names
 
   // Colours: older pdf.js passes numeric arrays (0-255 RGB, 0-1 gray/CMYK), newer a '#rrggbb' string for all of them.
   const { OPS, Util } = lib, op = (fn, args) => {
@@ -93,10 +93,10 @@ function lines(items) {
   return out.map(l => ({ ...l, text: l.text.replace(/\s+/g, ' ').trim() })).filter(l => l.text);
 }
 
-export async function importPdf({ source, outDir, maxPages = 40 }) {
+export async function importPdf({ source, outDir, maxPages = 40, screenshots = false }) {
   const bytes = readFileSync(source), name = path.basename(source);
   if (bytes.subarray(0, 1024).indexOf('%PDF') < 0) throw new Error(`${name} is not a PDF`);
-  const shots = prepareOut(outDir), tally = tokenTally(), screens = [], notes = [];
+  const shots = prepareOut(outDir, { screenshots }), tally = tokenTally(), screens = [], notes = [];
   const browser = await launchBrowser(), page = await browser.newPage();
   try {
     await page.route(`${ORIGIN}**`, route => {
@@ -114,24 +114,24 @@ export async function importPdf({ source, outDir, maxPages = 40 }) {
     const count = Math.min(pages, maxPages);
     if (pages > count) notes.push(`Only the first ${count} of ${pages} pages were imported (maxPages).`);
     for (let n = 1; n <= count; n++) {
-      const r = await page.evaluate(readPage, { n, maxWidth: 1280 }), id = `p${n}`;
-      writeFileSync(path.join(shots, `${id}.png`), Buffer.from(r.png, 'base64'));
+      const r = await page.evaluate(readPage, { n, maxWidth: 1280, png: screenshots }), id = `p${n}`;
+      if (screenshots) writeFileSync(path.join(shots, `${id}.png`), Buffer.from(r.png, 'base64'));
       for (const c of r.fills) tally.add('colors', toHex(c));
       const ls = lines(r.items), med = median(ls.map(l => l.pt));
       const elements = ls.map(l => {
         const f = parseFontName(l.font), color = toHex(l.color), pt = half(l.pt);
         tally.add('colors', color); tally.add('fonts', f.family); tally.add('fontSizes', `${pt}pt`); tally.add('fontWeights', f.weight);
-        return { role: l.pt >= med * 1.4 ? 'heading' : 'text', tag: 'text', text: l.text.slice(0, 120),
+        return { role: l.pt >= med * 1.4 ? 'heading' : 'text', tag: 'text', // text is only used in memory to form lines, never stored
           bbox: { x: Math.round(l.x), y: Math.round(l.base - l.h * 0.8), w: Math.round(l.w), h: Math.round(l.h) },
           color, bg: null, fontSize: `${pt}pt`, weight: f.weight, radius: null, font: f.family };
       });
       const prominent = [...elements].sort((a, b) => parseFloat(b.fontSize) - parseFloat(a.fontSize)).slice(0, 40);
       const inventory = { text: ls.length, heading: elements.filter(e => e.role === 'heading').length, image: r.images };
-      screens.push({ id, url: `${name} · page ${n}`, title: `Page ${n}`, screenshot: `screens/${id}.png`, width: r.width, height: r.height, inventory, elements: prominent });
+      screens.push({ id, url: `${name} · page ${n}`, title: `Page ${n}`, screenshot: screenshots ? `screens/${id}.png` : null, width: r.width, height: r.height, inventory, elements: prominent });
       console.log(`  [${n}/${count}] page ${n}  (${ls.length} lines, ${r.fills.length} fills, ${r.images} images)`);
     }
   } finally { await page.close().catch(() => {}); await browser.close(); } // closing the page first avoids a ~6 s Edge shutdown stall
   const first = screens[0] || { width: 0, height: 0 };
   return writeAtlas(outDir, { project: { name: path.basename(name, path.extname(name)), kind: 'pdf', source: name,
-    viewport: { width: first.width, height: first.height }, notes }, tokens: tally.finalize(), screens });
+    viewport: { width: first.width, height: first.height }, notes }, tokens: tally.finalize(), screens }, { screenshots });
 }

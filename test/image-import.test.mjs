@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { launchBrowser } from '../src/atlas-util.mjs';
+import { assertNoContent } from './helpers/no-content.mjs';
 import { importImages } from '../src/image-import.mjs';
 
 // Fixture: flat blocks with known hexes on a white page, plus an anti-aliased circle and a gradient strip
@@ -35,8 +36,7 @@ test('importImages: flat blocks become the palette, edges and gradients do not',
   assert.equal(atlas.project.source, 'src');
   assert.deepEqual(atlas.project.viewport, { width: 640, height: 480 }); // sorted by name: a-small first
   assert.deepEqual(atlas.screens.map(s => s.url), ['a-small.jpg', 'b-board.png']);
-  for (const s of atlas.screens) assert.ok(fs.existsSync(path.join(out, s.screenshot)), s.screenshot);
-  assert.equal(atlas.screens[0].screenshot, 'screens/a-small.jpg');
+  assertNoContent(atlas, out); // the images themselves are not copied without --screenshots
 
   const board = atlas.screens[1], allowed = new Set([...BLOCKS, '#ffffff']);
   const boardColors = board.palette.map(p => p.value);
@@ -47,13 +47,15 @@ test('importImages: flat blocks become the palette, edges and gradients do not',
   const colors = atlas.tokens.colors;
   assert.ok(colors.every(c => c.label.startsWith('observed') && c.share > 0 && c.share <= 1));
   assert.ok(Math.abs(colors.reduce((a, c) => a + c.share, 0) - 1) < 0.01);
-  const white = colors.find(c => c.value === '#ffffff');
-  assert.ok(white && white.label.includes('b-board.png'));
+  assert.ok(colors.every(c => c.label === 'observed'), 'no file names in labels: they would reach exports');
   // JPEG tones may be off by a step; they must still land within a few units of the known colours
   const near = (a, b) => [1, 3, 5].every(i => Math.abs(parseInt(a.slice(i, i + 2), 16) - parseInt(b.slice(i, i + 2), 16)) <= 4);
   const small = atlas.screens[0].palette.map(p => p.value);
   assert.ok(small.some(c => near(c, '#ffc914')) && small.some(c => near(c, '#2e282a')), String(small));
   assert.ok(small.length <= 3, String(small));
   assert.ok(colors.length <= 8, colors.map(c => c.value).join(' '));
+  const shot = await importImages({ source: src, outDir: out, screenshots: true });
+  for (const s of shot.screens) assert.ok(fs.existsSync(path.join(out, s.screenshot)), s.screenshot);
+  assert.equal(shot.screens[0].screenshot, 'screens/a-small.jpg');
   fs.rmSync(tmp, { recursive: true, force: true });
 });

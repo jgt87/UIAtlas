@@ -1,5 +1,5 @@
 // Shared helpers for adapters: every adapter turns some source into the same atlas.json schema
-// (see AGENTS.md) under data/<name>/, with screenshots in data/<name>/screens/.
+// (see AGENTS.md) under data/<name>/; screenshots (opt-in) go to data/<name>/screens/.
 import { chromium } from 'playwright';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -51,15 +51,30 @@ export function tokenTally() {
   return { add, cssVar: (name, value) => value != null && vars.set(name, String(value)), finalize };
 }
 
-// Fresh output folder for a (re)import: screens/ is cleared so stale screenshots never linger.
-export function prepareOut(outDir) {
+// Fresh output folder for a (re)import: screens/ is cleared so stale screenshots never linger. Only created when
+// screenshots are opted into (--screenshots); without it nothing but atlas.json is written.
+export function prepareOut(outDir, { screenshots = false } = {}) {
   const shots = path.join(outDir, 'screens');
-  rmSync(shots, { recursive: true, force: true }); mkdirSync(shots, { recursive: true });
+  rmSync(shots, { recursive: true, force: true }); mkdirSync(screenshots ? shots : outDir, { recursive: true });
   return shots;
 }
 
-export function writeAtlas(outDir, { project, tokens, screens = [] }) {
-  const atlas = { project: { created: new Date().toISOString(), pages: screens.length, ...project }, tokens, screens };
+// An atlas holds design tokens and text-free style samples, never source content. Whatever an adapter produced,
+// element text is dropped, screenshots are dropped unless opted into, and variables holding quoted strings
+// (CSS `content`-style values, i.e. copy) are left out.
+export function sanitize(atlas, { screenshots = false } = {}) {
+  for (const s of atlas.screens || []) {
+    if (!screenshots) s.screenshot = null;
+    for (const e of s.elements || []) delete e.text;
+  }
+  if (atlas.tokens?.cssVars) atlas.tokens.cssVars = atlas.tokens.cssVars.filter(v => !/^\s*["']/.test(v.value));
+  atlas.project.screenshots = !!screenshots;
+  return atlas;
+}
+
+export function writeAtlas(outDir, { project, tokens, screens = [] }, { screenshots = false } = {}) {
+  const atlas = sanitize({ project: { created: new Date().toISOString(), pages: screens.length, ...project }, tokens, screens }, { screenshots });
+  if (!screenshots) rmSync(path.join(outDir, 'screens'), { recursive: true, force: true });
   writeFileSync(path.join(outDir, 'atlas.json'), JSON.stringify(atlas, null, 0));
   return atlas;
 }

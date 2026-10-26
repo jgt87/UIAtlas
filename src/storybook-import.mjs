@@ -1,6 +1,7 @@
 // Storybook adapter: reads a Storybook's story index (index.json, or stories.json on v6) from a deployed URL or a
 // local storybook-static folder, opens each story in its iframe and measures just the story root with the web
-// extractor. Every story becomes a screen; tokens aggregate across stories, so the atlas is a component library.
+// extractor. Every story becomes a screen (text-free style samples; screenshots only when opted in); tokens aggregate
+// across stories, so the atlas is a component library.
 import http from 'node:http';
 import { readFile, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -33,11 +34,11 @@ async function storyIndex(base) {
   throw new Error(`No Storybook index.json or stories.json at ${base}`);
 }
 
-export async function importStorybook({ source, outDir, maxStories = 60, viewport = { width: 1280, height: 900 } }) {
+export async function importStorybook({ source, outDir, maxStories = 60, viewport = { width: 1280, height: 900 }, screenshots = false }) {
   const local = !/^https?:\/\//i.test(source);
   const srv = local ? await serveFolder(path.resolve(source)) : null;
   const base = local ? srv.base : source.replace(/(iframe|index)\.html.*$/i, '').replace(/\/?$/, '/');
-  const shotsDir = prepareOut(outDir);
+  const shotsDir = prepareOut(outDir, { screenshots });
   const browser = await launchBrowser();
   const screens = [], tokenAcc = {}, notes = [];
   try {
@@ -46,7 +47,7 @@ export async function importStorybook({ source, outDir, maxStories = 60, viewpor
     const page = await newMeasuringPage(browser, viewport);
     for (const s of stories.slice(0, maxStories)) {
       const rel = `iframe.html?id=${encodeURIComponent(s.id)}&viewMode=story`;
-      const got = await capturePage(page, base + rel, shotsDir, { waitMs: 400, rootSel: ROOT, viewport,
+      const got = await capturePage(page, base + rel, shotsDir, { waitMs: 400, rootSel: ROOT, viewport, screenshots,
         waitFor: p => p.waitForFunction(sel => document.querySelector(sel)?.childElementCount > 0, ROOT, { timeout: 15000 }) });
       if (!got) { notes.push(`Could not load story ${s.id}.`); continue; }
       mergeTokens(tokenAcc, got.tokens);
@@ -57,5 +58,5 @@ export async function importStorybook({ source, outDir, maxStories = 60, viewpor
   } finally { await browser.close(); srv?.close(); }
   // capturePage names screenshots by URL hash; ids were reassigned to story ids, the file paths stay valid
   return writeAtlas(outDir, { project: { name: local ? path.basename(path.resolve(source)) : new URL(base).hostname, kind: 'storybook', source: local ? path.basename(path.resolve(source)) : base, viewport, notes },
-    tokens: finalizeTokens(tokenAcc), screens });
+    tokens: finalizeTokens(tokenAcc), screens }, { screenshots });
 }

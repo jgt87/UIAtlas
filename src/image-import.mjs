@@ -62,13 +62,13 @@ async function analyse(url) {
 const palette = (r, name) => cluster(r.colors.map(c => ({ ...c, lab: lab(c.rgb), names: [name] })))
   .filter(c => c.top >= c.n * 0.3 && c.n >= r.flat * MIN_SHARE).slice(0, PER_IMAGE);
 
-export async function importImages({ source, outDir }) {
+export async function importImages({ source, outDir, screenshots = false }) {
   const isDir = statSync(source).isDirectory();
   const files = isDir
     ? readdirSync(source).filter(f => isImage(f) && statSync(path.join(source, f)).isFile()).sort((a, b) => a.localeCompare(b)).map(f => path.join(source, f))
     : [source];
   if (!files.length || !files.every(isImage)) throw new Error(`No supported images (${Object.keys(TYPES).join(' ')}) in ${source}`);
-  const shots = prepareOut(outDir), tally = tokenTally(), screens = [], ids = new Set(), all = [], notes = [];
+  const shots = prepareOut(outDir, { screenshots }), tally = tokenTally(), screens = [], ids = new Set(), all = [], notes = [];
   const browser = await launchBrowser(), page = await browser.newPage();
   try {
     await page.route(`${ORIGIN}**`, route => {
@@ -86,18 +86,18 @@ export async function importImages({ source, outDir }) {
       all.push(...pal);
       const purpose = flatShare < PHOTO_FLAT ? `photo-heavy: only ${pct(flatShare)} flat pixels; palette from flat regions only` : null;
       if (purpose) notes.push(`${name}: ${purpose}`);
-      copyFileSync(file, path.join(shots, id + ext));
-      screens.push({ id, url: name, title: name, purpose, screenshot: `screens/${id}${ext}`, width: r.width, height: r.height, inventory: {}, elements: [],
+      if (screenshots) copyFileSync(file, path.join(shots, id + ext)); // the image itself is content: only kept when opted in
+      screens.push({ id, url: name, title: name, purpose, screenshot: screenshots ? `screens/${id}${ext}` : null, width: r.width, height: r.height, inventory: {}, elements: [],
         flatShare: +flatShare.toFixed(3), palette: pal.slice(0, 6).map(c => ({ value: hex(c.rgb), share: +(c.n / (r.flat || 1)).toFixed(4) })) });
       console.log(`  [${screens.length}/${files.length}] ${name}  (${r.width}x${r.height}, ${pct(flatShare)} flat, ${pal.length} colours)`);
     }
   } finally { await page.close().catch(() => {}); await browser.close(); } // closing the page first avoids a ~6 s Edge shutdown stall
   // Aggregate across images by pixel count; shares are of all counted (palette) pixels in the atlas.
   const merged = cluster(all), counted = merged.reduce((a, c) => a + c.n, 0) || 1;
-  for (const c of merged) { const v = hex(c.rgb); tally.add('colors', v, Math.round(c.n), 'observed'); for (const n of c.names) tally.add('colors', v, 0, n); }
+  for (const c of merged) tally.add('colors', hex(c.rgb), Math.round(c.n), 'observed'); // no file names in labels: they travel into exports
   const tokens = tally.finalize();
   tokens.colors = tokens.colors.map(c => ({ ...c, share: +(c.count / counted).toFixed(4) }));
   const first = screens[0] || { width: 0, height: 0 };
   return writeAtlas(outDir, { project: { name: isDir ? path.basename(path.resolve(source)) : path.basename(source, path.extname(source)), kind: 'image', source: path.basename(path.resolve(source)),
-    viewport: { width: first.width, height: first.height }, notes }, tokens, screens });
+    viewport: { width: first.width, height: first.height }, notes }, tokens, screens }, { screenshots });
 }

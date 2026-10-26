@@ -39,7 +39,7 @@ const border = l => (l.style?.borders || []).find(b => b.isEnabled !== false && 
 const radiusOf = l => l._class === 'rectangle' ? (Number(l.fixedRadius) || Math.max(0, ...(l.points || []).map(p => Number(p.cornerRadius) || 0)) || null) : null;
 const shadowCss = (s, inset) => `${inset ? 'inset ' : ''}${r1(s.offsetX)}px ${r1(s.offsetY)}px ${r1(s.blurRadius)}px ${r1(s.spread)}px ${col(s.color) || '#000000'}`;
 
-export async function importSketch({ source, outDir }) {
+export async function importSketch({ source, outDir, screenshots = false }) {
   const files = readZip(source);
   const json = name => { const b = files.get(name); return b ? JSON.parse(b.toString('utf8')) : null; };
   const doc = json('document.json');
@@ -47,7 +47,7 @@ export async function importSketch({ source, outDir }) {
   const meta = json('meta.json') || {};
   const refs = (doc.pages || []).map(p => p._ref).filter(Boolean);
   const pages = (refs.length ? refs.map(r => `${r}.json`) : [...files.keys()].filter(k => /^pages\/[^/]+\.json$/.test(k))).map(json).filter(Boolean);
-  const shots = prepareOut(outDir), tally = tokenTally();
+  const shots = prepareOut(outDir, { screenshots }), tally = tokenTally();
 
   // Colour names from swatches and colour assets, used as token labels.
   const names = new Map(), nameColor = (name, c) => { const v = col(c); if (v && name) (names.get(v) || names.set(v, new Set()).get(v)).add(name); return v; };
@@ -76,7 +76,7 @@ export async function importSketch({ source, outDir }) {
   const used = new Set(), uid = s => { let id = slug(s), n = 2; while (used.has(id)) id = `${slug(s)}-${n++}`; used.add(id); return id; };
   const screens = [];
   const preview = files.get('previews/preview.png');
-  if (preview) {
+  if (preview && screenshots) {
     writeFileSync(path.join(shots, 'preview.png'), preview); used.add('preview');
     const sz = pngSize(preview) || {};
     screens.push({ id: 'preview', url: 'Document preview', title: 'Document preview', purpose: 'Sketch document preview image', screenshot: 'screens/preview.png',
@@ -91,7 +91,7 @@ export async function importSketch({ source, outDir }) {
     const bg = board.hasBackgroundColor ? col(board.backgroundColor) : null;
     if (bg) { addColor(bg); svg.push(`<rect width="${W}" height="${H}" fill="${bg}"/>`); }
     const el = (l, role, box, extra) => { inventory[role] = (inventory[role] || 0) + 1;
-      elements.push({ role, tag: l._class, text: '', bbox: box, color: null, bg: null, fontSize: null, weight: null, radius: null, font: null, ...extra }); };
+      elements.push({ role, tag: l._class, bbox: box, color: null, bg: null, fontSize: null, weight: null, radius: null, font: null, ...extra }); };
     // Draw (and, unless inside a symbol instance, record) a layer tree; ox/oy = absolute offset of the parent.
     const walk = (layers, ox, oy, record, depth) => {
       for (const l of layers || []) {
@@ -111,17 +111,17 @@ export async function importSketch({ source, outDir }) {
           const size = t.size || 12, { family, weight } = parseFont(t.name);
           if (record) {
             for (const run of t.runs) { const fa = fontAttr(run); fontTokens(fa.name, fa.size); addColor(col(run.MSAttributedStringColorAttribute)); }
-            el(l, 'text', box, { text: str.slice(0, 80), color: t.color, fontSize: t.size ? `${r1(t.size)}px` : null, weight: t.name ? String(weight) : null, font: family, _size: size });
+            el(l, 'text', box, { color: t.color, fontSize: t.size ? `${r1(t.size)}px` : null, weight: t.name ? String(weight) : null, font: family, _size: size });
           }
           const line = str.split(/\r?\n|\u2028/)[0];
           if (line) svg.push(`<text x="${x}" y="${r1(y + size)}" font-family="${esc(family ? `'${family}', sans-serif` : 'sans-serif')}" font-size="${r1(size)}"${t.name ? ` font-weight="${weight}"` : ''} fill="${t.color || '#000000'}"${alpha}>${esc(line)}</text>`);
         } else if (l._class === 'symbolInstance') {
           const m = masters.get(l.symbolID);
-          if (record) el(l, 'component', box, { text: m?.name || l.name || '', bg: fill });
+          if (record) el(l, 'component', box, { name: m?.name || null, bg: fill }); // the symbol's design-system name, not layer content
           if (m && depth < 8) { svg.push(`<g${alpha}>`); walk(m.layers, x, y, false, depth + 1); svg.push('</g>'); }
           else svg.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#999999" stroke-dasharray="4 3"/>`);
         } else if (l._class === 'bitmap') {
-          if (record) el(l, 'image', box, { text: l.name || '' });
+          if (record) el(l, 'image', box);
           svg.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#cccccc" stroke="#999999"${alpha}/>`);
         } else if (SHAPES.has(l._class) && (l._class !== 'shapeGroup' || !l.layers?.length || fill)) {
           const rad = radiusOf(l);
@@ -140,18 +140,19 @@ export async function importSketch({ source, outDir }) {
     if (inventory.text === 0) delete inventory.text;
 
     const id = uid(board.name), master = board._class === 'symbolMaster';
-    writeFileSync(path.join(shots, `${id}.svg`), `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`
+    // the schematic draws the file's text, so it is only written when screenshots are opted into
+    if (screenshots) writeFileSync(path.join(shots, `${id}.svg`), `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`
       + `<rect width="${W}" height="${H}" fill="${bg ? bg : '#ffffff'}"/>${svg.join('')}</svg>\n`);
     screens.push({ id, url: `${page.name} › ${board.name}`, title: board.name, purpose: master ? 'Symbol master' : 'Artboard',
-      screenshot: `screens/${id}.svg`, width: W, height: H, inventory, elements });
+      screenshot: screenshots ? `screens/${id}.svg` : null, width: W, height: H, inventory, elements });
   }
 
   const first = screens.find(s => s.id !== 'preview');
   const notes = [`Sketch ${meta.appVersion || 'unknown version'}: ${pages.length} page(s), ${screens.filter(s => s.purpose === 'Artboard').length} artboard(s), ${screens.filter(s => s.purpose === 'Symbol master').length} symbol master(s).`,
-    'Screens are schematic SVGs drawn from the layer tree (boxes, ovals, first text line, grey bitmaps), not renders.'];
+    ...(screenshots ? ['Screens are schematic SVGs drawn from the layer tree (boxes, ovals, first text line, grey bitmaps), not renders.'] : [])];
   return writeAtlas(outDir, {
     project: { name: path.basename(source, path.extname(source)), kind: 'sketch', source: path.basename(source),
       viewport: first ? { width: first.width, height: first.height } : null, notes },
     tokens: tally.finalize(), screens,
-  });
+  }, { screenshots });
 }

@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-26
+### Added
+- Structured JSON export in the W3C Design Tokens Format 2025.10: grouped primitives (colour objects, `{value, unit}` dimensions, named font weights, shadow objects), a `typography` layer per element role and a `component` layer (background, text colour, radius) that alias the primitives, and the source's declared variables typed and aliased into the palette. The CSS export is generated from the same structure, with aliases as `var()` references.
+- Element style samples from websites and Storybook record their font family.
+
+### Changed
+- Atlases no longer capture content: element text, page titles, slide/PDF/Sketch text and quoted-string variables are never stored, and screenshots, image copies, rendered PDF pages, layout previews and Sketch schematics are only written with the new `--screenshots` flag. A shared sanitizer enforces this for every adapter.
+- Exports (PDF token sheet, JSON, CSS) contain design tokens only: no source name, file name, source type or text.
+- Image colour labels no longer include file names.
+- The viewer shows compact screen cards when screenshots aren't stored, and an Element column (tag or symbol name) instead of Text.
+
+### Fixed
+- SVG text elements report their fill as their colour (was the inherited CSS colour).
+
 ## [0.2.0] - 2026-10-26
 ### Added
 - `atlas import <package>`: turns a Retheme PowerPoint template package (folder or .zip) into an atlas — layouts as screens, theme colours with their slot and role, fonts and type sizes, and placeholders/static texts/assets as elements.
