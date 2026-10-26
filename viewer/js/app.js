@@ -5,6 +5,8 @@ import { h, esc } from './dom.js';
 import { contrastSection } from './contrast.js';
 import { loadFontFaces, fontStatus, STATUS_LABEL, fontCss, hasWeight, fallbackTag } from './fonts.js';
 import { fmtColor, colorFormat, setColorFormat } from './color-format.js';
+import { renderComponents } from './components-view.js';
+import { renderFlow } from './flow-view.js';
 const main = document.getElementById('main');
 const pick = document.getElementById('atlasPick');
 const search = document.getElementById('search');
@@ -34,7 +36,7 @@ const view = () => (location.hash.replace('#/', '') || (atlas?.screens.length ? 
 function route() {
   const v = view();
   for (const a of document.querySelectorAll('.navitem')) a.classList.toggle('active', a.dataset.nav === v);
-  ({ screens: renderScreens, tokens: renderTokens, elements: renderElements }[v] || renderScreens)();
+  ({ screens: renderScreens, tokens: renderTokens, elements: renderElements, components: () => main.replaceChildren(...renderComponents(atlas, q)), map: () => main.replaceChildren(...renderFlow(atlas)) }[v] || renderScreens)();
 }
 
 function renderScreens() {

@@ -24,9 +24,14 @@ export function sheetHtml(atlas) {
   const colors = palette(t.colors);
   const lineHeights = t.lineHeights?.length ? `<div class="pills">${t.lineHeights.map(l => `<span>${esc(l.value)} <small>${l.count}×</small></span>`).join('')}</div>` : '';
   const letterSpacings = t.letterSpacings?.length ? `<div class="pills">${t.letterSpacings.map(l => `<span>${esc(l.value)} <small>${l.count}×</small></span>`).join('')}</div>` : '';
-  const LEVEL = { fail: 'Fails AA', AA: 'AA', AAA: 'AAA', unknown: 'Over an image' };
+  const LEVEL = { fail: 'Fails AA', AA: 'AA', AAA: 'AAA', unknown: 'Not measurable' };
   const contrast = atlas.contrast?.length ? `<table class="ct">${atlas.contrast.map(c => `<tr><td><b style="color:${esc(c.fg)};background:${esc(c.bg)}">Aa</b></td><td>${esc(c.fg)} on ${esc(c.bg)}${c.overImage ? ' + image' : ''}</td><td>${c.level === 'unknown' ? '—' : `${c.ratio}:1`}</td><td class="${c.level === 'fail' ? 'f' : ''}">${LEVEL[c.level] || esc(c.level)}${c.large ? ' (large)' : ''}</td><td>${c.count}×</td></tr>`).join('')}</table>` : '';
   const rated = (atlas.contrast || []).filter(c => c.level !== 'unknown');
+  const light = hex => { const n = parseInt(String(hex || '').slice(1, 7), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 186; };
+  const vcss = st => [st.bg && `background:${st.bg}`, st.color && `color:${st.color}`, `border:1px ${st.border ? `solid ${st.border}` : 'dashed #d0d4da'}`, st.radius && `border-radius:${st.radius}`,
+    st.fontSize && `font-size:${st.fontSize}`, st.weight && `font-weight:${st.weight}`, st.padding && `padding:${st.padding}`, st.font && `font-family:'${String(st.font).replace(/'/g, '')}', system-ui, sans-serif`].filter(Boolean).map(esc).join(';');
+  const comps = Object.entries(atlas.components || {}).map(([role, list]) => `<h3>${esc(role)}</h3><table class="cv">${list.map(v => `<tr><td class="stage${!v.style.bg && light(v.style.color) ? ' dk' : ''}"><span style="${vcss(v.style)}">${esc(role.charAt(0).toUpperCase() + role.slice(1))}</span></td>
+    <td><b>${esc(v.name)}</b> <small>${v.count}× · ${v.screens} screen(s)</small><br>${[v.style.bg && `bg ${v.style.bg}`, v.style.color && `text ${v.style.color}`, v.style.border && `border ${v.style.border}`, v.style.radius && `radius ${v.style.radius}`, v.style.fontSize && `${v.style.fontSize} ${v.style.weight || ''}`, v.style.padding && `padding ${v.style.padding}`].filter(Boolean).map(esc).join(' · ')}</td></tr>`).join('')}</table>`).join('');
   const modes = Object.entries(atlas.modes || {}).map(([m, v]) => sec(`Colour palette — ${m}`, palette(v.tokens?.colors || []), v.tokens?.colors?.length)).join('');
   // fonts are shown in themselves (web fonts from the source's @font-face URLs, else installed ones); data-font marks
   // every sample so exportAtlas can stamp 'fallback' on the ones that couldn't use the real font
@@ -55,12 +60,13 @@ export function sheetHtml(atlas) {
   .pills i { display: inline-block; width: 16px; height: 16px; background: #14161a; } small { color: #8a93a0; font-size: 9px; }
   .sh { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; } .sh > div { break-inside: avoid; } .box { height: 56px; border-radius: 6px; background: #fff; margin: 8px 8px 8px; } code { font-size: 8px; color: #5b6370; word-break: break-all; }
   table { width: 100%; border-collapse: collapse; font: 9px ui-monospace, Consolas, monospace; } td { padding: 3px 6px; border-bottom: 1px solid #f0f2f4; vertical-align: top; } td:first-child { color: #5b6370; width: 40%; } tr { break-inside: avoid; }
+  h3 { font-size: 10px; margin: 10px 0 4px; color: #14161a; text-transform: capitalize; } .cv td { vertical-align: middle; font: 9px system-ui, sans-serif; } .cv td.stage { width: 34%; background: #f6f7f9; text-align: center; padding: 8px; } .cv td.stage.dk { background: #14161a; } .cv span { display: inline-block; line-height: 1.3; }
   .ct td:first-child { width: 34px; } .ct b { display: inline-block; padding: 1px 6px; border-radius: 4px; border: 1px solid #e3e6ea; font: 600 11px system-ui, sans-serif; } .ct .f { font-weight: 700; color: #14161a; }
   td i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; border: 1px solid #0002; }
   </style></head><body>
   <header><h1>Design tokens</h1><p>Extracted ${esc(new Date(p.created).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }))}</p></header>
   ${sec('Colour palette', colors, t.colors.length)}${sec('Type scale', sizes, t.fontSizes.length)}${sec('Font families', fonts, t.fonts.length)}${sec('Font weights', weights)}${sec('Line heights (× font size)', lineHeights)}${sec('Letter spacing', letterSpacings)}
-  ${sec('Spacing scale', spacing, t.spacing.length)}${sec('Radii', radii)}${sec('Shadows', shadows, t.shadows.length)}${modes}${sec(`Contrast — ${rated.filter(c => c.level === 'fail').length} of ${rated.length} pairs fail WCAG AA`, contrast)}${sec({ pptx: 'Theme slots & grid', sketch: 'Swatches & text styles', tokens: 'All tokens' }[p.kind] || 'Variables', vars, tokenVars(atlas).length)}
+  ${sec('Spacing scale', spacing, t.spacing.length)}${sec('Radii', radii)}${sec('Shadows', shadows, t.shadows.length)}${modes}${sec('Components', comps)}${sec(`Contrast — ${rated.filter(c => c.level === 'fail').length} of ${rated.length} pairs fail WCAG AA`, contrast)}${sec({ pptx: 'Theme slots & grid', sketch: 'Swatches & text styles', tokens: 'All tokens' }[p.kind] || 'Variables', vars, tokenVars(atlas).length)}
   </body></html>`;
 }
 

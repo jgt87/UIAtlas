@@ -75,3 +75,12 @@ test('font faces: woff2 preferred, URLs resolved, data: URLs skipped', () => {
   assert.deepEqual(parseFontFaces(css, 'https://fonts.example.test/css/a.css'),
     [{ family: 'Fictive Grotesk', url: 'https://fonts.example.test/f.woff2', weight: '400 700', style: 'normal' }]);
 });
+
+test('modern colour spaces (oklch, color()) are converted to sRGB hex, not dropped', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'atlas-oklch-')), out = path.join(dir, 'out'), file = path.join(dir, 'o.html');
+  mkdirSync(out); writeFileSync(file, '<style>body{background:color(srgb 1 1 1)}p{color:oklch(0.5 0.2 260)}</style><p>One</p><p>Two</p>');
+  const atlas = await extractSite({ startUrl: pathToFileURL(file).href, scope: pathToFileURL(dir + path.sep).href, outDir: out, name: 'o', kind: 'file', source: 'o.html' });
+  const text = atlas.tokens.colors.find(c => c.usage?.text);
+  assert.match(text?.value || '', /^#[0-9a-f]{6}$/, 'oklch text colour measured');
+  assert.ok(atlas.tokens.colors.some(c => c.value === '#ffffff' && c.usage?.background), 'color(srgb ...) background measured');
+});

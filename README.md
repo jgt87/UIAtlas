@@ -4,10 +4,12 @@ Extract the **design tokens** of a website, component library or design file int
 
 Point it at a source and it produces, per project:
 - **Design tokens** — the colour palette (with what each colour is used for: text, background, border, fill), type scale, font families/weights, line heights, letter spacing, spacing rhythm, radii, shadows and declared variables.
-- **Contrast** — every measured text/background pair with its WCAG 2 ratio and level (AA/AAA/fail).
+- **Contrast** — every measured text/background pair with its WCAG 2 ratio and level (AA/AAA/fail); text over images, gradients or a backdrop that can't be measured is marked *not measurable* instead of guessed.
 - **Modes** — optional extra passes in dark mode, at other screen sizes or in other themes, kept side by side.
 - **Screens** — one entry per page, story, layout, artboard or image, with an element inventory (counts per role).
-- **Elements** — text-free style samples of notable elements: role, colours, size, weight, radius, font and position.
+- **Elements** — text-free style samples of notable elements: role, colours, border, size, weight, radius, padding, font and position.
+- **Components** — each role's style variants (e.g. button: filled, outline, plain), clustered from those samples, with how often and on how many screens each appears.
+- **Flow** — for crawled sites, which captured pages link to which.
 
 Everything is viewed in a local dashboard, and tokens can be exported as a PDF token sheet, W3C design-tokens JSON or CSS variables.
 
@@ -70,7 +72,7 @@ node bin/atlas.mjs compare <atlas> --previous                    # drift since t
 Reports how much of the atlas's token usage matches the reference (colours by CIEDE2000 ΔE, default `--delta-e 3`; sizes compared in px across `px`/`rem`/`pt`/`in`), lists off-reference colours with their nearest reference colour, fonts, sizes, weights, line heights, spacing and radii that aren't in the reference (with the nearest value), and near-duplicate colours within the atlas (e.g. `#e0e0e0` vs `#e8e8e8`). The full report is written to `data/<atlas>/reports/`. Re-extracting into the same name keeps the previous `atlas.json` in `data/<atlas>/history/`, which `--previous` compares against. A typical brand check: import the brand's tokens (JSON, PowerPoint file or Sketch file) as the reference, extract the site, compare.
 
 ## Viewer
-`atlas serve` shows screens, tokens (with a mode switcher when the atlas has modes) and elements. Fonts are shown in themselves: web fonts load from the URLs in the source's own `@font-face` rules (recorded, never copied), other fonts only if installed. Wherever a font can't be shown in itself a **FALLBACK** tag says so, and weights a web font doesn't include are marked *synthesized*. A HEX / RGB toggle in the top bar switches how colours are written.
+`atlas serve` shows screens, tokens (with a mode switcher when the atlas has modes), elements, **Components** (a styled sample of each variant with its colours, radius, type and padding) and **Map** (the crawled pages as a flow graph, laid out by link depth from the start page). Fonts are shown in themselves: web fonts load from the URLs in the source's own `@font-face` rules (recorded, never copied), other fonts only if installed. Wherever a font can't be shown in itself a **FALLBACK** tag says so, and weights a web font doesn't include are marked *synthesized*. A HEX / RGB toggle in the top bar switches how colours are written.
 
 ## Export
 ```
@@ -82,7 +84,7 @@ Writes to `data/<atlas>/exports/` by default:
   - **Primitives** — `color` (sRGB colour objects), `font.family`, `font.size`, `font.weight` (named `regular`, `bold`…), `spacing`, `radius`, `shadow` (shadow objects). Names come from the source's labels where it has them (`color.accent1`), otherwise from the value (`spacing.8px`, `color.0f62fe`).
   - **typography** — the most common family/size/weight/line height/letter spacing per element role (`typography.heading`, `typography.button`, or per placeholder type for PowerPoint), as aliases such as `{font.size.24pt}`.
   - **color-usage** — colours ranked per use: `color-usage.text.primary`, `color-usage.background.secondary`, … (from how often each colour was used that way).
-  - **component** — the most common background, text colour and radius per interactive role (`component.button.background` → `{color.0f62fe}`).
+  - **component** — every style variant per role: `component.button.filled.background` → `{color.0f62fe}`, plus `text`, `border`, `radius`, `font-size`, `font-weight`, `padding-block`/`padding-inline`, with counts under `$extensions`.
   - **source** — the variables the source declared (CSS custom properties, theme slots, token paths), typed and aliased into the palette where they match.
   - Usage counts and shares sit under `$extensions["ui-atlas"]`. The format only has `px`/`rem` dimensions, so `pt` and `in` values are converted to `px` (the original is kept in `$extensions`); values with no token form (e.g. `50%` radii) are listed as `unrepresentable`.
 - `<name>-tokens.css` — the same structure as CSS custom properties; aliases become `var()` references (`--component-button-background: var(--color-0f62fe)`).

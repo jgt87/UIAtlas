@@ -38,7 +38,7 @@ test('structured JSON: typography and component layers alias the primitives; eve
   const j = toDtcg(a);
   assert.deepEqual(j.typography.heading.$value, { fontFamily: '{font.family.fictive-sans}', fontSize: '{font.size.24pt}', fontWeight: '{font.weight.bold}' });
   assert.ok(!j.typography.image, 'images carry no typography');
-  assert.deepEqual([j.component.button.background.$value, j.component.button.text.$value, j.component.button.radius.$value], ['{color.accent1}', '{color.ffffff}', '{radius.8px}']);
+  assert.deepEqual([j.component.button.filled.background.$value, j.component.button.filled.text.$value, j.component.button.filled.radius.$value], ['{color.accent1}', '{color.ffffff}', '{radius.8px}']);
   assert.deepEqual(j.$extensions['ui-atlas'].unrepresentable, ['50%']);
   const paths = new Set([...walkTokens(j)].map(t => t.path.join('.')));
   const aliases = JSON.stringify(j).match(/"\{[^}]+\}"/g).map(s => s.slice(2, -2));

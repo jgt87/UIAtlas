@@ -13,7 +13,14 @@ import { createGate, userAgentSuffix } from './polite.mjs';
 // text is checked, the text itself is never read out.
 function collect(rootSel) {
   const vis = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 1 && r.height > 1 && s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity) > 0.05; };
-  const rgba = c => { const m = /^rgba?\(([^)]+)\)/.exec(c || ''); if (!m) return null; const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; };
+  // computed colours may be rgb(), or oklch()/lab()/color(...) on modern sites: anything else is converted by painting one
+  // pixel and reading it back as sRGB (cached per value)
+  const px = new OffscreenCanvas(1, 1).getContext('2d', { willReadFrequently: true }), seenColor = new Map(); // offscreen: works in bare SVG documents too
+  const rgba = c => { if (!c || c === 'none' || c === 'transparent' || c.startsWith('url(')) return null;
+    const m = /^rgba?\(([^)]+)\)$/.exec(c); if (m) { const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; }
+    if (seenColor.has(c)) return seenColor.get(c);
+    px.clearRect(0, 0, 1, 1); px.fillStyle = '#000'; px.fillStyle = c; px.fillRect(0, 0, 1, 1); const d = px.getImageData(0, 0, 1, 1).data;
+    const v = d[3] ? [d[0], d[1], d[2], Math.round(d[3] / 255 * 1000) / 1000] : null; seenColor.set(c, v); return v; };
   const hex = (r, g, b) => '#' + [r, g, b].map(x => Math.round(x).toString(16).padStart(2, '0')).join('');
   const norm = c => { const v = rgba(c); return v && v[3] > 0 ? hex(v[0], v[1], v[2]) : null; }; // rgb/rgba -> #hex (drop fully transparent)
   // all four corners: one value when equal ('8px', '50%'), else the shorthand ('8px 8px 0px 0px'); null when square
@@ -64,7 +71,8 @@ function collect(rootSel) {
       catalogue.push({ role, tag: el.tagName.toLowerCase(), // styles only: the element's text is never read
         bbox: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
         color: el instanceof SVGElement ? norm(s.fill) : norm(s.color), bg: norm(s.backgroundColor), fontSize: Math.round(parseFloat(s.fontSize)) + 'px', weight: s.fontWeight, radius: radius(s) || '0px',
-        font: s.fontFamily.split(',')[0].replace(/["']/g, '').trim(), lineHeight: lineHeight(s), letterSpacing: letterSpacing(s) }); } }
+        font: s.fontFamily.split(',')[0].replace(/["']/g, '').trim(), lineHeight: lineHeight(s), letterSpacing: letterSpacing(s),
+        border: (parseFloat(s.borderTopWidth) || 0) > 0 ? norm(s.borderTopColor) : null, padding: `${Math.round(parseFloat(s.paddingTop) || 0)}px ${Math.round(parseFloat(s.paddingLeft) || 0)}px` }); } }
   const top = (k, n = 40) => [...(tally[k] || new Map())].sort((a, b) => b[1] - a[1]).slice(0, n).map(([value, count]) => ({ value, count }));
   // same-origin links for crawling (fragments stripped, so #anchors aren't treated as pages)
   const links = [...new Set([...document.querySelectorAll('a[href]')].map(a => { try { const u = new URL(a.href); if (u.origin !== location.origin || u.protocol !== location.protocol) return null; u.hash = ''; return u.href; } catch { return null; } }).filter(Boolean))].slice(0, 200);
@@ -172,7 +180,7 @@ export async function extractSite({ startUrl, maxPages = 1, outDir, viewport = {
   const browser = await launchBrowser();
   const page = await newMeasuringPage(browser, viewport, { colorScheme, identify: web });
   const normalize = u => { try { const x = new URL(u); x.hash = ''; if (x.pathname !== '/' && x.pathname.endsWith('/')) x.pathname = x.pathname.replace(/\/+$/, ''); return x.href; } catch { return u; } };
-  const queue = [normalize(startUrl)], seen = new Set(), screens = [], tokenAcc = {};
+  const queue = [normalize(startUrl)], seen = new Set(), screens = [], tokenAcc = {}, linksOf = new Map(), idOf = new Map();
   try {
     while (queue.length && screens.length < maxPages) {
       const url = normalize(queue.shift()); if (seen.has(url)) continue; seen.add(url);
@@ -180,11 +188,15 @@ export async function extractSite({ startUrl, maxPages = 1, outDir, viewport = {
       const got = await capturePage(page, url, shotsDir, { waitMs, viewport, screenshots, htmlAttrs }); if (!got) continue;
       mergeTokens(tokenAcc, got.tokens, got.contrast, got.fontFaces);
       // local files are recorded relative to the start folder, never as an absolute local path
+      linksOf.set(got.screen.id, got.links.map(normalize)); idOf.set(url, got.screen.id);
       if (scope) got.screen.url = got.screen.title = decodeURIComponent(url.slice(scope.length));
       screens.push(got.screen);
       console.log(`  [${screens.length}/${maxPages}] ${got.screen.url}  (${Object.entries(got.screen.inventory).map(([k, v]) => `${v} ${k}`).join(', ')})`);
       if (screens.length < maxPages) for (const l of got.links.map(normalize)) if (!seen.has(l) && !queue.includes(l) && (!scope || l.startsWith(scope))) queue.push(l);
     }
   } finally { await browser.close(); }
-  return writeAtlas(outDir, { project: { name: name || new URL(startUrl).hostname, kind, source: source || startUrl, viewport, ...(web ? { notes: gate.notes() } : {}) }, tokens: finalizeTokens(tokenAcc), contrast: finalizeContrast(tokenAcc), fontFaces: finalizeFontFaces(tokenAcc, finalizeTokens(tokenAcc)), screens }, { screenshots });
+  // flow: which captured pages link to which (links to pages outside the crawl are left out)
+  const edges = [...linksOf].flatMap(([from, ls]) => [...new Set(ls.map(l => idOf.get(l)).filter(to => to && to !== from))].map(to => ({ from, to })));
+  return writeAtlas(outDir, { project: { name: name || new URL(startUrl).hostname, kind, source: source || startUrl, viewport, ...(web ? { notes: gate.notes() } : {}) },
+    flow: screens.length > 1 ? { start: screens[0].id, edges } : undefined, tokens: finalizeTokens(tokenAcc), contrast: finalizeContrast(tokenAcc), fontFaces: finalizeFontFaces(tokenAcc, finalizeTokens(tokenAcc)), screens }, { screenshots });
 }

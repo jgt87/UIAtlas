@@ -1,15 +1,16 @@
+import { clusterComponents } from './components.mjs';
+
 // Structured design-tokens JSON (W3C Design Tokens Format, 2025.10) built from an atlas, plus CSS variables
 // generated from the same structure. Pure functions, no Node APIs.
 //
 // Layout: primitives (color, font.family/size/weight/lineHeight/letterSpacing, spacing, radius, shadow), then
 // derived layers that reference them by alias — color-usage (text/background/border/fill colours ranked primary,
 // secondary, ...), typography (most common type style per element role) and component (most common background/
-// text colour/radius per role) — then the source's own declared variables. Usage counts live under
+// text colour/border/radius/type/padding per style variant of each role) — then the source's own declared variables. Usage counts live under
 // $extensions["ui-atlas"]. Like every export, it carries tokens only: no source name or text.
 
 const EXT = 'ui-atlas';
 const WEIGHT_NAMES = { 100: 'thin', 200: 'extra-light', 300: 'light', 400: 'regular', 500: 'medium', 600: 'semi-bold', 700: 'bold', 800: 'extra-bold', 900: 'black' };
-const COMPONENT_ROLES = new Set(['button', 'link', 'input', 'nav', 'component', 'shape']);
 const RANKS = ['primary', 'secondary', 'tertiary', 'quaternary', 'quinary', 'senary']; // words, not 4/5/6: integer-like keys would sort first
 const SEMANTIC_HINT = /brand|primary|secondary|accent|text|background|surface|border|focus|link|error|success|warning|info/;
 const USE_HINT = { text: /text|fg|foreground|ink/, background: /background|bg|surface|layer|canvas/, border: /border|outline|divider|stroke/, fill: /icon|fill|graphic/ };
@@ -129,16 +130,20 @@ export function buildTokens(atlas, { exported = new Date().toISOString() } = {})
         ...(lh != null ? { lineHeight: lh } : {}), ...(ls ? { letterSpacing: ls } : {}) },
         ...ext({ role: r.role, samples: r.total, share: r4(r.count / r.total) }) };
     } }
-  const comp = perRole(atlas, ['bg', 'color', 'radius'], e => COMPONENT_ROLES.has(e.role) && (e.bg || e.radius && parseFloat(e.radius) > 0));
-  if (comp.length) { const g = out.component = {};
-    for (const r of comp.sort((a, b) => b.total - a.total)) {
-      const c = {}, rad = r.radius && parseFloat(r.radius) > 0 ? (refs.radius.get(r.radius) || dimensionValue(r.radius)) : null;
-      if (r.bg) c.background = { $type: 'color', $value: color(r.bg) };
-      if (r.color) c.text = { $type: 'color', $value: color(r.color) };
-      if (rad) c.radius = { $type: 'dimension', $value: rad };
-      if (Object.keys(c).length) g[unique(g, name(r.role))] = { ...c, ...ext({ samples: r.total, share: r4(r.count / r.total) }) };
-    }
-    if (!Object.keys(out.component).length) delete out.component; }
+  // component: style variants per role (see components.mjs), each property aliased into the primitives where it is one
+  const variants = atlas.components || clusterComponents(atlas.screens, { pageBg: [...(t.colors || [])].filter(c => c.usage?.background).sort((a, b) => b.usage.background - a.usage.background)[0]?.value });
+  for (const [role, list] of Object.entries(variants)) for (const v of list) {
+    const c = {}, st = v.style, rad = st.radius ? (refs.radius.get(st.radius) || dimensionValue(st.radius)) : null, [pv, ph] = (st.padding || '').split(' ').map(dimensionValue);
+    if (st.bg) c.background = { $type: 'color', $value: color(st.bg) };
+    if (st.color) c.text = { $type: 'color', $value: color(st.color) };
+    if (st.border) c.border = { $type: 'color', $value: color(st.border) };
+    if (rad) c.radius = { $type: 'dimension', $value: rad };
+    if (st.fontSize && dimensionValue(st.fontSize)) c['font-size'] = { $type: 'dimension', $value: alias(refs.size, st.fontSize, dimensionValue) };
+    if (st.weight) c['font-weight'] = { $type: 'fontWeight', $value: alias(refs.weight, String(st.weight), x => Number(x) || 400) };
+    if (pv?.value) c['padding-block'] = { $type: 'dimension', $value: pv };
+    if (ph?.value) c['padding-inline'] = { $type: 'dimension', $value: ph };
+    if (Object.keys(c).length) ((out.component ||= {})[name(role)] ||= {})[name(v.name)] = { ...c, ...ext({ count: v.count, share: v.share, screens: v.screens }) };
+  }
 
   // The source's declared variables (CSS custom properties, theme slots, token paths), typed where possible.
   const vars = (t.cssVars || []).filter(v => !/^\s*["']/.test(v.value));

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-26
+### Added
+- Component variants: buttons, links, inputs, navigation, symbols and shapes are clustered into style variants (filled, outline, plain, …) with counts and screen coverage — a Components view in the viewer, a section in the PDF sheet, and per-variant tokens in the JSON export (`component.button.filled.background`, `…padding-inline`).
+- Flow map: crawled sites record which captured pages link to which; the viewer's Map view draws it as a graph.
+- Element samples record border colour and padding.
+
+### Fixed
+- Colours defined in modern colour spaces (oklch, lab, `color()`) were dropped; they are now converted to sRGB (Bootstrap 6 lost most of its palette before).
+- Contrast pairs at ~1:1 (text on a backdrop that couldn't be measured) are marked *not measurable* instead of failing.
+
 ## [0.5.0] - 2026-10-26
 ### Added
 - PowerPoint files (`.pptx`, `.potx`, `.pptm`, `.ppsx`) are read directly — no other tool needed: theme colours with slot names, heading/body fonts, layout backgrounds, placeholders inherited from the master, shapes (fills, borders, rounded corners, shadows), pictures, and the styling used on slides. Slide text is never read.

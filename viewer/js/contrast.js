@@ -2,7 +2,7 @@
 import { h } from './dom.js';
 import { fmtColor } from './color-format.js';
 
-const LEVEL = { fail: 'Fails AA', AA: 'AA', AAA: 'AAA', unknown: 'Over an image' };
+const LEVEL = { fail: 'Fails AA', AA: 'AA', AAA: 'AAA', unknown: 'Not measurable' }; // over an image/gradient, or a backdrop that wasn't seen
 
 export function contrastSection(list) {
   if (!list?.length) return [];

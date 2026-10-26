@@ -4,6 +4,7 @@ import { chromium } from 'playwright';
 import { mkdirSync, rmSync, writeFileSync, existsSync, copyFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { clusterComponents } from './components.mjs';
 
 // Browser to drive: an installed one ('msedge', 'chrome', ...) or 'chromium' for Playwright's own download.
 export const CHANNEL = process.env.PLAYWRIGHT_CHANNEL || 'msedge';
@@ -85,9 +86,12 @@ export function archivePrevious(outDir) {
   mkdirSync(dir, { recursive: true }); copyFileSync(file, to); return to;
 }
 
-// Extra top-level fields an adapter may add: contrast (from contrastReport), modes ({ [mode]: { tokens, contrast } }).
+// Extra top-level fields an adapter may add: contrast (from contrastReport), fontFaces, flow ({ start, edges }), modes.
+// components (variants per role) is derived here from the screens' element samples.
 export function writeAtlas(outDir, { project, tokens, screens = [], ...extra }, { screenshots = false } = {}) {
-  const atlas = sanitize({ project: { created: new Date().toISOString(), pages: screens.length, ...project }, tokens, ...extra, screens }, { screenshots });
+  const pageBg = [...(tokens?.colors || [])].filter(c => c.usage?.background).sort((a, b) => b.usage.background - a.usage.background)[0]?.value || null;
+  const components = clusterComponents(screens, { pageBg }); // style variants per role, for every source
+  const atlas = sanitize({ project: { created: new Date().toISOString(), pages: screens.length, ...project }, tokens, ...extra, ...(Object.keys(components).length ? { components } : {}), screens }, { screenshots });
   if (!screenshots) rmSync(path.join(outDir, 'screens'), { recursive: true, force: true });
   archivePrevious(outDir);
   writeFileSync(path.join(outDir, 'atlas.json'), JSON.stringify(atlas, null, 0));
@@ -104,6 +108,7 @@ export const wcagLevel = (ratio, large) => ratio >= (large ? 4.5 : 7) ? 'AAA' : 
 export function contrastReport(pairs) {
   const m = new Map();
   for (const p of pairs || []) { if (!/^#[0-9a-f]{6}$/i.test(p.fg) || !/^#[0-9a-f]{6}$/i.test(p.bg)) continue; const k = `${p.fg}|${p.bg}|${!!p.large}|${!!p.overImage}`; m.set(k, { fg: p.fg, bg: p.bg, large: !!p.large, ...(p.overImage ? { overImage: true } : {}), count: (m.get(k)?.count || 0) + (p.count || 1) }); }
-  return [...m.values()].map(p => { const ratio = contrastRatio(p.fg, p.bg); return { ...p, ratio, level: p.overImage ? 'unknown' : wcagLevel(ratio, p.large) }; })
+  // ~1:1 means the text sits on something not measured (an image, a ::before layer, an overlay): unknown, not a fail
+  return [...m.values()].map(p => { const ratio = contrastRatio(p.fg, p.bg); return { ...p, ratio, level: p.overImage || ratio < 1.1 ? 'unknown' : wcagLevel(ratio, p.large) }; })
     .sort((a, b) => (a.level === 'unknown') - (b.level === 'unknown') || a.ratio - b.ratio || b.count - a.count).slice(0, 80);
 }
