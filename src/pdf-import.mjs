@@ -116,11 +116,11 @@ export async function importPdf({ source, outDir, maxPages = 40, screenshots = f
     for (let n = 1; n <= count; n++) {
       const r = await page.evaluate(readPage, { n, maxWidth: 1280, png: screenshots }), id = `p${n}`;
       if (screenshots) writeFileSync(path.join(shots, `${id}.png`), Buffer.from(r.png, 'base64'));
-      for (const c of r.fills) tally.add('colors', toHex(c));
+      for (const c of r.fills) tally.use('fill', toHex(c));
       const ls = lines(r.items), med = median(ls.map(l => l.pt));
       const elements = ls.map(l => {
         const f = parseFontName(l.font), color = toHex(l.color), pt = half(l.pt);
-        tally.add('colors', color); tally.add('fonts', f.family); tally.add('fontSizes', `${pt}pt`); tally.add('fontWeights', f.weight);
+        tally.use('text', color); tally.add('fonts', f.family); tally.add('fontSizes', `${pt}pt`); tally.add('fontWeights', f.weight);
         return { role: l.pt >= med * 1.4 ? 'heading' : 'text', tag: 'text', // text is only used in memory to form lines, never stored
           bbox: { x: Math.round(l.x), y: Math.round(l.base - l.h * 0.8), w: Math.round(l.w), h: Math.round(l.h) },
           color, bg: null, fontSize: `${pt}pt`, weight: f.weight, radius: null, font: f.family };

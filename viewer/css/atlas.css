@@ -65,4 +65,20 @@ h2.sec:first-child { margin-top: 0; }
 .rolecell { font-weight: 600; }
 .count { color: var(--ink-3); font-family: var(--mono); font-size: 12px; }
 
+.modes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.modes .pill { cursor: pointer; font: inherit; font-size: 13px; color: var(--ink-2); background: var(--panel); }
+.modes .pill.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.contrast .sample { display: inline-block; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); font-weight: 600; }
+.contrast tr.fail td:nth-child(5) { font-weight: 700; }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex: none; }
+.seg button { font: 600 12px var(--mono); padding: 7px 10px; border: 0; background: var(--bg); color: var(--ink-2); cursor: pointer; }
+.seg button.on { background: var(--ink); color: #fff; }
+.font-list { display: grid; gap: 6px; }
+.font-row { display: flex; align-items: baseline; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.font-row .font-demo { font-size: 22px; } .font-row small { color: var(--ink-3); } .font-row .count { margin-left: auto; }
+.font-row.missing .font-demo { color: var(--ink-3); }
+.tag-fallback { display: inline-block; margin-left: 6px; padding: 1px 6px; border: 1px dashed var(--ink-2); border-radius: 4px; font: 600 10px var(--mono); color: var(--ink); text-transform: uppercase; letter-spacing: .04em; vertical-align: 2px; }
+.fallback-note { margin: -4px 0 10px; color: var(--ink-2); font-size: 13px; } .fallback-note .tag-fallback { margin-left: 0; }
+
 @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .side { display: flex; gap: 6px; overflow-x: auto; padding: 10px; } .meta { display: none; } .search { max-width: none; } }

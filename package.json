@@ -1,6 +1,6 @@
 {
   "name": "ui-atlas",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Extract any website's screens, UI elements and design tokens into an ordered, browsable atlas.",

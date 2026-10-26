@@ -51,7 +51,7 @@ export async function importSketch({ source, outDir, screenshots = false }) {
 
   // Colour names from swatches and colour assets, used as token labels.
   const names = new Map(), nameColor = (name, c) => { const v = col(c); if (v && name) (names.get(v) || names.set(v, new Set()).get(v)).add(name); return v; };
-  const addColor = (v, n = 1) => v && (names.has(v) ? [...names.get(v)].forEach((l, i) => tally.add('colors', v, i ? 0 : n, l)) : tally.add('colors', v, n));
+  const addColor = (v, n = 1, kind) => v && (names.has(v) ? [...names.get(v)].forEach((l, i) => kind ? tally.use(kind, v, i ? 0 : n, l) : tally.add('colors', v, i ? 0 : n, l)) : kind ? tally.use(kind, v, n) : tally.add('colors', v, n));
   for (const s of doc.sharedSwatches?.objects || []) { const v = nameColor(s.name, s.value); if (v) tally.cssVar(`--${slug(s.name)}`, v); }
   for (const a of doc.assets?.colorAssets || []) nameColor(a.name, a.color);
   for (const s of doc.sharedSwatches?.objects || []) addColor(col(s.value));
@@ -64,7 +64,7 @@ export async function importSketch({ source, outDir, screenshots = false }) {
   };
   for (const ts of doc.layerTextStyles?.objects || []) {
     const enc = ts.value?.textStyle?.encodedAttributes || {}, fa = fontAttr(enc), { family, weight } = parseFont(fa.name);
-    fontTokens(fa.name, fa.size); addColor(col(enc.MSAttributedStringColorAttribute));
+    fontTokens(fa.name, fa.size); addColor(col(enc.MSAttributedStringColorAttribute), 1, 'text');
     if (fa.size || family) tally.cssVar(`--text-${slug(ts.name)}`, [fa.size ? `${r1(fa.size)}px` : null, family, fa.name ? weight : null].filter(Boolean).join(' '));
   }
 
@@ -89,7 +89,7 @@ export async function importSketch({ source, outDir, screenshots = false }) {
     const W = Math.round(board.frame?.width || 0), H = Math.round(board.frame?.height || 0);
     const svg = [], elements = [], inventory = {};
     const bg = board.hasBackgroundColor ? col(board.backgroundColor) : null;
-    if (bg) { addColor(bg); svg.push(`<rect width="${W}" height="${H}" fill="${bg}"/>`); }
+    if (bg) { addColor(bg, 1, 'background'); svg.push(`<rect width="${W}" height="${H}" fill="${bg}"/>`); }
     const el = (l, role, box, extra) => { inventory[role] = (inventory[role] || 0) + 1;
       elements.push({ role, tag: l._class, bbox: box, color: null, bg: null, fontSize: null, weight: null, radius: null, font: null, ...extra }); };
     // Draw (and, unless inside a symbol instance, record) a layer tree; ox/oy = absolute offset of the parent.
@@ -100,8 +100,8 @@ export async function importSketch({ source, outDir, screenshots = false }) {
         const box = { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
         const fill = firstFill(l), b = border(l), bc = b ? col(b.color) : null, op = l.style?.contextSettings?.opacity;
         if (record) {
-          for (const fl of fills(l)) { if (fl.fillType === 1) (fl.gradient?.stops || []).forEach(s => addColor(col(s.color))); else addColor(fillColor(fl)); }
-          for (const bo of l.style?.borders || []) if (bo.isEnabled !== false) addColor(col(bo.color));
+          for (const fl of fills(l)) { if (fl.fillType === 1) (fl.gradient?.stops || []).forEach(s => addColor(col(s.color), 1, 'background')); else addColor(fillColor(fl), 1, 'background'); }
+          for (const bo of l.style?.borders || []) if (bo.isEnabled !== false) addColor(col(bo.color), 1, 'border');
           for (const s of l.style?.shadows || []) if (s.isEnabled !== false) { tally.add('shadows', shadowCss(s)); addColor(col(s.color)); }
           for (const s of l.style?.innerShadows || []) if (s.isEnabled !== false) { tally.add('shadows', shadowCss(s, true)); addColor(col(s.color)); }
         }
@@ -110,7 +110,7 @@ export async function importSketch({ source, outDir, screenshots = false }) {
           const t = textInfo(l), str = String(l.attributedString?.string ?? '');
           const size = t.size || 12, { family, weight } = parseFont(t.name);
           if (record) {
-            for (const run of t.runs) { const fa = fontAttr(run); fontTokens(fa.name, fa.size); addColor(col(run.MSAttributedStringColorAttribute)); }
+            for (const run of t.runs) { const fa = fontAttr(run); fontTokens(fa.name, fa.size); addColor(col(run.MSAttributedStringColorAttribute), 1, 'text'); }
             el(l, 'text', box, { color: t.color, fontSize: t.size ? `${r1(t.size)}px` : null, weight: t.name ? String(weight) : null, font: family, _size: size });
           }
           const line = str.split(/\r?\n|\u2028/)[0];

@@ -5,7 +5,7 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { readZip } from './zip.mjs';
-import { prepareOut, writeAtlas } from './atlas-util.mjs';
+import { prepareOut, writeAtlas, contrastReport } from './atlas-util.mjs';
 
 // Same slug Retheme uses for preview file names (preview.py _slug).
 const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'layout';
@@ -39,19 +39,24 @@ export function importRetheme({ source, outDir, screenshots = false }) {
 
   const tally = {}; const add = (k, v, n = 1) => { if (v == null || v === '') return; (tally[k] ||= new Map()).set(v, (tally[k].get(v) || 0) + n); };
   const top = k => [...(tally[k] || new Map())].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }));
+  // what each colour is used for; Retheme's own usage names map onto text/background/border/fill
+  const usage = new Map(), KIND = { text: 'text', background: 'background', bg: 'background', line: 'border', border: 'border', fill: 'fill', accent: 'fill' };
+  const use = (kind, v, n = 1) => { if (!v) return; add('colors', v, n); const u = usage.get(v) || usage.set(v, {}).get(v); u[kind] = (u[kind] || 0) + n; };
+  const pairs = []; // text colour on the layout's solid background, for the contrast report
 
   // Theme colours carry their slot and semantic role; usage counts come from Retheme's own observation.
   const labels = new Map();
   for (const c of m.colors || []) {
     const v = hex(c.hex); if (!v) continue;
-    add('colors', v, Object.values(c.usage || {}).reduce((a, b) => a + b, 0));
+    const entries = Object.entries(c.usage || {}); if (!entries.length) add('colors', v, 0);
+    for (const [k, n] of entries) use(KIND[k] || 'fill', v, n);
     const label = [c.theme_slot, c.role].filter(Boolean).join(' · '); // slots can share a hex (e.g. hlink/folHlink)
     labels.set(v, labels.has(v) ? `${labels.get(v)}, ${label}` : label);
   }
   const fmtTokens = f => {
     if (!f) return;
     add('fonts', f.font); if (f.size_pt) add('fontSizes', `${f.size_pt}pt`);
-    add('fontWeights', f.bold ? '700' : '400'); if (f.color) add('colors', hex(f.color));
+    add('fontWeights', f.bold ? '700' : '400'); if (f.color) use('text', hex(f.color));
   };
   add('fonts', m.fonts?.heading, 0); add('fonts', m.fonts?.body, 0);
 
@@ -61,18 +66,20 @@ export function importRetheme({ source, outDir, screenshots = false }) {
   const screens = (m.layouts || []).map(layout => {
     const id = slug(layout.name);
     const bg = layout.background || {};
-    if (bg.type === 'solid') add('colors', hex(bg.hex));
-    for (const s of bg.stops || []) add('colors', hex(s.hex));
+    if (bg.type === 'solid') use('background', hex(bg.hex));
+    for (const s of bg.stops || []) use('background', hex(s.hex));
+    const behind = bg.type === 'solid' ? hex(bg.hex) : null; // gradients and pictures: no single backdrop to rate
+    const pair = f => { const fg = hex(f?.color); if (behind && fg && f.size_pt) pairs.push({ fg, bg: behind, large: f.size_pt * 4 / 3 >= 24 || (f.bold && f.size_pt * 4 / 3 >= 18.66), count: 1 }); };
     const elements = [], inventory = {}; const bump = k => inventory[k] = (inventory[k] || 0) + 1;
     for (const ph of layout.placeholders || []) {
       const levels = ph.format_levels || {}; for (const f of Object.values(levels)) fmtTokens(f);
-      const l1 = levels['1'] || {};
+      const l1 = levels['1'] || {}; pair(l1);
       bump(ph.type);
       elements.push({ role: ph.type, tag: 'placeholder', bbox: bbox(ph), color: hex(l1.color), bg: null,
         fontSize: l1.size_pt ? `${l1.size_pt}pt` : null, weight: l1.size_pt ? (l1.bold ? '700' : '400') : null, radius: null, font: l1.font || null, align: l1.align || null });
     }
     for (const t of layout.static_texts || []) {
-      const f = t.format || {}; fmtTokens(f);
+      const f = t.format || {}; fmtTokens(f); pair(f);
       bump('text');
       elements.push({ role: 'text', tag: 'static text', bbox: bbox(t), color: hex(f.color), bg: null,
         fontSize: f.size_pt ? `${f.size_pt}pt` : null, weight: f.size_pt ? (f.bold ? '700' : '400') : null, radius: null, font: f.font || null, align: f.align || null });
@@ -96,12 +103,12 @@ export function importRetheme({ source, outDir, screenshots = false }) {
   if (m.fonts?.body) cssVars.push({ name: '--font-body', value: m.fonts.body });
   for (const [k, v] of Object.entries(m.grid || {})) if (k.endsWith('_in') && v != null) cssVars.push({ name: `--${k.slice(0, -3).replace(/_/g, '-')}`, value: `${v}in` });
 
-  const colors = top('colors').map(c => labels.has(c.value) ? { ...c, label: labels.get(c.value) } : c);
+  const colors = top('colors').map(c => ({ ...c, ...(labels.has(c.value) ? { label: labels.get(c.value) } : {}), ...(usage.has(c.value) ? { usage: usage.get(c.value) } : {}) }));
   return writeAtlas(outDir, {
     project: { name: m.template_name || path.basename(source), kind: 'pptx', source: m.source_file || path.basename(source),
       viewport: { width: px(widthIn), height: px(heightIn) }, units: { ppi: Math.round(ppi * 100) / 100, slideInches: { width: widthIn, height: heightIn } },
       previews: m.preview_mode || null, notes: m.extraction_notes || [] },
-    tokens: { colors, fonts: top('fonts'), fontSizes: top('fontSizes'), fontWeights: top('fontWeights'), spacing: [], radii: [], shadows: [], cssVars },
-    screens,
+    tokens: { colors, fonts: top('fonts'), fontSizes: top('fontSizes'), fontWeights: top('fontWeights'), lineHeights: [], letterSpacings: [], spacing: [], radii: [], shadows: [], cssVars },
+    contrast: contrastReport(pairs), screens,
   }, { screenshots });
 }

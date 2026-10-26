@@ -3,7 +3,9 @@
 Extract the **design tokens** of a website, component library or design file into an ordered, browsable atlas.
 
 Point it at a source and it produces, per project:
-- **Design tokens** — the colour palette, type scale, font families/weights, spacing rhythm, radii, shadows and declared variables.
+- **Design tokens** — the colour palette (with what each colour is used for: text, background, border, fill), type scale, font families/weights, line heights, letter spacing, spacing rhythm, radii, shadows and declared variables.
+- **Contrast** — every measured text/background pair with its WCAG 2 ratio and level (AA/AAA/fail).
+- **Modes** — optional extra passes in dark mode, at other screen sizes or in other themes, kept side by side.
 - **Screens** — one entry per page, story, layout, artboard or image, with an element inventory (counts per role).
 - **Elements** — text-free style samples of notable elements: role, colours, size, weight, radius, font and position.
 
@@ -38,6 +40,17 @@ Requires Node 20+ and a browser. `PLAYWRIGHT_CHANNEL` picks it:
 | PDF | `atlas import brand-guide.pdf [--pages N]` | Fonts, text sizes, weights, text and fill colours read from the PDF itself, per page. |
 | Sketch | `atlas import file.sketch` | Swatches, colour assets, text styles, radii and shadows as tokens; artboards as screens (schematic drawings with `--screenshots`). |
 
+### Modes: dark, screen sizes, themes
+Websites, Storybooks and local HTML/SVG take `--modes` with comma-separated extra passes; each keeps its own tokens and contrast in the atlas, and the viewer switches between them:
+- `dark` / `light` — the `prefers-color-scheme` the site sees;
+- `mobile` (390×844), `tablet`, `desktop`, `wide`, or `<W>x<H>`;
+- `html:<attribute>=<value>` — an attribute set on `<html>` in UI Atlas's own browser, which is how many sites and Storybooks switch theme (`html:data-bs-theme=dark` for Bootstrap, `html:data-carbon-theme=g100` for Carbon);
+- `<global>=<value>` — a Storybook global (`theme=dark`) for Storybooks that expose their theme that way;
+- combine with `+`: `dark+mobile`.
+
+### Polite crawling
+Website and Storybook crawls honour `robots.txt` (RFC 9309; a `UIAtlas` group overrides `*`), wait `--delay` ms between requests to a site (default 1000, Storybook 500; a longer `Crawl-delay` wins, capped at 30 s) and identify themselves by appending `UIAtlas/<version> (+repository URL)` to the browser's user agent. Skipped URLs and honoured delays are listed in the atlas notes. `--ignore-robots` exists for sites you run yourself.
+
 `atlas import` picks the adapter from the file type or folder contents; override with `--kind retheme|storybook|html|image|tokens|sketch|pdf`. Every command takes `--name <name>` for the output folder (default: the host or file name) and `--screenshots` to also keep screenshots. Atlases land in `data/<name>/` (git-ignored); importing again into the same name replaces it.
 
 ```
@@ -52,15 +65,26 @@ Not every differently coloured pixel is a design token. Only pixels in **flat re
 ### PowerPoint via Retheme
 Create the package with Retheme: `python -m pptx_template_tool.cli extract Template.pptx -o template-package --zip`. Rendered previews need LibreOffice on the Retheme side; otherwise they are schematic.
 
+## Compare
+```
+node bin/atlas.mjs compare <atlas> --against <reference atlas>   # brand check
+node bin/atlas.mjs compare <atlas> --previous                    # drift since the previous extraction
+```
+Reports how much of the atlas's token usage matches the reference (colours by CIEDE2000 ΔE, default `--delta-e 3`; sizes compared in px across `px`/`rem`/`pt`/`in`), lists off-reference colours with their nearest reference colour, fonts, sizes, weights, line heights, spacing and radii that aren't in the reference (with the nearest value), and near-duplicate colours within the atlas (e.g. `#e0e0e0` vs `#e8e8e8`). The full report is written to `data/<atlas>/reports/`. Re-extracting into the same name keeps the previous `atlas.json` in `data/<atlas>/history/`, which `--previous` compares against. A typical brand check: import the brand's tokens (JSON, PowerPoint template or Sketch file) as the reference, extract the site, compare.
+
+## Viewer
+`atlas serve` shows screens, tokens (with a mode switcher when the atlas has modes) and elements. Fonts are shown in themselves: web fonts load from the URLs in the source's own `@font-face` rules (recorded, never copied), other fonts only if installed. Wherever a font can't be shown in itself a **FALLBACK** tag says so, and weights a web font doesn't include are marked *synthesized*. A HEX / RGB toggle in the top bar switches how colours are written.
+
 ## Export
 ```
 node bin/atlas.mjs export <atlas> [--format pdf,json,css] [--out DIR]
 ```
 Writes to `data/<atlas>/exports/` by default:
-- `<name>-tokens.pdf` — a printable A4 token sheet titled "Design tokens": palette, type scale, fonts, weights, spacing, radii, shadows and the source's variables. No source name, screenshots or text.
+- `<name>-tokens.pdf` — a printable A4 token sheet titled "Design tokens": palette with colour usage, per-mode palettes, type scale, fonts (in themselves, FALLBACK-tagged otherwise), weights, line heights, letter spacing, spacing, radii, shadows, contrast and the source's variables. No source name, screenshots or text.
 - `<name>.tokens.json` — structured design tokens in the [W3C Design Tokens Format](https://www.designtokens.org/tr/2025.10/format/) (2025.10), importable by Style Dictionary, Tokens Studio and similar tools:
   - **Primitives** — `color` (sRGB colour objects), `font.family`, `font.size`, `font.weight` (named `regular`, `bold`…), `spacing`, `radius`, `shadow` (shadow objects). Names come from the source's labels where it has them (`color.accent1`), otherwise from the value (`spacing.8px`, `color.0f62fe`).
-  - **typography** — the most common family/size/weight per element role (`typography.heading`, `typography.button`, or per placeholder type for PowerPoint), as aliases such as `{font.size.24pt}`.
+  - **typography** — the most common family/size/weight/line height/letter spacing per element role (`typography.heading`, `typography.button`, or per placeholder type for PowerPoint), as aliases such as `{font.size.24pt}`.
+  - **color-usage** — colours ranked per use: `color-usage.text.primary`, `color-usage.background.secondary`, … (from how often each colour was used that way).
   - **component** — the most common background, text colour and radius per interactive role (`component.button.background` → `{color.0f62fe}`).
   - **source** — the variables the source declared (CSS custom properties, theme slots, token paths), typed and aliased into the palette where they match.
   - Usage counts and shares sit under `$extensions["ui-atlas"]`. The format only has `px`/`rem` dimensions, so `pt` and `in` values are converted to `px` (the original is kept in `$extensions`); values with no token form (e.g. `50%` radii) are listed as `unrepresentable`.

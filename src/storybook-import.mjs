@@ -5,8 +5,9 @@
 import http from 'node:http';
 import { readFile, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { capturePage, newMeasuringPage, mergeTokens, finalizeTokens } from './web-extract.mjs';
+import { capturePage, newMeasuringPage, mergeTokens, finalizeTokens, finalizeContrast, finalizeFontFaces } from './web-extract.mjs';
 import { launchBrowser, prepareOut, writeAtlas, slug } from './atlas-util.mjs';
+import { createGate } from './polite.mjs';
 
 const ROOT = '#storybook-root, #root';
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
@@ -34,29 +35,35 @@ async function storyIndex(base) {
   throw new Error(`No Storybook index.json or stories.json at ${base}`);
 }
 
-export async function importStorybook({ source, outDir, maxStories = 60, viewport = { width: 1280, height: 900 }, screenshots = false }) {
+// globals: Storybook globals for every story (e.g. { theme: 'g100' }), how Storybooks switch themes.
+// A deployed Storybook is crawled politely (robots.txt, delayMs between stories); a local build isn't paced.
+export async function importStorybook({ source, outDir, maxStories = 60, viewport = { width: 1280, height: 900 }, screenshots = false,
+  colorScheme, globals = null, htmlAttrs = null, ignoreRobots = false, delayMs = 500 }) {
   const local = !/^https?:\/\//i.test(source);
   const srv = local ? await serveFolder(path.resolve(source)) : null;
   const base = local ? srv.base : source.replace(/(iframe|index)\.html.*$/i, '').replace(/\/?$/, '/');
   const shotsDir = prepareOut(outDir, { screenshots });
-  const browser = await launchBrowser();
+  const browser = await launchBrowser(), gate = createGate({ ignoreRobots, delayMs });
   const screens = [], tokenAcc = {}, notes = [];
   try {
+    if (!local) { const ok = await gate.allow(new URL('index.json', base).href); if (!ok.ok) throw new Error(`Not measured: ${ok.reason}`); }
     const stories = await storyIndex(base);
     if (stories.length > maxStories) notes.push(`${stories.length} stories; measured the first ${maxStories} (raise with --pages).`);
-    const page = await newMeasuringPage(browser, viewport);
+    const page = await newMeasuringPage(browser, viewport, { colorScheme, identify: !local });
+    const g = globals ? `&globals=${Object.entries(globals).map(([k, v]) => `${encodeURIComponent(k)}:${encodeURIComponent(v)}`).join(';')}` : '';
     for (const s of stories.slice(0, maxStories)) {
-      const rel = `iframe.html?id=${encodeURIComponent(s.id)}&viewMode=story`;
-      const got = await capturePage(page, base + rel, shotsDir, { waitMs: 400, rootSel: ROOT, viewport, screenshots,
+      const rel = `iframe.html?id=${encodeURIComponent(s.id)}&viewMode=story${g}`;
+      if (!local) { const ok = await gate.allow(base + rel); if (!ok.ok) { notes.push(`Skipped story ${s.id}: ${ok.reason}`); continue; } await gate.wait(base + rel); }
+      const got = await capturePage(page, base + rel, shotsDir, { waitMs: 400, rootSel: ROOT, viewport, screenshots, htmlAttrs,
         waitFor: p => p.waitForFunction(sel => document.querySelector(sel)?.childElementCount > 0, ROOT, { timeout: 15000 }) });
       if (!got) { notes.push(`Could not load story ${s.id}.`); continue; }
-      mergeTokens(tokenAcc, got.tokens);
+      mergeTokens(tokenAcc, got.tokens, got.contrast, got.fontFaces);
       Object.assign(got.screen, { id: slug(s.id), url: local ? rel : base + rel, title: `${s.title} / ${s.name}`, purpose: s.title });
       screens.push(got.screen);
       console.log(`  [${screens.length}/${Math.min(stories.length, maxStories)}] ${s.title} / ${s.name}`);
     }
   } finally { await browser.close(); srv?.close(); }
   // capturePage names screenshots by URL hash; ids were reassigned to story ids, the file paths stay valid
-  return writeAtlas(outDir, { project: { name: local ? path.basename(path.resolve(source)) : new URL(base).hostname, kind: 'storybook', source: local ? path.basename(path.resolve(source)) : base, viewport, notes },
-    tokens: finalizeTokens(tokenAcc), screens }, { screenshots });
+  return writeAtlas(outDir, { project: { name: local ? path.basename(path.resolve(source)) : new URL(base).hostname, kind: 'storybook', source: local ? path.basename(path.resolve(source)) : base, viewport, notes: [...notes, ...(local ? [] : gate.notes())] },
+    tokens: finalizeTokens(tokenAcc), contrast: finalizeContrast(tokenAcc), fontFaces: local ? [] : finalizeFontFaces(tokenAcc, finalizeTokens(tokenAcc)), screens }, { screenshots }); // a local build's font URLs point at a temporary port
 }

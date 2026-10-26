@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-26
+### Added
+- Colour usage: every colour records whether it was used as text, background, border or fill; the JSON export ranks them as `color-usage.text.primary` etc., and unlabelled palette colours are named after the source's own declared variables where they match.
+- Line height and letter spacing are measured (websites, Storybook) and exported, including in the typography tokens.
+- Contrast: measured text/background pairs with WCAG 2 ratio and level, against the real (composited) backdrop; text over images or gradients is marked rather than guessed. Shown in the viewer and the PDF sheet.
+- Modes (`--modes`): extra passes in dark/light colour scheme, at other screen sizes, with an `<html>` attribute (theme switches like `data-bs-theme`, `data-carbon-theme`) or a Storybook global; kept side by side and switchable in the viewer.
+- `atlas compare`: brand check against a reference atlas or drift since the previous extraction (`--previous`), with off-reference colours (CIEDE2000), missing fonts/sizes/weights/spacing/radii and near-duplicate colours. Re-extracting keeps the previous atlas in `history/`.
+- Polite crawling: robots.txt is honoured, requests to a site are spaced (`--delay`, Crawl-delay), and the browser identifies itself as UI Atlas; `--ignore-robots` for your own sites.
+- Fonts are shown in themselves in the viewer and the PDF sheet (web fonts from the source's `@font-face` URLs, else installed fonts), with a FALLBACK tag wherever that isn't possible and *synthesized* on weights a web font lacks.
+- HEX / RGB toggle in the viewer.
+
+### Changed
+- Typography and text colours are measured on elements that carry text of their own (previously every element, which over-counted inherited values).
+
 ## [0.3.0] - 2026-10-26
 ### Added
 - Structured JSON export in the W3C Design Tokens Format 2025.10: grouped primitives (colour objects, `{value, unit}` dimensions, named font weights, shadow objects), a `typography` layer per element role and a `component` layer (background, text colour, radius) that alias the primitives, and the source's declared variables typed and aliased into the palette. The CSS export is generated from the same structure, with aliases as `var()` references.

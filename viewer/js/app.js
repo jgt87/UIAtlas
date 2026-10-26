@@ -1,15 +1,16 @@
 // UI Atlas viewer. Fetches the list of extracted atlases, loads the selected one, and renders
 // three views (Screens, Design tokens, Elements) with hash routing and a live search filter.
 import { kindOf } from './kinds.js';
+import { h, esc } from './dom.js';
+import { contrastSection } from './contrast.js';
+import { loadFontFaces, fontStatus, STATUS_LABEL, fontCss, hasWeight, fallbackTag } from './fonts.js';
+import { fmtColor, colorFormat, setColorFormat } from './color-format.js';
 const main = document.getElementById('main');
 const pick = document.getElementById('atlasPick');
 const search = document.getElementById('search');
 const meta = document.getElementById('meta');
-let atlas = null, q = '';
+let atlas = null, q = '', mode = ''; // mode: '' = the base pass, else a key of atlas.modes
 
-const h = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k === 'html') e.innerHTML = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v != null) e.setAttribute(k, v); } for (const k of kids.flat()) if (k != null) e.append(k.nodeType ? k : document.createTextNode(k)); return e; };
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const readable = hex => { const n = hex && /^#[0-9a-f]{6}$/i.test(hex) ? parseInt(hex.slice(1), 16) : 0; const r = n >> 16, g = (n >> 8) & 255, b = n & 255; return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#14161a' : '#ffffff'; };
 
 async function boot() {
   const names = await fetch('/api/atlases').then(r => r.json()).catch(() => []);
@@ -20,11 +21,13 @@ async function boot() {
 }
 async function load(name) {
   atlas = await fetch(`/data/${name}/atlas.json`).then(r => r.json());
-  atlas.name = name;
+  atlas.name = name; mode = '';
   const k = kindOf(atlas), notes = atlas.project.notes || [];
   meta.innerHTML = `<b>${esc(atlas.project.name)}</b><br>${k.label}${atlas.project.previews === 'schematic' ? ' · schematic previews' : ''}<br>${atlas.screens.length ? `${atlas.project.pages} ${k.screens}<br>` : ''}${atlas.tokens.colors.length} colours · ${atlas.tokens.fonts.length} fonts<br><span style="color:var(--ink-3)">${new Date(atlas.project.created).toLocaleString()}</span>${notes.length ? `<ul class="notes">${notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}`;
   for (const a of document.querySelectorAll('.navitem')) if (a.dataset.nav === 'screens') a.textContent = k.screens[0].toUpperCase() + k.screens.slice(1);
   route();
+  // web fonts load from their original URLs; re-render once they're in so names show in themselves
+  if (atlas.fontFaces?.length) loadFontFaces(atlas.fontFaces).then(() => route());
 }
 // a token-only atlas (no screens) opens on its tokens
 const view = () => (location.hash.replace('#/', '') || (atlas?.screens.length ? 'screens' : 'tokens'));
@@ -47,33 +50,52 @@ function renderScreens() {
       h('div', { class: 'badges' }, Object.entries(s.inventory || {}).map(([k, n]) => h('span', { class: 'badge' }, `${n} ${k}`))))))));
 }
 
+// what a colour is used for, most used first: 'text 23 · bg 4'
+const usageText = u => Object.entries(u || {}).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k === 'background' ? 'bg' : k} ${n}`).join(' · ');
+
 function renderTokens() {
-  const t = atlas.tokens;
-  const sw = t.colors.filter(c => !q || (c.value + ' ' + (c.label || '')).toLowerCase().includes(q)).map(c => h('div', { class: 'swatch' },
+  const modes = Object.keys(atlas.modes || {}), current = mode && atlas.modes?.[mode];
+  const t = { lineHeights: [], letterSpacings: [], ...(current ? current.tokens : atlas.tokens) };
+  const sw = t.colors.filter(c => !q || (c.value + ' ' + (c.label || '') + ' ' + usageText(c.usage)).toLowerCase().includes(q)).map(c => h('div', { class: 'swatch' },
     h('div', { class: 'chip', style: `background:${c.value}` }),
-    h('div', { class: 'lbl' }, c.value, c.label ? h('small', {}, c.label) : null, h('small', {}, c.share != null ? `${(c.share * 100).toFixed(c.share < 0.1 ? 1 : 0)}%` : `${c.count}×`))));
+    h('div', { class: 'lbl' }, fmtColor(c.value), c.label ? h('small', {}, c.label) : null, c.usage ? h('small', {}, usageText(c.usage)) : null,
+      h('small', {}, c.share != null ? `${(c.share * 100).toFixed(c.share < 0.1 ? 1 : 0)}%` : `${c.count}×`))));
   const sizes = t.fontSizes.slice().sort((a, b) => parseFloat(b.value) - parseFloat(a.value)).map(f =>
-    h('div', { class: 'row' }, h('span', { class: 'k' }, f.value), h('span', { style: `font-size:${f.value}` }, 'The quick brown fox'), h('span', { class: 'count', style: 'margin-left:auto' }, `${f.count}×`)));
+    h('div', { class: 'row' }, h('span', { class: 'k' }, f.value), h('span', { style: `font-size:${f.value};${fontCss(t.fonts[0]?.value || 'system-ui')}` }, 'The quick brown fox'), h('span', { class: 'count', style: 'margin-left:auto' }, `${f.count}×`)));
   const maxSp = Math.max(...t.spacing.map(s => parseFloat(s.value)), 1);
   const spacing = t.spacing.slice().sort((a, b) => parseFloat(a.value) - parseFloat(b.value)).map(s =>
     h('div', { class: 'row' }, h('span', { class: 'k' }, s.value), h('span', { class: 'bar', style: `width:${Math.max(6, parseFloat(s.value) / maxSp * 240)}px` }), h('span', { class: 'count' }, `${s.count}×`)));
-  const fonts = t.fonts.map(f => h('span', { class: 'pill' }, h('span', { style: `font-family:${f.value}` }, f.value), ' ', h('small', {}, `${f.count}×`)));
-  const weights = t.fontWeights.map(w => h('span', { class: 'pill' }, h('span', { style: `font-weight:${w.value}` }, w.value), ' ', h('small', {}, `${w.count}×`)));
+  // each family shown in itself, with whether that's the real font (web font / installed) or a fallback
+  const fonts = t.fonts.map(f => { const st = fontStatus(f.value, atlas.fontFaces); return h('div', { class: 'font-row' + (st === 'missing' ? ' missing' : '') },
+    h('span', { class: 'font-demo', style: fontCss(f.value) }, f.value), st === 'missing' ? fallbackTag(h) : h('small', {}, STATUS_LABEL[st]), h('span', { class: 'count' }, `${f.count}×`)); });
+  const primary = t.fonts[0]?.value, primaryStatus = primary && fontStatus(primary, atlas.fontFaces);
+  const fallbackNote = primaryStatus === 'missing' ? h('p', { class: 'fallback-note' }, fallbackTag(h), ` ${primary} isn't available here, so these samples use a fallback font.`) : null;
+  const lineHeights = t.lineHeights.map(l => h('span', { class: 'pill' }, l.value, ' ', h('small', {}, `${l.count}×`)));
+  const letterSpacings = t.letterSpacings.map(l => h('span', { class: 'pill' }, h('span', { style: `letter-spacing:${l.value}` }, l.value), ' ', h('small', {}, `${l.count}×`)));
+  // weights in the primary font; a web font without that weight is drawn synthesized, which is marked
+  const weights = t.fontWeights.map(w => h('span', { class: 'pill' }, h('span', { style: `font-weight:${w.value};${primary ? fontCss(primary) : ''}` }, w.value), ' ', h('small', {}, `${w.count}×`),
+    primaryStatus === 'web' && !hasWeight(primary, w.value) ? h('span', { class: 'tag-fallback', title: `${primary} has no ${w.value} weight loaded; the browser fakes it.` }, 'synthesized') : primaryStatus === 'missing' ? fallbackTag(h) : null));
   const radii = t.radii.map(r => h('span', { class: 'pill' }, h('span', { class: 'dot', style: `border-radius:${r.value};width:16px;height:16px;background:var(--ink)` }), r.value, ' ', h('small', {}, `${r.count}×`)));
   const shadows = t.shadows.map(s => h('div', { class: 'shadow-box', style: `box-shadow:${s.value}`, title: s.value }));
   const vars = (t.cssVars || []).filter(v => !q || (v.name + v.value).toLowerCase().includes(q)).map(v => {
     const isColor = /^#|rgb|hsl/.test(v.value);
-    return h('tr', {}, h('td', {}, v.name), h('td', {}, isColor ? h('span', {}, h('span', { class: 'dot', style: `background:${v.value}` }), v.value) : v.value));
+    return h('tr', {}, h('td', {}, v.name), h('td', {}, isColor ? h('span', {}, h('span', { class: 'dot', style: `background:${v.value}` }), fmtColor(v.value)) : v.value));
   });
-  const kids = [h('h2', { class: 'sec' }, `Colour palette (${t.colors.length})`), h('div', { class: 'swatches' }, sw)];
-  if (sizes.length) kids.push(h('h2', { class: 'sec' }, 'Type scale'), h('div', { class: 'scale' }, sizes));
-  if (fonts.length) kids.push(h('h2', { class: 'sec' }, 'Font families'), h('div', { class: 'chips-row' }, fonts));
+  const kids = [];
+  // light/dark, screen sizes, themes: switch which pass's tokens are shown
+  if (modes.length) kids.push(h('div', { class: 'modes' }, ['', ...modes].map(m => h('button', { class: 'pill' + (m === mode ? ' on' : ''), onclick: () => { mode = m; renderTokens(); } }, m || 'Base'))));
+  kids.push(h('h2', { class: 'sec' }, `Colour palette (${t.colors.length})`), h('div', { class: 'swatches' }, sw));
+  if (sizes.length) kids.push(h('h2', { class: 'sec' }, 'Type scale'), fallbackNote, h('div', { class: 'scale' }, sizes));
+  if (fonts.length) kids.push(h('h2', { class: 'sec' }, 'Font families'), h('div', { class: 'font-list' }, fonts));
   if (weights.length) kids.push(h('h2', { class: 'sec' }, 'Font weights'), h('div', { class: 'chips-row' }, weights));
+  if (lineHeights.length) kids.push(h('h2', { class: 'sec' }, 'Line heights (× font size)'), h('div', { class: 'chips-row' }, lineHeights));
+  if (letterSpacings.length) kids.push(h('h2', { class: 'sec' }, 'Letter spacing'), h('div', { class: 'chips-row' }, letterSpacings));
   if (spacing.length) kids.push(h('h2', { class: 'sec' }, 'Spacing scale'), h('div', { class: 'spacing-bars' }, spacing));
   if (radii.length) kids.push(h('h2', { class: 'sec' }, 'Radii'), h('div', { class: 'chips-row' }, radii));
   if (shadows.length) kids.push(h('h2', { class: 'sec' }, 'Shadows'), h('div', { class: 'shadow-grid' }, shadows));
+  kids.push(...contrastSection(current ? current.contrast : atlas.contrast)); // before the (often long) variables list
   if (vars.length) kids.push(h('h2', { class: 'sec' }, `${kindOf(atlas).vars} (${(t.cssVars || []).length})`), h('table', { class: 'vars' }, h('tbody', {}, vars)));
-  main.replaceChildren(...kids);
+  main.replaceChildren(...kids.filter(Boolean));
 }
 
 function renderElements() {
@@ -90,15 +112,20 @@ function renderElements() {
   const body = filtered.slice(0, 600).map(e => h('tr', {},
     h('td', { class: 'rolecell' }, e.role),
     h('td', {}, e.name || h('span', { style: 'color:var(--ink-3)' }, `<${e.tag}>`)), // atlases hold no text content
-    h('td', { class: 'mono' }, e.bg ? h('span', {}, h('span', { class: 'dot', style: `background:${e.bg}` }), e.bg) : '—'),
-    h('td', { class: 'mono' }, e.color ? h('span', {}, h('span', { class: 'dot', style: `background:${e.color}` }), e.color) : '—'),
-    h('td', { class: 'mono' }, e.fontSize || '—'), h('td', { class: 'mono' }, e.weight || '—'), h('td', { class: 'mono' }, (fontCol ? e.font : e.radius) || '—'),
+    h('td', { class: 'mono' }, e.bg ? h('span', {}, h('span', { class: 'dot', style: `background:${e.bg}` }), fmtColor(e.bg)) : '—'),
+    h('td', { class: 'mono' }, e.color ? h('span', {}, h('span', { class: 'dot', style: `background:${e.color}` }), fmtColor(e.color)) : '—'),
+    h('td', { class: 'mono' }, e.fontSize || '—'), h('td', { class: 'mono' }, e.weight || '—'), fontCol && e.font ? h('td', {}, h('span', { style: fontCss(e.font) }, e.font), fontStatus(e.font, atlas.fontFaces) === 'missing' ? fallbackTag(h) : null) : h('td', { class: 'mono' }, (fontCol ? e.font : e.radius) || '—'),
     h('td', { style: 'color:var(--ink-3);font-size:12px' }, e.screen)));
   main.replaceChildren(summary, h('table', { class: 'tbl' },
     h('thead', {}, h('tr', {}, ['Role', 'Element', 'Background', 'Text colour', 'Size', 'Weight', fontCol ? 'Font' : 'Radius', k.screen].map(x => h('th', {}, x)))),
     h('tbody', {}, body)));
 }
 
+// HEX / RGB toggle in the top bar
+const fmtButtons = document.querySelectorAll('#colorFmt button');
+const showFmt = () => fmtButtons.forEach(b => b.classList.toggle('on', b.dataset.f === colorFormat()));
+fmtButtons.forEach(b => b.addEventListener('click', () => { setColorFormat(b.dataset.f); showFmt(); if (atlas) route(); }));
+showFmt();
 search.addEventListener('input', () => { q = search.value.trim().toLowerCase(); route(); });
 window.addEventListener('hashchange', () => { q = ''; search.value = ''; route(); });
 boot();
