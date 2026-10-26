@@ -1,0 +1,17 @@
+{
+  "color": {
+    "base": { "plum": { "value": "#6B2D5C" }, "mint": { "value": "#c8f0dc" } },
+    "font": { "primary": { "value": "{color.base.plum.value}" } }
+  },
+  "size": {
+    "font": { "small": { "value": "0.75rem" }, "large": { "value": 20 } },
+    "padding": { "md": { "value": 8 } },
+    "border": { "thin": { "value": "1px" } }
+  },
+  "font": {
+    "family": { "base": { "value": "'Pretend Grotesk', Arial, sans-serif" } },
+    "weight": { "strong": { "value": "black", "attributes": { "category": "font" } } }
+  },
+  "radius": { "sm": { "value": "2px" } },
+  "shadow": { "card": { "value": "0 1px 2px #0003" } }
+}

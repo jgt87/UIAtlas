@@ -1,0 +1,28 @@
+{
+  "core": {
+    "colors": {
+      "teal": { "value": "#1A9E8F", "type": "color" },
+      "sand": { "value": "rgba(240, 220, 180, 1)", "type": "color" }
+    },
+    "spacing": { "lg": { "value": "24", "type": "spacing" } },
+    "sizing": { "gap": { "value": "12px", "type": "sizing" }, "avatar": { "value": "40px", "type": "sizing" } },
+    "radii": { "pill": { "value": "999px", "type": "borderRadius" } },
+    "fontFamilies": { "heading": { "value": "Imaginary Serif", "type": "fontFamilies" } },
+    "fontWeights": { "heading": { "value": "Semi Bold", "type": "fontWeights" } },
+    "fontSizes": { "base": { "value": "14", "type": "fontSizes" } }
+  },
+  "theme": {
+    "button": {
+      "bg": { "value": "{colors.teal}", "type": "color" },
+      "broken": { "value": "{colors.missing}", "type": "color" }
+    },
+    "elevation": {
+      "card": { "value": { "x": 0, "y": 4, "blur": 8, "spread": 0, "color": "{colors.sand}", "type": "innerShadow" }, "type": "boxShadow" }
+    },
+    "type": {
+      "heading": { "value": { "fontFamily": "{fontFamilies.heading}", "fontWeight": "{fontWeights.heading}", "fontSize": "{fontSizes.base}", "lineHeight": "120%" }, "type": "typography" }
+    }
+  },
+  "$themes": [{ "id": "t1", "name": "Default", "selectedTokenSets": { "core": "source", "theme": "enabled" } }],
+  "$metadata": { "tokenSetOrder": ["core", "theme"] }
+}

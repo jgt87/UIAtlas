@@ -1,0 +1,42 @@
+{
+  "color": {
+    "$type": "color",
+    "brand": { "$value": "#2B5F8C" },
+    "accent": { "$value": { "colorSpace": "srgb", "components": [1, 0.5, 0], "alpha": 1 } },
+    "wash": { "$value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 0.5 } },
+    "deep": { "$value": { "colorSpace": "display-p3", "components": [0.1, 0.2, 0.3], "hex": "#123456" } },
+    "vivid": { "$value": { "colorSpace": "oklch", "components": [0.7, 0.1, 200] } },
+    "link": { "$value": "{color.brand}" }
+  },
+  "space": {
+    "$type": "dimension",
+    "sm": { "$value": { "value": 4, "unit": "px" } },
+    "md": { "$value": "8px" }
+  },
+  "radius": { "card": { "$type": "dimension", "$value": "6px" } },
+  "size": { "icon": { "$type": "dimension", "$value": "24px" } },
+  "font": {
+    "weight": { "bold": { "$type": "fontWeight", "$value": "bold" } },
+    "family": { "body": { "$type": "fontFamily", "$value": ["Fictive Sans", "Helvetica", "sans-serif"] } }
+  },
+  "shadow": {
+    "raised": {
+      "$type": "shadow",
+      "$value": [
+        { "color": "{color.wash}", "offsetX": { "value": 0, "unit": "px" }, "offsetY": "2px", "blur": "4px", "spread": "0px" },
+        { "color": "#00000033", "offsetX": "0px", "offsetY": "1px", "blur": "0px", "spread": "0px", "inset": true }
+      ]
+    }
+  },
+  "typography": {
+    "body": {
+      "$type": "typography",
+      "$value": { "fontFamily": "{font.family.body}", "fontSize": "15px", "fontWeight": "{font.weight.bold}", "lineHeight": 1.5, "letterSpacing": "0px" }
+    }
+  },
+  "loop": {
+    "$type": "color",
+    "a": { "$value": "{loop.b}" },
+    "b": { "$value": "{loop.a}" }
+  }
+}

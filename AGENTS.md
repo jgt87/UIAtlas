@@ -3,36 +3,52 @@
 Guidance for coding agents working in this repository.
 
 ## Commands
-Node >= 20, ES modules, one dependency (`playwright`). No build step, no linter, no test suite.
+Node >= 20, ES modules, dependencies `playwright` and `pdfjs-dist` (both pinned exactly). No build step, no linter.
 
 ```
 npm install
-node bin/atlas.mjs extract <https-url> [--pages N] [--name NAME]   # writes data/<name>/atlas.json + screens/*.png
+npm test                                                            # node --test "test/**/*.test.mjs"; one file: node --test test/export.test.mjs
+node bin/atlas.mjs extract <https-url> [--pages N] [--name NAME]   # website
+node bin/atlas.mjs storybook <https-url> [--pages N] [--name NAME] # deployed Storybook
+node bin/atlas.mjs import <file|folder> [--name NAME] [--kind K]   # anything else; kind auto-detected (src/detect.mjs)
+node bin/atlas.mjs export <atlas> [--format pdf,json,css] [--out DIR]
 node bin/atlas.mjs serve [--port P]                                 # viewer at http://127.0.0.1:4300/ (default)
 node bin/atlas.mjs                                                  # usage + list of extracted atlases
 ```
-- The extractor launches an installed browser via `PLAYWRIGHT_CHANNEL` (default `msedge`); Playwright's bundled browsers are not downloaded.
-- To check a change end to end: extract a small site (e.g. `https://example.com`), then `serve` and look at the viewer. `data/` already holds sample atlases (`example.com`, `getbootstrap.com`); it is git-ignored and regenerable.
+- The browser comes from `PLAYWRIGHT_CHANNEL`: an installed one (`msedge` default, `chrome`) or `chromium` for Playwright's own download (`npx playwright install chromium`). Most adapters use it, not only the web extractor (images and PDFs are decoded/rendered in a page; the export PDF is printed by it).
+- Tests generate their fixtures at test time (or use invented ones under `test/fixtures/`) and write to `os.tmpdir()`, never to `data/`. Fixture content must be invented, never real brand data.
+- To check a change end to end: import or extract something small, then `serve` and look at the viewer. `data/` is git-ignored and regenerable. Port 4300 may be taken on this machine; pass `--port`.
 
 ## Architecture
-Pipeline: **adapter → `atlas.json` → viewer**. The `atlas.json` schema is the contract; the viewer is source-agnostic so other adapters (native apps, design files) can emit the same schema.
+Pipeline: **adapter → `atlas.json` → viewer / export**. The `atlas.json` schema is the contract; the viewer and export are source-agnostic.
 
-- `bin/atlas.mjs` — CLI; parses `extract`/`serve` and lazy-imports the matching module.
-- `src/web-extract.mjs` — the web adapter. `extractSite()` crawls same-origin links breadth-first (URLs normalized: hash stripped, trailing slash trimmed), and per page runs `collect()` through `page.evaluate`, then takes a full-page screenshot named `sha8(url).png`. Per-page token tallies are merged by `mergeTokens()` and trimmed to top-N per category in `finalizeTokens()`.
-  - `collect()` executes **inside the browser page**: it must stay self-contained (no references to module scope or Node APIs) and read-only. It returns `{tokens, inventory, elements, links}`.
-  - Tokens come from **computed** styles, not declared CSS.
-- `src/serve.mjs` — read-only static server bound to 127.0.0.1: `/api/atlases` lists `data/*` folders containing `atlas.json`; `/data/...` serves from `data/`; everything else from `viewer/`. Has a path-traversal guard.
-- `viewer/` — no-build vanilla ES modules (`index.html`, `js/app.js`, `css/atlas.css`). Hash routing `#/screens`, `#/tokens`, `#/elements`; a small `h()` DOM helper builds the UI. Edits show up on reload; no server restart needed.
+- `bin/atlas.mjs` — CLI. `import` asks `src/detect.mjs` for the kind and lazy-loads the adapter, so one adapter's missing dependency doesn't break the others.
+- `src/atlas-util.mjs` — shared by adapters: `launchBrowser()`, `tokenTally()` (`add(key, value, n, label)` → `finalize()` gives the full tokens object), `toHex()` (any colour notation → `#rrggbb[aa]`; `{r,g,b}` objects are read as 0–1 when all channels ≤ 1), `prepareOut()` (clears `screens/`), `writeAtlas()`, `slug()`, `sha8()`.
+- `src/web-extract.mjs` — websites and local HTML/SVG. `capturePage()` loads one URL, runs `collect()` in the page and screenshots it; `extractSite()` crawls same-origin links breadth-first (for `file://`, only inside `scope`, and screens record paths relative to it — never absolute local paths).
+  - `collect(rootSel)` executes **inside the browser page**: it must stay self-contained (no references to module scope or Node APIs) and read-only. `rootSel` limits measurement and the screenshot to one subtree; element boxes are then made relative to the cropped screenshot.
+  - Tokens come from **computed** styles, not declared CSS. Bare SVG documents can't be full-page screenshotted (it hangs), so the viewport is sized to the drawing instead.
+- `src/storybook-import.mjs` — reads `index.json` (v7+) or `stories.json` (v6), skips docs entries, measures each story's `iframe.html` inside `#storybook-root`/`#root` via `capturePage`. A local `storybook-static` folder is served on a temporary loopback port (modules don't load from `file://`); the port is never recorded.
+- `src/retheme-import.mjs` — PowerPoint via a Retheme template package (`template.json` + `previews/layout-<slug>.png`; github.com/jgt87/Retheme). Layouts → screens, theme colours → `tokens.colors` with a `label` (slot · role), theme slots/fonts/grid → `tokens.cssVars`, placeholders/static texts/assets → elements. Inches are converted to preview pixels (`project.units.ppi`); sizes stay in `pt`. The preview slug must match Retheme's `preview.py _slug`.
+- `src/tokens-import.mjs` — W3C DTCG / Tokens Studio / Style Dictionary JSON (file or folder), format detected per token, aliases resolved (cross-set for Tokens Studio, cycle-safe). No screens.
+- `src/image-import.mjs` — images decoded in a browser canvas. Palette = flat-region pixels only, clustered in CIELAB, reported as each cluster's mode colour, minimum share; colours carry `share` and an `observed` label.
+- `src/pdf-import.mjs` — pdf.js (`pdfjs-dist`) run inside a Playwright page, files served via `page.route` (no server, no network). Pages rendered to PNG; fonts/sizes from text content, colours from the operator list.
+- `src/sketch-import.mjs` — `.sketch` zip of JSON read with `src/zip.mjs`; artboards drawn as schematic SVGs (boxes, text, fills — no rotation/paths/masks).
+- `src/export.mjs` — `toDtcg()`, `toCss()`, `sheetHtml()` (the PDF is printed from this HTML), `exportAtlas()` → `data/<name>/exports/`.
+- `src/serve.mjs` — read-only static server bound to 127.0.0.1: `/api/atlases` lists `data/*` folders containing `atlas.json`; `/data/...` serves from `data/`; everything else from `viewer/`. Has a path-traversal guard. It holds its code in memory: restart it after changing `serve.mjs`.
+- `viewer/` — no-build vanilla ES modules (`index.html`, `js/app.js`, `js/kinds.js` for per-kind labels, `css/atlas.css`). Hash routing `#/screens`, `#/tokens`, `#/elements`; a small `h()` DOM helper builds the UI. Edits show up on reload.
 
 ### `atlas.json` shape
 ```
-{ project: { name, source, created, pages, viewport },
-  tokens:  { colors, fonts, fontSizes, fontWeights, spacing, radii, shadows: [{value, count}], cssVars: [{name, value}] },
-  screens: [{ id, url, title, screenshot: "screens/<id>.png", width, height,
-              inventory: { <role>: count }, elements: [{ role, tag, text, bbox, color, bg, fontSize, weight, radius }] }] }
+{ project: { name, kind, source, created, pages, viewport, notes?: [string] },
+  tokens:  { colors, fonts, fontSizes, fontWeights, spacing, radii, shadows: [{value, count, label?, share?}], cssVars: [{name, value}] },
+  screens: [{ id, url, title, purpose?, screenshot: "screens/<file>" | null, width, height,
+              inventory: { <role>: count }, elements: [{ role, tag, text, bbox: {x,y,w,h}, color, bg, fontSize, weight, radius, font? }] }] }
 ```
-Changing this shape means updating both the extractor and `viewer/js/app.js`.
+- `project.kind`: `web`, `file`, `storybook`, `pptx`, `tokens`, `image`, `pdf`, `sketch`. New kinds need an entry in `viewer/js/kinds.js` and `src/export.mjs` `KIND_LABEL`.
+- `project.source` is a URL or a **base name only** — never a full local path (repos and atlases get shared).
+- Screenshots may be `.png`, `.jpg`, `.svg` etc.; `bbox` is in the screenshot's pixel space.
+- Changing this shape means updating every adapter, `viewer/js/app.js` and `src/export.mjs`. The viewer hides empty token sections and opens token-only atlases on the tokens view.
 
 ## Notes
-- `project.name` is always the start URL's hostname; `--name` only changes the output folder (which is what the viewer lists).
-- Extraction uses a fresh, signed-out browser context and only measures pages; keep it that way.
+- For websites `project.name` is the start URL's hostname; `--name` only changes the output folder (which is what the viewer lists).
+- Extraction uses a fresh, signed-out browser context and only measures pages; source files are only read. Keep it that way.

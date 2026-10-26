@@ -1,5 +1,6 @@
 // UI Atlas viewer. Fetches the list of extracted atlases, loads the selected one, and renders
 // three views (Screens, Design tokens, Elements) with hash routing and a live search filter.
+import { kindOf } from './kinds.js';
 const main = document.getElementById('main');
 const pick = document.getElementById('atlasPick');
 const search = document.getElementById('search');
@@ -12,7 +13,7 @@ const readable = hex => { const n = hex && /^#[0-9a-f]{6}$/i.test(hex) ? parseIn
 
 async function boot() {
   const names = await fetch('/api/atlases').then(r => r.json()).catch(() => []);
-  if (!names.length) { main.innerHTML = '<div class="empty">No atlases yet. Run <code>atlas extract &lt;url&gt;</code>, then reload.</div>'; return; }
+  if (!names.length) { main.innerHTML = '<div class="empty">No atlases yet. Run <code>atlas extract &lt;url&gt;</code> or <code>atlas import &lt;file&gt;</code>, then reload.</div>'; return; }
   pick.innerHTML = ''; for (const n of names) pick.append(h('option', { value: n }, n));
   pick.onchange = () => load(pick.value);
   await load(names[0]);
@@ -20,10 +21,13 @@ async function boot() {
 async function load(name) {
   atlas = await fetch(`/data/${name}/atlas.json`).then(r => r.json());
   atlas.name = name;
-  meta.innerHTML = `<b>${esc(atlas.project.name)}</b><br>${atlas.project.pages} screens<br>${atlas.tokens.colors.length} colours · ${atlas.tokens.fonts.length} fonts<br><span style="color:var(--ink-3)">${new Date(atlas.project.created).toLocaleString()}</span>`;
+  const k = kindOf(atlas), notes = atlas.project.notes || [];
+  meta.innerHTML = `<b>${esc(atlas.project.name)}</b><br>${k.label}${atlas.project.previews === 'schematic' ? ' · schematic previews' : ''}<br>${atlas.screens.length ? `${atlas.project.pages} ${k.screens}<br>` : ''}${atlas.tokens.colors.length} colours · ${atlas.tokens.fonts.length} fonts<br><span style="color:var(--ink-3)">${new Date(atlas.project.created).toLocaleString()}</span>${notes.length ? `<ul class="notes">${notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}`;
+  for (const a of document.querySelectorAll('.navitem')) if (a.dataset.nav === 'screens') a.textContent = k.screens[0].toUpperCase() + k.screens.slice(1);
   route();
 }
-const view = () => (location.hash.replace('#/', '') || 'screens');
+// a token-only atlas (no screens) opens on its tokens
+const view = () => (location.hash.replace('#/', '') || (atlas?.screens.length ? 'screens' : 'tokens'));
 function route() {
   const v = view();
   for (const a of document.querySelectorAll('.navitem')) a.classList.toggle('active', a.dataset.nav === v);
@@ -31,21 +35,22 @@ function route() {
 }
 
 function renderScreens() {
+  if (!atlas.screens.length) return main.replaceChildren(h('div', { class: 'empty' }, `This ${kindOf(atlas).label.toLowerCase()} has no ${kindOf(atlas).screens}; see Design tokens.`));
   const scr = atlas.screens.filter(s => !q || (s.title + ' ' + s.url).toLowerCase().includes(q));
   const base = `/data/${atlas.name}/`;
-  main.replaceChildren(h('div', { class: 'grid' }, scr.map(s => h('a', { class: 'card', href: base + s.screenshot, target: '_blank' },
-    h('div', { class: 'shot' }, h('img', { src: base + s.screenshot, loading: 'lazy', alt: s.title })),
+  main.replaceChildren(h('div', { class: 'grid' }, scr.map(s => h(s.screenshot ? 'a' : 'div', { class: 'card', href: s.screenshot ? base + s.screenshot : null, target: s.screenshot ? '_blank' : null },
+    h('div', { class: 'shot' }, s.screenshot ? h('img', { src: base + s.screenshot, loading: 'lazy', alt: s.title }) : h('div', { class: 'empty' }, 'No preview')),
     h('div', { class: 'card-body' },
       h('div', { class: 'card-title' }, s.title || s.url),
-      h('div', { class: 'card-url' }, s.url),
+      h('div', { class: 'card-url' }, s.purpose || s.url),
       h('div', { class: 'badges' }, Object.entries(s.inventory || {}).map(([k, n]) => h('span', { class: 'badge' }, `${n} ${k}`))))))));
 }
 
 function renderTokens() {
   const t = atlas.tokens;
-  const sw = t.colors.filter(c => !q || c.value.includes(q)).map(c => h('div', { class: 'swatch' },
+  const sw = t.colors.filter(c => !q || (c.value + ' ' + (c.label || '')).toLowerCase().includes(q)).map(c => h('div', { class: 'swatch' },
     h('div', { class: 'chip', style: `background:${c.value}` }),
-    h('div', { class: 'lbl' }, c.value, h('small', {}, `${c.count}×`))));
+    h('div', { class: 'lbl' }, c.value, c.label ? h('small', {}, c.label) : null, h('small', {}, c.share != null ? `${(c.share * 100).toFixed(c.share < 0.1 ? 1 : 0)}%` : `${c.count}×`))));
   const sizes = t.fontSizes.slice().sort((a, b) => parseFloat(b.value) - parseFloat(a.value)).map(f =>
     h('div', { class: 'row' }, h('span', { class: 'k' }, f.value), h('span', { style: `font-size:${f.value}` }, 'The quick brown fox'), h('span', { class: 'count', style: 'margin-left:auto' }, `${f.count}×`)));
   const maxSp = Math.max(...t.spacing.map(s => parseFloat(s.value)), 1);
@@ -59,22 +64,23 @@ function renderTokens() {
     const isColor = /^#|rgb|hsl/.test(v.value);
     return h('tr', {}, h('td', {}, v.name), h('td', {}, isColor ? h('span', {}, h('span', { class: 'dot', style: `background:${v.value}` }), v.value) : v.value));
   });
-  const kids = [
-    h('h2', { class: 'sec' }, `Colour palette (${t.colors.length})`), h('div', { class: 'swatches' }, sw),
-    h('h2', { class: 'sec' }, 'Type scale'), h('div', { class: 'scale' }, sizes),
-    h('h2', { class: 'sec' }, 'Font families'), h('div', { class: 'chips-row' }, fonts),
-    h('h2', { class: 'sec' }, 'Font weights'), h('div', { class: 'chips-row' }, weights),
-    h('h2', { class: 'sec' }, 'Spacing scale'), h('div', { class: 'spacing-bars' }, spacing),
-  ];
+  const kids = [h('h2', { class: 'sec' }, `Colour palette (${t.colors.length})`), h('div', { class: 'swatches' }, sw)];
+  if (sizes.length) kids.push(h('h2', { class: 'sec' }, 'Type scale'), h('div', { class: 'scale' }, sizes));
+  if (fonts.length) kids.push(h('h2', { class: 'sec' }, 'Font families'), h('div', { class: 'chips-row' }, fonts));
+  if (weights.length) kids.push(h('h2', { class: 'sec' }, 'Font weights'), h('div', { class: 'chips-row' }, weights));
+  if (spacing.length) kids.push(h('h2', { class: 'sec' }, 'Spacing scale'), h('div', { class: 'spacing-bars' }, spacing));
   if (radii.length) kids.push(h('h2', { class: 'sec' }, 'Radii'), h('div', { class: 'chips-row' }, radii));
   if (shadows.length) kids.push(h('h2', { class: 'sec' }, 'Shadows'), h('div', { class: 'shadow-grid' }, shadows));
-  if (vars.length) kids.push(h('h2', { class: 'sec' }, `CSS variables (${(t.cssVars || []).length})`), h('table', { class: 'vars' }, h('tbody', {}, vars)));
+  if (vars.length) kids.push(h('h2', { class: 'sec' }, `${kindOf(atlas).vars} (${(t.cssVars || []).length})`), h('table', { class: 'vars' }, h('tbody', {}, vars)));
   main.replaceChildren(...kids);
 }
 
 function renderElements() {
+  const k = kindOf(atlas);
   const rows = [];
   for (const s of atlas.screens) for (const e of (s.elements || [])) rows.push({ ...e, screen: s.title || s.url });
+  if (!rows.length) return main.replaceChildren(h('div', { class: 'empty' }, 'No elements in this atlas.'));
+  const fontCol = rows.some(r => r.font); // design files carry font names; web pages carry radii
   // group by role, count, and list examples
   const byRole = {};
   for (const r of rows) (byRole[r.role] ||= []).push(r);
@@ -85,10 +91,10 @@ function renderElements() {
     h('td', {}, e.text || h('span', { style: 'color:var(--ink-3)' }, `<${e.tag}>`)),
     h('td', { class: 'mono' }, e.bg ? h('span', {}, h('span', { class: 'dot', style: `background:${e.bg}` }), e.bg) : '—'),
     h('td', { class: 'mono' }, e.color ? h('span', {}, h('span', { class: 'dot', style: `background:${e.color}` }), e.color) : '—'),
-    h('td', { class: 'mono' }, e.fontSize), h('td', { class: 'mono' }, e.weight), h('td', { class: 'mono' }, e.radius),
+    h('td', { class: 'mono' }, e.fontSize || '—'), h('td', { class: 'mono' }, e.weight || '—'), h('td', { class: 'mono' }, (fontCol ? e.font : e.radius) || '—'),
     h('td', { style: 'color:var(--ink-3);font-size:12px' }, e.screen)));
   main.replaceChildren(summary, h('table', { class: 'tbl' },
-    h('thead', {}, h('tr', {}, ['Role', 'Text', 'Background', 'Text colour', 'Size', 'Weight', 'Radius', 'Screen'].map(x => h('th', {}, x)))),
+    h('thead', {}, h('tr', {}, ['Role', 'Text', 'Background', 'Text colour', 'Size', 'Weight', fontCol ? 'Font' : 'Radius', k.screen].map(x => h('th', {}, x)))),
     h('tbody', {}, body)));
 }
 
