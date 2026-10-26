@@ -3,7 +3,7 @@ export const KINDS = {
   web: { label: 'Website', screens: 'screens', screen: 'Screen', vars: 'CSS variables' },
   file: { label: 'Local HTML/SVG', screens: 'pages', screen: 'Page', vars: 'CSS variables' },
   storybook: { label: 'Storybook', screens: 'stories', screen: 'Story', vars: 'CSS variables' },
-  pptx: { label: 'PowerPoint template', screens: 'layouts', screen: 'Layout', vars: 'Theme slots & grid' },
+  pptx: { label: 'PowerPoint', screens: 'layouts', screen: 'Layout', vars: 'Theme slots & grid' },
   tokens: { label: 'Design tokens file', screens: 'screens', screen: 'Screen', vars: 'All tokens' },
   image: { label: 'Images', screens: 'images', screen: 'Image', vars: 'Variables' },
   pdf: { label: 'PDF', screens: 'pages', screen: 'Page', vars: 'Variables' },

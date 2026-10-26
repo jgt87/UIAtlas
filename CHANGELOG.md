@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-26
+### Added
+- PowerPoint files (`.pptx`, `.potx`, `.pptm`, `.ppsx`) are read directly — no other tool needed: theme colours with slot names, heading/body fonts, layout backgrounds, placeholders inherited from the master, shapes (fills, borders, rounded corners, shadows), pictures, and the styling used on slides. Slide text is never read.
+
+### Fixed
+- A failed import no longer prints a stack trace or local paths (use `--debug` for the full error) and no longer leaves an empty folder in `data/`.
+
+### Changed
+- README: the separate template-package route is no longer described; PowerPoint files are imported directly. The viewer labels these atlases "PowerPoint".
+
 ## [0.4.0] - 2026-10-26
 ### Added
 - Colour usage: every colour records whether it was used as text, background, border or fill; the JSON export ranks them as `color-usage.text.primary` etc., and unlabelled palette colours are named after the source's own declared variables where they match.

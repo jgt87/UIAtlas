@@ -19,6 +19,7 @@ export function detectKind(src) {
   const ext = path.extname(src).toLowerCase();
   if (ext === '.zip') return [...readZip(src).keys()].some(k => /(^|\/)template\.json$/.test(k)) ? 'retheme' : null;
   if (ext === '.sketch') return 'sketch';
+  if (/^\.(pptx|potx|pptm|potm|ppsx|ppsm)$/.test(ext)) return 'pptx';
   if (ext === '.pdf') return 'pdf';
   if (ext === '.json') return 'tokens';
   if (ext === '.svg' || ext === '.html' || ext === '.htm') return 'html';
@@ -26,4 +27,4 @@ export function detectKind(src) {
   return null;
 }
 
-export const KINDS = ['retheme', 'storybook', 'html', 'image', 'tokens', 'sketch', 'pdf'];
+export const KINDS = ['pptx', 'retheme', 'storybook', 'html', 'image', 'tokens', 'sketch', 'pdf'];

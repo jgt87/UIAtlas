@@ -21,7 +21,7 @@ function readPackage(src) {
     walk(src, '');
   } else files = readZip(src);
   const manifestKey = [...files.keys()].filter(k => k === 'template.json' || k.endsWith('/template.json')).sort((a, b) => a.length - b.length)[0];
-  if (!manifestKey) throw new Error(`No template.json in ${src} — is this a Retheme template package?`);
+  if (!manifestKey) throw new Error(`No template.json in ${path.basename(src)} — is this a template package?`);
   const prefix = manifestKey.slice(0, -'template.json'.length);
   return { manifest: JSON.parse(files.get(manifestKey).toString('utf8')), file: rel => files.get(prefix + rel) };
 }

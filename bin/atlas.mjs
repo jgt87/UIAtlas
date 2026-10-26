@@ -9,8 +9,9 @@
 //   atlas serve [--port P]                           serve the viewer + all extracted atlases
 // Crawling options (extract, storybook, html): --modes dark,mobile,... --delay MS --ignore-robots
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { readdirSync, existsSync, mkdirSync, statSync, readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, existsSync, mkdirSync, statSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = path.join(root, 'data');
@@ -19,7 +20,21 @@ const cmd = argv[0];
 const opt = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : d; };
 const screenshots = argv.includes('--screenshots');
 const safe = s => s.replace(/[^a-z0-9.-]/gi, '_');
-const outFor = name => { const d = path.join(dataDir, safe(name)); mkdirSync(d, { recursive: true }); return d; };
+const created = []; // output folders made by this run: removed again if the run fails before writing an atlas
+const outFor = name => { const d = path.join(dataDir, safe(name)); if (!existsSync(d)) created.push(d); mkdirSync(d, { recursive: true }); return d; };
+// Failures print one readable line (no stack, no local paths; --debug shows the full error) and leave nothing behind.
+process.on('uncaughtException', e => {
+  for (const d of created) if (!existsSync(path.join(d, 'atlas.json'))) rmSync(d, { recursive: true, force: true });
+  if (argv.includes('--debug')) console.error(e);
+  else {
+    let msg = String(e?.message || e);
+    const src = argv[1] && path.resolve(argv[1]);
+    const hide = [[src, src && path.basename(src)], [os.tmpdir(), '<temp>'], [os.homedir(), '~'], [root, '.']];
+    for (const [from, to] of hide) if (from) for (const f of [from, from.replace(/\\/g, '/')]) msg = msg.split(f).join(to);
+    console.error(`Error: ${msg}`);
+  }
+  process.exit(1);
+});
 const pages = d => Math.max(1, Number(opt('pages', String(d))) || d);
 const done = (atlas, what = 'screens') => console.log(`Done: ${atlas.screens.length} ${what}, ${atlas.tokens.colors.length} colours, ${atlas.tokens.fonts.length} fonts${screenshots ? ', with screenshots' : ''}${atlas.modes ? `, modes: ${Object.keys(atlas.modes).join(', ')}` : ''}. Run: atlas serve`);
 const notes = atlas => { for (const n of atlas.project.notes || []) console.log(`  note: ${n}`); };
@@ -39,6 +54,7 @@ const htmlRun = (src, out, extra = {}) => {
     outDir: out, name: path.basename(src), kind: 'file', source: path.basename(src), screenshots, ...extra }));
 };
 const importers = {
+  pptx: async (src, out) => (await import('../src/pptx-import.mjs')).importPptx({ source: src, outDir: out }),
   retheme: async (src, out) => (await import('../src/retheme-import.mjs')).importRetheme({ source: src, outDir: out, screenshots }),
   storybook: async (src, out, extra = {}) => (await import('../src/storybook-import.mjs')).importStorybook({ source: src, outDir: out, maxStories: pages(60), screenshots, ...polite(500), ...extra }),
   image: async (src, out) => (await import('../src/image-import.mjs')).importImages({ source: src, outDir: out, screenshots }),
@@ -75,7 +91,7 @@ if (cmd === 'extract') {
   const name = opt('name') || path.basename(src).replace(/\.[^.]+$/, '');
   console.log(`Importing ${path.basename(src)} as ${kind} -> data/${safe(name)}`);
   const atlas = await withModes((o, out) => importers[kind](src, out, o), outFor(name));
-  done(atlas, kind === 'retheme' ? 'layouts' : 'screens'); notes(atlas);
+  done(atlas, kind === 'retheme' || kind === 'pptx' ? 'layouts' : 'screens'); notes(atlas);
 } else if (cmd === 'storybook') {
   const url = argv[1];
   if (!url || !/^https?:\/\//.test(url)) { console.error('Usage: atlas storybook <https url> [--pages N] [--name NAME] [--modes dark,theme=g100] [--delay MS] [--ignore-robots]   (a local storybook-static folder: atlas import <folder>)'); process.exit(1); }
@@ -112,8 +128,8 @@ if (cmd === 'extract') {
   console.log(`UI Atlas
   atlas extract <url> [--pages N] [--name NAME]      website
   atlas storybook <url> [--pages N] [--name NAME]    deployed Storybook
-  atlas import <path> [--name NAME] [--kind K]       file or folder: Retheme package (.zip/folder), storybook-static folder,
-                                                     HTML/SVG, images, design-token JSON, .sketch, .pdf
+  atlas import <path> [--name NAME] [--kind K]       file or folder: PowerPoint (.pptx/.potx), storybook-static folder,
+                                                     HTML/SVG, images, design-token JSON, .sketch, .pdf, template package (.zip/folder)
   atlas compare <atlas> --against <atlas>            brand check: which colours, fonts, sizes, radii are off-reference
   atlas compare <atlas> --previous                   drift since the previous extraction of the same atlas
   atlas export <atlas> [--format pdf,json,css] [--out DIR]

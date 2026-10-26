@@ -15,7 +15,7 @@ Everything is viewed in a local dashboard, and tokens can be exported as a PDF t
 UI Atlas captures **design, not content**:
 - **Never stored:** text from the source — headings, body copy, button labels, page `<title>`s, slide and PDF text, Sketch text layers — and variables holding quoted strings (copy). Text is only read in memory where needed to measure it (e.g. PDF lines).
 - **Stored by default:** design tokens, element counts, text-free style samples, and identifiers such as URL paths, layout/story/artboard names and page numbers.
-- **Opt-in with `--screenshots`:** screenshots, copies of imported images, rendered PDF pages, Retheme layout previews and Sketch schematics (which draw the file's text). Without the flag no `screens/` folder is written.
+- **Opt-in with `--screenshots`:** screenshots, copies of imported images, rendered PDF pages and Sketch schematics (which draw the file's text). Without the flag no `screens/` folder is written.
 - **Exports** (`atlas export`) contain design tokens only — no source name, file name, URL, screenshots or text, whatever the atlas holds.
 
 ## Install
@@ -34,7 +34,7 @@ Requires Node 20+ and a browser. `PLAYWRIGHT_CHANNEL` picks it:
 | Storybook (deployed) | `atlas storybook <url> [--pages N]` | One screen per story, measured inside the story root only — a component-library atlas. |
 | Storybook (local build) | `atlas import storybook-static/` | Same, served from the folder for the duration of the import. |
 | Local HTML / SVG | `atlas import page.html` · `atlas import logo.svg` · `atlas import site/` | Like a website; a folder is crawled from its `index.html`, never outside the folder. SVG fills and strokes count as colours. |
-| PowerPoint template | `atlas import template-package/` or `.zip` | Via a [Retheme](https://github.com/jgt87/Retheme) package: layouts as screens, theme colours with slot and role (`accent1 · primary`), placeholders and assets as elements. |
+| PowerPoint | `atlas import deck.pptx` (also `.potx`, `.pptm`, `.ppsx`) | Read directly, nothing else to install: theme colours with their slot names (`accent1 · accent 1`), heading and body fonts, each layout's background, placeholders (sizes, weights, colours, fonts, line heights — inherited from the master as PowerPoint does), shapes (fills, borders, rounded corners, shadows) and pictures. The styling used on the slides counts too; slide text is never read. Layouts are listed without previews (PowerPoint files contain none). |
 | Design-token JSON | `atlas import tokens.json` or a folder | W3C DTCG, Tokens Studio (incl. multi-file exports) and Style Dictionary, with aliases resolved. Tokens only, no screens. |
 | Images | `atlas import screenshot.png` or a folder | A palette of each image's deliberate flat colours (see below); the image itself is kept only with `--screenshots`. |
 | PDF | `atlas import brand-guide.pdf [--pages N]` | Fonts, text sizes, weights, text and fill colours read from the PDF itself, per page. |
@@ -51,7 +51,7 @@ Websites, Storybooks and local HTML/SVG take `--modes` with comma-separated extr
 ### Polite crawling
 Website and Storybook crawls honour `robots.txt` (RFC 9309; a `UIAtlas` group overrides `*`), wait `--delay` ms between requests to a site (default 1000, Storybook 500; a longer `Crawl-delay` wins, capped at 30 s) and identify themselves by appending `UIAtlas/<version> (+repository URL)` to the browser's user agent. Skipped URLs and honoured delays are listed in the atlas notes. `--ignore-robots` exists for sites you run yourself.
 
-`atlas import` picks the adapter from the file type or folder contents; override with `--kind retheme|storybook|html|image|tokens|sketch|pdf`. Every command takes `--name <name>` for the output folder (default: the host or file name) and `--screenshots` to also keep screenshots. Atlases land in `data/<name>/` (git-ignored); importing again into the same name replaces it.
+`atlas import` picks the adapter from the file type or folder contents; override with `--kind pptx|storybook|html|image|tokens|sketch|pdf`. Every command takes `--name <name>` for the output folder (default: the host or file name) and `--screenshots` to also keep screenshots. Atlases land in `data/<name>/` (git-ignored); importing again into the same name replaces it.
 
 ```
 node bin/atlas.mjs extract https://example.com --pages 5
@@ -62,15 +62,12 @@ node bin/atlas.mjs serve                                    # open http://127.0.
 ### Image palettes
 Not every differently coloured pixel is a design token. Only pixels in **flat regions** count (a pixel must match its neighbours), which drops anti-aliased edges, text smoothing, gradients, shadows and photo noise. Flat pixels are clustered perceptually (CIELAB), each cluster is reported as its most frequent exact colour, and clusters below a minimum share are dropped. Image colours are labelled *observed* and shown with their share of the image (labels never include file names); mostly-photographic images are flagged in the atlas notes.
 
-### PowerPoint via Retheme
-Create the package with Retheme: `python -m pptx_template_tool.cli extract Template.pptx -o template-package --zip`. Rendered previews need LibreOffice on the Retheme side; otherwise they are schematic.
-
 ## Compare
 ```
 node bin/atlas.mjs compare <atlas> --against <reference atlas>   # brand check
 node bin/atlas.mjs compare <atlas> --previous                    # drift since the previous extraction
 ```
-Reports how much of the atlas's token usage matches the reference (colours by CIEDE2000 ΔE, default `--delta-e 3`; sizes compared in px across `px`/`rem`/`pt`/`in`), lists off-reference colours with their nearest reference colour, fonts, sizes, weights, line heights, spacing and radii that aren't in the reference (with the nearest value), and near-duplicate colours within the atlas (e.g. `#e0e0e0` vs `#e8e8e8`). The full report is written to `data/<atlas>/reports/`. Re-extracting into the same name keeps the previous `atlas.json` in `data/<atlas>/history/`, which `--previous` compares against. A typical brand check: import the brand's tokens (JSON, PowerPoint template or Sketch file) as the reference, extract the site, compare.
+Reports how much of the atlas's token usage matches the reference (colours by CIEDE2000 ΔE, default `--delta-e 3`; sizes compared in px across `px`/`rem`/`pt`/`in`), lists off-reference colours with their nearest reference colour, fonts, sizes, weights, line heights, spacing and radii that aren't in the reference (with the nearest value), and near-duplicate colours within the atlas (e.g. `#e0e0e0` vs `#e8e8e8`). The full report is written to `data/<atlas>/reports/`. Re-extracting into the same name keeps the previous `atlas.json` in `data/<atlas>/history/`, which `--previous` compares against. A typical brand check: import the brand's tokens (JSON, PowerPoint file or Sketch file) as the reference, extract the site, compare.
 
 ## Viewer
 `atlas serve` shows screens, tokens (with a mode switcher when the atlas has modes) and elements. Fonts are shown in themselves: web fonts load from the URLs in the source's own `@font-face` rules (recorded, never copied), other fonts only if installed. Wherever a font can't be shown in itself a **FALLBACK** tag says so, and weights a web font doesn't include are marked *synthesized*. A HEX / RGB toggle in the top bar switches how colours are written.
@@ -98,7 +95,7 @@ Fixtures are generated at test time; the browser-based tests need the same brows
 
 ## Architecture
 - `bin/atlas.mjs` — CLI; `src/detect.mjs` picks the import adapter.
-- Adapters, each producing the same `atlas.json`: `src/web-extract.mjs` (websites, local HTML/SVG; an in-page `collect()` measures computed styles), `src/storybook-import.mjs`, `src/retheme-import.mjs`, `src/tokens-import.mjs`, `src/image-import.mjs`, `src/pdf-import.mjs`, `src/sketch-import.mjs`. Shared helpers in `src/atlas-util.mjs`; `src/zip.mjs` reads zip-based formats without extra dependencies.
+- Adapters, each producing the same `atlas.json`: `src/web-extract.mjs` (websites, local HTML/SVG; an in-page `collect()` measures computed styles), `src/storybook-import.mjs`, `src/pptx-import.mjs` (with `src/ooxml.mjs`), `src/tokens-import.mjs`, `src/image-import.mjs`, `src/pdf-import.mjs`, `src/sketch-import.mjs`. Shared helpers in `src/atlas-util.mjs`; `src/zip.mjs` reads zip-based formats without extra dependencies.
 - `src/export.mjs` — token sheet PDF, W3C JSON and CSS export.
 - `src/serve.mjs` + `viewer/` — read-only local server and the no-build dashboard (vanilla ES modules) that reads `atlas.json`.
 
