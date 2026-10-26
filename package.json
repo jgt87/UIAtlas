@@ -1,0 +1,16 @@
+{
+  "name": "ui-atlas",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Extract any website's screens, UI elements and design tokens into an ordered, browsable atlas.",
+  "bin": { "atlas": "bin/atlas.mjs" },
+  "scripts": {
+    "extract": "node bin/atlas.mjs extract",
+    "serve": "node bin/atlas.mjs serve"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "playwright": "1.64.1"
+  }
+}

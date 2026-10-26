@@ -1,0 +1,16 @@
+node_modules/
+# Extracted atlases (screenshots + data) can be large and are regenerable; also holds runtime files (.port, serve.log).
+data/
+*.log
+# Local secrets / env
+.env
+.env.*
+# Release packages
+dist/
+*.zip
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

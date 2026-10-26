@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UI Atlas</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/atlas.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">▦</span> UI Atlas</div>
+    <select id="atlasPick" class="pick" aria-label="Atlas"></select>
+    <input id="search" class="search" type="search" placeholder="Search screens, elements, tokens…" aria-label="Search">
+  </header>
+  <div class="layout">
+    <nav class="side">
+      <a href="#/screens" data-nav="screens" class="navitem">Screens</a>
+      <a href="#/tokens" data-nav="tokens" class="navitem">Design tokens</a>
+      <a href="#/elements" data-nav="elements" class="navitem">Elements</a>
+      <div class="meta" id="meta"></div>
+    </nav>
+    <main id="main" class="main"><div class="empty">Loading…</div></main>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
