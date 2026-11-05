@@ -26,89 +26,118 @@ function readPackage(src) {
   return { manifest: JSON.parse(files.get(manifestKey).toString('utf8')), file: rel => files.get(prefix + rel) };
 }
 
-export function importRetheme({ source, outDir, screenshots = false }) {
-  const { manifest: m, file } = readPackage(source);
-  const geo = m.slide_geometry || {};
-  const widthIn = geo.width_in || m.grid?.slide_width_in || 13.333, heightIn = geo.height_in || m.grid?.slide_height_in || 7.5;
-  const previewOf = layout => file(`previews/layout-${slug(layout.name)}.png`);
-  // Scale = preview pixels per inch, so element boxes match the screenshots; 96 when there are no previews.
-  const firstPreview = (m.layouts || []).map(previewOf).find(Boolean);
-  const ppi = (pngWidth(firstPreview) || 0) / widthIn || 96;
-  const px = v => Math.round((v || 0) * ppi);
-  const bbox = o => ({ x: px(o.position?.x_in), y: px(o.position?.y_in), w: px(o.size?.width_in), h: px(o.size?.height_in) });
+// Token counts as the importer goes: value counts per kind, what each colour is used for, theme-colour labels and
+// text-on-background pairs for the contrast report.
+const newTally = () => ({ counts: {}, usage: new Map(), labels: new Map(), pairs: [] });
+function add(rt, k, v, n = 1) {
+  if (v == null || v === '') return;
+  (rt.counts[k] ||= new Map()).set(v, (rt.counts[k].get(v) || 0) + n);
+}
+function use(rt, kind, v, n = 1) {
+  if (!v) return;
+  add(rt, 'colors', v, n);
+  const u = rt.usage.get(v) || rt.usage.set(v, {}).get(v); u[kind] = (u[kind] || 0) + n;
+}
+const top = (rt, k) => [...(rt.counts[k] || new Map())].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }));
+// Retheme's own usage names map onto text/background/border/fill
+const KIND = { text: 'text', background: 'background', bg: 'background', line: 'border', border: 'border', fill: 'fill', accent: 'fill' };
 
-  const tally = {}; const add = (k, v, n = 1) => { if (v == null || v === '') return; (tally[k] ||= new Map()).set(v, (tally[k].get(v) || 0) + n); };
-  const top = k => [...(tally[k] || new Map())].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }));
-  // what each colour is used for; Retheme's own usage names map onto text/background/border/fill
-  const usage = new Map(), KIND = { text: 'text', background: 'background', bg: 'background', line: 'border', border: 'border', fill: 'fill', accent: 'fill' };
-  const use = (kind, v, n = 1) => { if (!v) return; add('colors', v, n); const u = usage.get(v) || usage.set(v, {}).get(v); u[kind] = (u[kind] || 0) + n; };
-  const pairs = []; // text colour on the layout's solid background, for the contrast report
-
-  // Theme colours carry their slot and semantic role; usage counts come from Retheme's own observation.
-  const labels = new Map();
-  for (const c of m.colors || []) {
+// Theme colours carry their slot and semantic role; usage counts come from Retheme's own observation.
+function themeColors(rt, colors) {
+  for (const c of colors || []) {
     const v = hex(c.hex); if (!v) continue;
-    const entries = Object.entries(c.usage || {}); if (!entries.length) add('colors', v, 0);
-    for (const [k, n] of entries) use(KIND[k] || 'fill', v, n);
+    const entries = Object.entries(c.usage || {}); if (!entries.length) add(rt, 'colors', v, 0);
+    for (const [k, n] of entries) use(rt, KIND[k] || 'fill', v, n);
     const label = [c.theme_slot, c.role].filter(Boolean).join(' · '); // slots can share a hex (e.g. hlink/folHlink)
-    labels.set(v, labels.has(v) ? `${labels.get(v)}, ${label}` : label);
+    rt.labels.set(v, rt.labels.has(v) ? `${rt.labels.get(v)}, ${label}` : label);
   }
-  const fmtTokens = f => {
-    if (!f) return;
-    add('fonts', f.font); if (f.size_pt) add('fontSizes', `${f.size_pt}pt`);
-    add('fontWeights', f.bold ? '700' : '400'); if (f.color) use('text', hex(f.color));
-  };
-  add('fonts', m.fonts?.heading, 0); add('fonts', m.fonts?.body, 0);
+}
+function fmtTokens(rt, f) {
+  if (!f) return;
+  add(rt, 'fonts', f.font); if (f.size_pt) add(rt, 'fontSizes', `${f.size_pt}pt`);
+  add(rt, 'fontWeights', f.bold ? '700' : '400'); if (f.color) use(rt, 'text', hex(f.color));
+}
+// a solid background is the one colour text on the layout can be rated against; gradients and pictures have none
+function layoutBackground(rt, layout) {
+  const bg = layout.background || {};
+  if (bg.type === 'solid') use(rt, 'background', hex(bg.hex));
+  for (const s of bg.stops || []) use(rt, 'background', hex(s.hex));
+  return bg.type === 'solid' ? hex(bg.hex) : null;
+}
+function contrastPair(rt, behind, f) {
+  const fg = hex(f?.color);
+  if (behind && fg && f.size_pt) rt.pairs.push({ fg, bg: behind, large: f.size_pt * 4 / 3 >= 24 || (f.bold && f.size_pt * 4 / 3 >= 18.66), count: 1 });
+}
+const textElement = (role, tag, bbox, f) => ({ role, tag, bbox, color: hex(f.color), bg: null,
+  fontSize: f.size_pt ? `${f.size_pt}pt` : null, weight: f.size_pt ? (f.bold ? '700' : '400') : null, radius: null, font: f.font || null, align: f.align || null });
+// the layout's own static assets plus the template's assets owned by all layouts or by this one
+function layoutAssets(m, layout, assetsById) {
+  const ids = new Set(layout.static_assets || []);
+  for (const a of m.assets || []) if (a.owning_layout === 'all' || (a.owning_layouts || []).includes(layout.name)) ids.add(a.asset_id);
+  return [...ids].map(id => assetsById.get(id)).filter(Boolean);
+}
 
-  const assetsById = new Map((m.assets || []).map(a => [a.asset_id, a]));
-  const shotsDir = prepareOut(outDir, { screenshots });
+// one layout -> one screen; placeholders, static texts and assets become elements (formatting only, never text)
+function textElements(rt, layout, behind, bbox, push) {
+  for (const ph of layout.placeholders || []) {
+    const levels = ph.format_levels || {}; for (const f of Object.values(levels)) fmtTokens(rt, f);
+    const l1 = levels['1'] || {}; contrastPair(rt, behind, l1);
+    push(textElement(ph.type, 'placeholder', bbox(ph), l1));
+  }
+  for (const t of layout.static_texts || []) {
+    const f = t.format || {}; fmtTokens(rt, f); contrastPair(rt, behind, f);
+    push(textElement('text', 'static text', bbox(t), f));
+  }
+}
+function layoutScreen(rt, m, layout, env) {
+  const { bbox, px } = env, id = slug(layout.name), behind = layoutBackground(rt, layout);
+  const elements = [], inventory = {}, push = el => { inventory[el.role] = (inventory[el.role] || 0) + 1; elements.push(el); };
+  textElements(rt, layout, behind, bbox, push);
+  for (const a of layoutAssets(m, layout, env.assetsById)) push({ role: a.type, tag: a.source_format || 'asset', bbox: bbox(a), color: null, bg: null, fontSize: null, weight: null, radius: null });
+  const png = env.previewOf(layout), shot = png && env.screenshots;
+  if (shot) writeFileSync(path.join(env.shotsDir, `${id}.png`), png);
+  return { id, url: `${m.source_file || 'template'} › ${layout.name}`, title: layout.name, purpose: layout.purpose || null,
+    screenshot: shot ? `screens/${id}.png` : null, width: px(env.widthIn), height: px(env.heightIn), inventory, elements };
+}
 
-  const screens = (m.layouts || []).map(layout => {
-    const id = slug(layout.name);
-    const bg = layout.background || {};
-    if (bg.type === 'solid') use('background', hex(bg.hex));
-    for (const s of bg.stops || []) use('background', hex(s.hex));
-    const behind = bg.type === 'solid' ? hex(bg.hex) : null; // gradients and pictures: no single backdrop to rate
-    const pair = f => { const fg = hex(f?.color); if (behind && fg && f.size_pt) pairs.push({ fg, bg: behind, large: f.size_pt * 4 / 3 >= 24 || (f.bold && f.size_pt * 4 / 3 >= 18.66), count: 1 }); };
-    const elements = [], inventory = {}; const bump = k => inventory[k] = (inventory[k] || 0) + 1;
-    for (const ph of layout.placeholders || []) {
-      const levels = ph.format_levels || {}; for (const f of Object.values(levels)) fmtTokens(f);
-      const l1 = levels['1'] || {}; pair(l1);
-      bump(ph.type);
-      elements.push({ role: ph.type, tag: 'placeholder', bbox: bbox(ph), color: hex(l1.color), bg: null,
-        fontSize: l1.size_pt ? `${l1.size_pt}pt` : null, weight: l1.size_pt ? (l1.bold ? '700' : '400') : null, radius: null, font: l1.font || null, align: l1.align || null });
-    }
-    for (const t of layout.static_texts || []) {
-      const f = t.format || {}; fmtTokens(f); pair(f);
-      bump('text');
-      elements.push({ role: 'text', tag: 'static text', bbox: bbox(t), color: hex(f.color), bg: null,
-        fontSize: f.size_pt ? `${f.size_pt}pt` : null, weight: f.size_pt ? (f.bold ? '700' : '400') : null, radius: null, font: f.font || null, align: f.align || null });
-    }
-    const ids = new Set(layout.static_assets || []);
-    for (const a of m.assets || []) if (a.owning_layout === 'all' || (a.owning_layouts || []).includes(layout.name)) ids.add(a.asset_id);
-    for (const aid of ids) {
-      const a = assetsById.get(aid); if (!a) continue;
-      bump(a.type);
-      elements.push({ role: a.type, tag: a.source_format || 'asset', bbox: bbox(a), color: null, bg: null, fontSize: null, weight: null, radius: null });
-    }
-    const png = previewOf(layout);
-    if (png && screenshots) writeFileSync(path.join(shotsDir, `${id}.png`), png);
-    return { id, url: `${m.source_file || 'template'} › ${layout.name}`, title: layout.name, purpose: layout.purpose || null,
-      screenshot: png && screenshots ? `screens/${id}.png` : null, width: px(widthIn), height: px(heightIn), inventory, elements };
-  });
-
+// the template's declared variables: theme slots, heading/body fonts, grid measures in inches
+function declaredVars(m) {
   const cssVars = [];
   for (const c of m.colors || []) if (c.theme_slot && c.hex) cssVars.push({ name: `--${c.theme_slot}`, value: hex(c.hex) });
   if (m.fonts?.heading) cssVars.push({ name: '--font-heading', value: m.fonts.heading });
   if (m.fonts?.body) cssVars.push({ name: '--font-body', value: m.fonts.body });
   for (const [k, v] of Object.entries(m.grid || {})) if (k.endsWith('_in') && v != null) cssVars.push({ name: `--${k.slice(0, -3).replace(/_/g, '-')}`, value: `${v}in` });
+  return cssVars;
+}
+const colorTokens = rt => top(rt, 'colors').map(c => ({ ...c, ...(rt.labels.has(c.value) ? { label: rt.labels.get(c.value) } : {}), ...(rt.usage.has(c.value) ? { usage: rt.usage.get(c.value) } : {}) }));
 
-  const colors = top('colors').map(c => ({ ...c, ...(labels.has(c.value) ? { label: labels.get(c.value) } : {}), ...(usage.has(c.value) ? { usage: usage.get(c.value) } : {}) }));
+// Slide size in inches, and the inches -> pixels conversion: preview pixels per inch, so element boxes match the
+// screenshots; 96 when there are no previews.
+function slideGeometry(m, file) {
+  const geo = m.slide_geometry || {};
+  const widthIn = geo.width_in || m.grid?.slide_width_in || 13.333, heightIn = geo.height_in || m.grid?.slide_height_in || 7.5;
+  const previewOf = layout => file(`previews/layout-${slug(layout.name)}.png`);
+  const firstPreview = (m.layouts || []).map(previewOf).find(Boolean);
+  const ppi = (pngWidth(firstPreview) || 0) / widthIn || 96;
+  const px = v => Math.round((v || 0) * ppi);
+  const bbox = o => ({ x: px(o.position?.x_in), y: px(o.position?.y_in), w: px(o.size?.width_in), h: px(o.size?.height_in) });
+  return { widthIn, heightIn, previewOf, ppi, px, bbox };
+}
+
+export function importRetheme({ source, outDir, screenshots = false }) {
+  const { manifest: m, file } = readPackage(source);
+  const { widthIn, heightIn, previewOf, ppi, px, bbox } = slideGeometry(m, file);
+  const rt = newTally();
+  themeColors(rt, m.colors);
+  add(rt, 'fonts', m.fonts?.heading, 0); add(rt, 'fonts', m.fonts?.body, 0);
+  const env = { px, bbox, previewOf, widthIn, heightIn, screenshots, assetsById: new Map((m.assets || []).map(a => [a.asset_id, a])), shotsDir: prepareOut(outDir, { screenshots }) };
+  const screens = (m.layouts || []).map(layout => layoutScreen(rt, m, layout, env));
+
   return writeAtlas(outDir, {
     project: { name: m.template_name || path.basename(source), kind: 'pptx', source: m.source_file || path.basename(source),
       viewport: { width: px(widthIn), height: px(heightIn) }, units: { ppi: Math.round(ppi * 100) / 100, slideInches: { width: widthIn, height: heightIn } },
       previews: m.preview_mode || null, notes: m.extraction_notes || [] },
-    tokens: { colors, fonts: top('fonts'), fontSizes: top('fontSizes'), fontWeights: top('fontWeights'), lineHeights: [], letterSpacings: [], spacing: [], radii: [], shadows: [], cssVars },
-    contrast: contrastReport(pairs), screens,
+    tokens: { colors: colorTokens(rt), fonts: top(rt, 'fonts'), fontSizes: top(rt, 'fontSizes'), fontWeights: top(rt, 'fontWeights'), lineHeights: [], letterSpacings: [], spacing: [], radii: [], shadows: [], cssVars: declaredVars(m) },
+    contrast: contrastReport(rt.pairs), screens,
   }, { screenshots });
 }
