@@ -60,107 +60,170 @@ function perRole(atlas, fields, keep) {
     return { role, count, total, ...Object.fromEntries(fields.map((f, i) => [f, JSON.parse(key)[i]])) }; });
 }
 
-export function buildTokens(atlas, { exported = new Date().toISOString() } = {}) {
-  const t = atlas.tokens, out = {}, refs = { color: new Map(), size: new Map(), family: new Map(), weight: new Map(), radius: new Map(), lineHeight: new Map(), letterSpacing: new Map() };
-  const skipped = []; // values with no token form in the format, e.g. 50% or per-corner radii, em sizes
-  const unique = (g, n) => { let k = n, i = 2; while (g[k]) k = `${n}-${i++}`; return k; };
-  const usage = x => ext({ count: x.count, ...(x.share != null ? { share: x.share } : {}) });
+const unique = (g, n) => { let k = n, i = 2; while (g[k]) k = `${n}-${i++}`; return k; };
+const usage = x => ext({ count: x.count, ...(x.share != null ? { share: x.share } : {}) });
+const alias = (map, v, lit) => map.get(v) || lit(v);
+const colorRef = (refs, hex) => refs.color.get(hex) || colorValue(hex);
 
-  // Palette names: the source's label, else the name of a variable the source declared with that exact colour
-  // (preferring names that say what it is for, then the shortest), else the hex digits.
+// Palette names: the source's label, else the name of a variable the source declared with that exact colour
+// (preferring names that say what it is for, then the shortest), else the hex digits.
+function declaredColors(cssVars) {
   const declared = new Map();
-  for (const v of t.cssVars || []) { const h = /^#[0-9a-f]{6}$/i.test(v.value.trim()) ? v.value.trim().toLowerCase() : null; if (h) (declared.get(h) || declared.set(h, []).get(h)).push(v.name.replace(/^--/, '')); }
-  // score: names matching the colour's main use first, then any semantic hint, then the shortest
-  const declaredName = (h, usage) => { const main = Object.entries(usage || {}).sort((a, b) => b[1] - a[1])[0]?.[0], hint = USE_HINT[main];
-    const score = n => (hint?.test(n) ? 2 : 0) + (SEMANTIC_HINT.test(n) ? 1 : 0);
-    return (declared.get(h) || []).sort((a, b) => score(b) - score(a) || a.length - b.length)[0]; };
-  if (t.colors?.length) {
-    const g = out.color = { $type: 'color' };
-    for (const c of t.colors) { const v = colorValue(c.value); if (!v) { skipped.push(c.value); continue; }
-      const k = unique(g, name((c.label || '').split(/,| · /)[0].trim() || declaredName(c.value, c.usage) || c.value.slice(1, 7))); refs.color.set(c.value, `{color.${k}}`);
-      g[k] = { $value: v, ...(c.label ? { $description: c.label } : {}), ...ext({ count: c.count, ...(c.share != null ? { share: c.share } : {}), ...(c.usage ? { usage: c.usage } : {}) }) }; }
-  }
-  const font = {};
-  if (t.fonts?.length) { const g = font.family = { $type: 'fontFamily' };
-    for (const f of t.fonts) { const k = unique(g, name(f.value)); refs.family.set(f.value, `{font.family.${k}}`); g[k] = { $value: f.value, ...usage(f) }; } }
-  const dimGroup = (list, refMap, desc) => {
-    const g = { $type: 'dimension' };
-    for (const d of [...list].sort((a, b) => (dimensionValue(a.value)?.value ?? 0) - (dimensionValue(b.value)?.value ?? 0))) {
-      const v = dimensionValue(d.value); if (!v) { skipped.push(d.value); continue; }
-      const k = unique(g, name(d.value)); refMap?.set(d.value, `{${desc}.${k}}`);
-      g[k] = { $value: v, ...ext({ count: d.count, ...(String(d.value).trim() !== `${v.value}${v.unit}` ? { source: d.value } : {}) }) };
-    }
-    return Object.keys(g).length > 1 ? g : null;
-  };
-  if (t.fontSizes?.length) { const g = dimGroup(t.fontSizes, refs.size, 'font.size'); if (g) font.size = g; }
-  if (t.fontWeights?.length) { const g = font.weight = { $type: 'fontWeight' };
-    for (const w of [...t.fontWeights].sort((a, b) => Number(a.value) - Number(b.value))) { const n = Number(w.value);
-      const k = unique(g, WEIGHT_NAMES[n] || name(w.value)); refs.weight.set(String(w.value), `{font.weight.${k}}`); g[k] = { $value: Number.isFinite(n) ? n : w.value, ...usage(w) }; } }
-  if (t.lineHeights?.length) { const g = { $type: 'number' }; // unitless: a ratio of the font size
-    for (const l of [...t.lineHeights].sort((a, b) => parseFloat(a.value) - parseFloat(b.value))) { const n = parseFloat(l.value); if (!Number.isFinite(n)) { skipped.push(`line-height ${l.value}`); continue; }
-      const k = unique(g, name(l.value)); refs.lineHeight.set(String(l.value), `{font.lineHeight.${k}}`); g[k] = { $value: n, ...usage(l) }; }
-    if (Object.keys(g).length > 1) font.lineHeight = g; }
-  if (t.letterSpacings?.length) { const g = dimGroup(t.letterSpacings, refs.letterSpacing, 'font.letterSpacing'); if (g) font.letterSpacing = g; }
-  if (Object.keys(font).length) out.font = font;
-  const spacing = t.spacing?.length && dimGroup(t.spacing, null, 'spacing'); if (spacing) out.spacing = spacing;
-  const radius = t.radii?.length && dimGroup(t.radii, refs.radius, 'radius'); if (radius) out.radius = radius;
-  if (t.shadows?.length) { const g = { $type: 'shadow' };
-    t.shadows.forEach((s, i) => { const v = shadowValue(s.value); if (v) g[String(i + 1)] = { $value: v, ...ext({ count: s.count, css: s.value }) }; else skipped.push(s.value); });
-    if (Object.keys(g).length > 1) out.shadow = g; }
+  for (const v of cssVars || []) { const h = /^#[0-9a-f]{6}$/i.test(v.value.trim()) ? v.value.trim().toLowerCase() : null; if (h) (declared.get(h) || declared.set(h, []).get(h)).push(v.name.replace(/^--/, '')); }
+  return declared;
+}
+// score: names matching the colour's main use first, then any semantic hint, then the shortest
+function declaredName(declared, h, usage) {
+  const main = Object.entries(usage || {}).sort((a, b) => b[1] - a[1])[0]?.[0], hint = USE_HINT[main];
+  const score = n => (hint?.test(n) ? 2 : 0) + (SEMANTIC_HINT.test(n) ? 1 : 0);
+  return (declared.get(h) || []).sort((a, b) => score(b) - score(a) || a.length - b.length)[0];
+}
+const colorName = (c, declared) => name((c.label || '').split(/,| · /)[0].trim() || declaredName(declared, c.value, c.usage) || c.value.slice(1, 7));
 
-  // Derived layers: aliases into the primitives where the value is one of them, else the literal value.
-  const color = hex => refs.color.get(hex) || colorValue(hex), alias = (map, v, lit) => map.get(v) || lit(v);
-  // color-usage: per kind of use, the colours most used that way (at least 2% of that use), ranked.
-  const kinds = { text: 'text', background: 'background', border: 'border', fill: 'fill' }, byUse = {};
-  for (const c of t.colors || []) for (const [k, n] of Object.entries(c.usage || {})) if (kinds[k] && refs.color.has(c.value)) (byUse[k] ||= []).push({ value: c.value, n });
+// Primitives. Each builder fills b.out (and b.refs, for the derived layers' aliases) and records values with no
+// token form in b.skipped; they run in a fixed order, which is the order of groups in the output.
+function colorPrimitives({ t, out, refs, skipped }) {
+  if (!t.colors?.length) return;
+  const declared = declaredColors(t.cssVars), g = out.color = { $type: 'color' };
+  for (const c of t.colors) {
+    const v = colorValue(c.value); if (!v) { skipped.push(c.value); continue; }
+    const k = unique(g, colorName(c, declared)); refs.color.set(c.value, `{color.${k}}`);
+    g[k] = { $value: v, ...(c.label ? { $description: c.label } : {}), ...ext({ count: c.count, ...(c.share != null ? { share: c.share } : {}), ...(c.usage ? { usage: c.usage } : {}) }) };
+  }
+}
+function dimGroup({ skipped }, list, refMap, desc) {
+  const g = { $type: 'dimension' };
+  for (const d of [...list].sort((a, b) => (dimensionValue(a.value)?.value ?? 0) - (dimensionValue(b.value)?.value ?? 0))) {
+    const v = dimensionValue(d.value); if (!v) { skipped.push(d.value); continue; }
+    const k = unique(g, name(d.value)); refMap?.set(d.value, `{${desc}.${k}}`);
+    g[k] = { $value: v, ...ext({ count: d.count, ...(String(d.value).trim() !== `${v.value}${v.unit}` ? { source: d.value } : {}) }) };
+  }
+  return Object.keys(g).length > 1 ? g : null;
+}
+function familyGroup({ t, refs }) {
+  const g = { $type: 'fontFamily' };
+  for (const f of t.fonts) { const k = unique(g, name(f.value)); refs.family.set(f.value, `{font.family.${k}}`); g[k] = { $value: f.value, ...usage(f) }; }
+  return g;
+}
+function weightGroup({ t, refs }) {
+  const g = { $type: 'fontWeight' };
+  for (const w of [...t.fontWeights].sort((a, b) => Number(a.value) - Number(b.value))) {
+    const n = Number(w.value), k = unique(g, WEIGHT_NAMES[n] || name(w.value));
+    refs.weight.set(String(w.value), `{font.weight.${k}}`); g[k] = { $value: Number.isFinite(n) ? n : w.value, ...usage(w) };
+  }
+  return g;
+}
+function lineHeightGroup({ t, refs, skipped }) {
+  const g = { $type: 'number' }; // unitless: a ratio of the font size
+  for (const l of [...t.lineHeights].sort((a, b) => parseFloat(a.value) - parseFloat(b.value))) {
+    const n = parseFloat(l.value); if (!Number.isFinite(n)) { skipped.push(`line-height ${l.value}`); continue; }
+    const k = unique(g, name(l.value)); refs.lineHeight.set(String(l.value), `{font.lineHeight.${k}}`); g[k] = { $value: n, ...usage(l) };
+  }
+  return Object.keys(g).length > 1 ? g : null;
+}
+function fontPrimitives(b) {
+  const { t, out, refs } = b, font = {};
+  if (t.fonts?.length) font.family = familyGroup(b);
+  if (t.fontSizes?.length) { const g = dimGroup(b, t.fontSizes, refs.size, 'font.size'); if (g) font.size = g; }
+  if (t.fontWeights?.length) font.weight = weightGroup(b);
+  if (t.lineHeights?.length) { const g = lineHeightGroup(b); if (g) font.lineHeight = g; }
+  if (t.letterSpacings?.length) { const g = dimGroup(b, t.letterSpacings, refs.letterSpacing, 'font.letterSpacing'); if (g) font.letterSpacing = g; }
+  if (Object.keys(font).length) out.font = font;
+}
+function shadowPrimitives({ t, out, skipped }) {
+  if (!t.shadows?.length) return;
+  const g = { $type: 'shadow' };
+  t.shadows.forEach((s, i) => { const v = shadowValue(s.value); if (v) g[String(i + 1)] = { $value: v, ...ext({ count: s.count, css: s.value }) }; else skipped.push(s.value); });
+  if (Object.keys(g).length > 1) out.shadow = g;
+}
+
+// Derived layers: aliases into the primitives where the value is one of them, else the literal value.
+// color-usage: per kind of use, the colours most used that way (at least 2% of that use), ranked.
+const USE_KINDS = { text: 'text', background: 'background', border: 'border', fill: 'fill' };
+function colorUsage({ t, out, refs }) {
+  const byUse = {};
+  for (const c of t.colors || []) for (const [k, n] of Object.entries(c.usage || {})) if (USE_KINDS[k] && refs.color.has(c.value)) (byUse[k] ||= []).push({ value: c.value, n });
   for (const [k, list] of Object.entries(byUse)) {
     const total = list.reduce((a, x) => a + x.n, 0), ranked = list.filter(x => x.n / total >= 0.02).sort((a, b) => b.n - a.n).slice(0, 6);
     if (!ranked.length) continue;
-    const g = ((out['color-usage'] ||= {})[kinds[k]] = { $type: 'color' });
+    const g = ((out['color-usage'] ||= {})[USE_KINDS[k]] = { $type: 'color' });
     ranked.forEach((x, i) => { g[RANKS[i]] = { $value: refs.color.get(x.value), ...ext({ count: x.n, share: r4(x.n / total) }) }; });
   }
-  const typo = perRole(atlas, ['font', 'fontSize', 'weight', 'lineHeight', 'letterSpacing'], e => e.fontSize && e.role !== 'image'); // images carry no type
-  const fallbackFont = t.fonts?.[0]?.value;
-  if (typo.length) { const g = out.typography = { $type: 'typography' };
-    for (const r of typo.sort((a, b) => b.total - a.total)) {
-      const fam = r.font || fallbackFont, size = dimensionValue(r.fontSize); if (!fam || !size) continue;
-      const lh = r.lineHeight != null && Number.isFinite(parseFloat(r.lineHeight)) ? alias(refs.lineHeight, String(r.lineHeight), v => parseFloat(v)) : null;
-      const ls = r.letterSpacing != null && dimensionValue(r.letterSpacing) ? alias(refs.letterSpacing, r.letterSpacing, dimensionValue) : null;
-      g[unique(g, name(r.role))] = { $value: { fontFamily: alias(refs.family, fam, v => v), fontSize: alias(refs.size, r.fontSize, () => size), fontWeight: alias(refs.weight, String(r.weight ?? 400), v => Number(v) || 400),
-        ...(lh != null ? { lineHeight: lh } : {}), ...(ls ? { letterSpacing: ls } : {}) },
-        ...ext({ role: r.role, samples: r.total, share: r4(r.count / r.total) }) };
-    } }
-  // component: style variants per role (see components.mjs), each property aliased into the primitives where it is one
-  const variants = atlas.components || clusterComponents(atlas.screens, { pageBg: [...(t.colors || [])].filter(c => c.usage?.background).sort((a, b) => b.usage.background - a.usage.background)[0]?.value });
+}
+// typography: the most common type style per element role
+function typeStyle(refs, r, fallbackFont) {
+  const fam = r.font || fallbackFont, size = dimensionValue(r.fontSize); if (!fam || !size) return null;
+  const lh = r.lineHeight != null && Number.isFinite(parseFloat(r.lineHeight)) ? alias(refs.lineHeight, String(r.lineHeight), v => parseFloat(v)) : null;
+  const ls = r.letterSpacing != null && dimensionValue(r.letterSpacing) ? alias(refs.letterSpacing, r.letterSpacing, dimensionValue) : null;
+  return { fontFamily: alias(refs.family, fam, v => v), fontSize: alias(refs.size, r.fontSize, () => size), fontWeight: alias(refs.weight, String(r.weight ?? 400), v => Number(v) || 400),
+    ...(lh != null ? { lineHeight: lh } : {}), ...(ls ? { letterSpacing: ls } : {}) };
+}
+function typography({ t, out, refs }, atlas) {
+  const rows = perRole(atlas, ['font', 'fontSize', 'weight', 'lineHeight', 'letterSpacing'], e => e.fontSize && e.role !== 'image'); // images carry no type
+  if (!rows.length) return;
+  const g = out.typography = { $type: 'typography' }, fallbackFont = t.fonts?.[0]?.value;
+  for (const r of rows.sort((a, b) => b.total - a.total)) {
+    const v = typeStyle(refs, r, fallbackFont); if (!v) continue;
+    g[unique(g, name(r.role))] = { $value: v, ...ext({ role: r.role, samples: r.total, share: r4(r.count / r.total) }) };
+  }
+}
+// component: style variants per role (see components.mjs), each property aliased into the primitives where it is one
+function componentStyle(refs, st) {
+  const c = {}, rad = st.radius ? (refs.radius.get(st.radius) || dimensionValue(st.radius)) : null, [pv, ph] = (st.padding || '').split(' ').map(dimensionValue);
+  if (st.bg) c.background = { $type: 'color', $value: colorRef(refs, st.bg) };
+  if (st.color) c.text = { $type: 'color', $value: colorRef(refs, st.color) };
+  if (st.border) c.border = { $type: 'color', $value: colorRef(refs, st.border) };
+  if (rad) c.radius = { $type: 'dimension', $value: rad };
+  if (st.fontSize && dimensionValue(st.fontSize)) c['font-size'] = { $type: 'dimension', $value: alias(refs.size, st.fontSize, dimensionValue) };
+  if (st.weight) c['font-weight'] = { $type: 'fontWeight', $value: alias(refs.weight, String(st.weight), x => Number(x) || 400) };
+  if (pv?.value) c['padding-block'] = { $type: 'dimension', $value: pv };
+  if (ph?.value) c['padding-inline'] = { $type: 'dimension', $value: ph };
+  return c;
+}
+const pageBackground = colors => [...(colors || [])].filter(c => c.usage?.background).sort((a, b) => b.usage.background - a.usage.background)[0]?.value;
+function componentTokens({ t, out, refs }, atlas) {
+  const variants = atlas.components || clusterComponents(atlas.screens, { pageBg: pageBackground(t.colors) });
   for (const [role, list] of Object.entries(variants)) for (const v of list) {
-    const c = {}, st = v.style, rad = st.radius ? (refs.radius.get(st.radius) || dimensionValue(st.radius)) : null, [pv, ph] = (st.padding || '').split(' ').map(dimensionValue);
-    if (st.bg) c.background = { $type: 'color', $value: color(st.bg) };
-    if (st.color) c.text = { $type: 'color', $value: color(st.color) };
-    if (st.border) c.border = { $type: 'color', $value: color(st.border) };
-    if (rad) c.radius = { $type: 'dimension', $value: rad };
-    if (st.fontSize && dimensionValue(st.fontSize)) c['font-size'] = { $type: 'dimension', $value: alias(refs.size, st.fontSize, dimensionValue) };
-    if (st.weight) c['font-weight'] = { $type: 'fontWeight', $value: alias(refs.weight, String(st.weight), x => Number(x) || 400) };
-    if (pv?.value) c['padding-block'] = { $type: 'dimension', $value: pv };
-    if (ph?.value) c['padding-inline'] = { $type: 'dimension', $value: ph };
+    const c = componentStyle(refs, v.style);
     if (Object.keys(c).length) ((out.component ||= {})[name(role)] ||= {})[name(v.name)] = { ...c, ...ext({ count: v.count, share: v.share, screens: v.screens }) };
   }
+}
 
-  // The source's declared variables (CSS custom properties, theme slots, token paths), typed where possible.
+// The source's declared variables (CSS custom properties, theme slots, token paths), typed where possible.
+function sourceToken(refs, v) {
+  const val = v.value.trim(), hex = /^(#[0-9a-f]{3,8}|rgba?\([^)]*\))$/i.test(val) && toHex(val);
+  const c = hex && colorValue(hex), d = !c && /[a-z]$/i.test(val) && dimensionValue(val); // a dimension needs a unit
+  const n = !c && !d && /^-?\d*\.?\d+$/.test(val) ? parseFloat(val) : null; // unitless: a weight, line height, ratio...
+  if (c) return { $type: 'color', $value: refs.color.get(hex) || c };
+  if (d) return { $type: 'dimension', $value: d };
+  if (n != null) return /weight/i.test(v.name) && n >= 1 && n <= 1000 ? { $type: 'fontWeight', $value: n } : { $type: 'number', $value: n };
+  return null;
+}
+function sourceVariables({ t, out, refs }) {
   const vars = (t.cssVars || []).filter(v => !/^\s*["']/.test(v.value));
-  if (vars.length) { const g = out.source = {}, raw = {};
-    for (const v of vars) {
-      const k = unique(g, name(v.name.replace(/^--/, ''))), val = v.value.trim(), hex = /^(#[0-9a-f]{3,8}|rgba?\([^)]*\))$/i.test(val) && toHex(val);
-      const c = hex && colorValue(hex), d = !c && /[a-z]$/i.test(val) && dimensionValue(val); // a dimension needs a unit
-      const n = !c && !d && /^-?\d*\.?\d+$/.test(val) ? parseFloat(val) : null; // unitless: a weight, line height, ratio...
-      if (c) g[k] = { $type: 'color', $value: refs.color.get(hex) || c };
-      else if (d) g[k] = { $type: 'dimension', $value: d };
-      else if (n != null) g[k] = /weight/i.test(v.name) && n >= 1 && n <= 1000 ? { $type: 'fontWeight', $value: n } : { $type: 'number', $value: n };
-      else raw[v.name] = v.value;
-    }
-    if (Object.keys(raw).length) g.$extensions = { [EXT]: { untyped: raw } };
+  if (!vars.length) return;
+  const g = out.source = {}, raw = {};
+  for (const v of vars) {
+    const k = unique(g, name(v.name.replace(/^--/, ''))), tok = sourceToken(refs, v);
+    if (tok) g[k] = tok; else raw[v.name] = v.value;
   }
-  return { $description: 'Design tokens extracted by UI Atlas', ...out,
-    $extensions: { [EXT]: { format: 'https://www.designtokens.org/tr/2025.10/format/', exported, ...(skipped.length ? { unrepresentable: skipped } : {}) } } };
+  if (Object.keys(raw).length) g.$extensions = { [EXT]: { untyped: raw } };
+}
+
+export function buildTokens(atlas, { exported = new Date().toISOString() } = {}) {
+  const refs = { color: new Map(), size: new Map(), family: new Map(), weight: new Map(), radius: new Map(), lineHeight: new Map(), letterSpacing: new Map() };
+  const b = { t: atlas.tokens, out: {}, refs, skipped: [] }; // skipped: values with no token form in the format, e.g. 50% or per-corner radii, em sizes
+  colorPrimitives(b);
+  fontPrimitives(b);
+  const spacing = b.t.spacing?.length && dimGroup(b, b.t.spacing, null, 'spacing'); if (spacing) b.out.spacing = spacing;
+  const radius = b.t.radii?.length && dimGroup(b, b.t.radii, refs.radius, 'radius'); if (radius) b.out.radius = radius;
+  shadowPrimitives(b);
+  colorUsage(b);
+  typography(b, atlas);
+  componentTokens(b, atlas);
+  sourceVariables(b);
+  return { $description: 'Design tokens extracted by UI Atlas', ...b.out,
+    $extensions: { [EXT]: { format: 'https://www.designtokens.org/tr/2025.10/format/', exported, ...(b.skipped.length ? { unrepresentable: b.skipped } : {}) } } };
 }
 
 // Walk a token tree: yields { path: [...], token } for every node with a $value; $type is inherited from groups.
