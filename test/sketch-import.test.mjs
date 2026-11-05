@@ -116,3 +116,74 @@ test('copies previews/preview.png as a first screen when screenshots are opted i
   assert.ok(existsSync(path.join(out, 'screens/preview.png')));
   assert.deepEqual(atlas.project.viewport, { width: 375, height: 600 });
 });
+
+// Edge cases: gradients, inner and disabled shadows, disabled fills/borders, opacity, filled shape groups, stars,
+// per-point corner radii, nested/missing/foreign/self-referencing symbols, text falling back to its text style,
+// italic and camel-case font names, hidden boards, pages found without document refs, colour assets and colours.
+const RED = C(1, 0, 0), BLUE = C(0, 0, 1);
+const loop = { _class: 'symbolMaster', name: 'Loop', symbolID: 'LOOP', isVisible: true, frame: frame(0, 0, 10, 10),
+  layers: [{ _class: 'symbolInstance', name: 'self', isVisible: true, symbolID: 'LOOP', frame: frame(1, 1, 8, 8) }] };
+const edgeBoard = { _class: 'artboard', name: 'Edge', isVisible: true, frame: frame(0, 0, 400, 300), hasBackgroundColor: false, layers: [
+  { _class: 'rectangle', name: 'grad', isVisible: true, frame: frame(0, 0, 100, 40), points: [{ cornerRadius: 3 }, { cornerRadius: 9 }],
+    style: { contextSettings: { opacity: 0.5 }, fills: [{ isEnabled: true, fillType: 1, gradient: { stops: [{ color: RED }, { color: BLUE }] } }, { isEnabled: false, fillType: 0, color: C(0, 1, 0) }],
+      borders: [{ isEnabled: false, color: C(0, 1, 0) }, { isEnabled: true, color: BLUE }], shadows: [{ isEnabled: false, color: C(0, 1, 0) }],
+      innerShadows: [{ isEnabled: true, offsetX: 1, offsetY: 1, blurRadius: 2, spread: 0, color: C(0, 0, 0, 0.5) }] } },
+  { _class: 'shapeGroup', name: 'filled group', isVisible: true, frame: frame(10, 50, 50, 50), style: { fills: [{ isEnabled: true, fillType: 0, color: RED }] },
+    layers: [{ _class: 'oval', name: 'inner', isVisible: true, frame: frame(0, 0, 10, 10), style: { fills: [{ fillType: 0, color: BLUE }] } }] },
+  { _class: 'shapeGroup', name: 'hollow group', isVisible: true, frame: frame(70, 50, 50, 50), style: { contextSettings: { opacity: 1 } },
+    layers: [{ _class: 'star', name: 'star', isVisible: true, frame: frame(5, 5, 20, 20), style: { borders: [{ color: RED, thickness: 2 }] } }] },
+  { _class: 'group', name: 'g', isVisible: true, frame: frame(200, 0, 100, 100), style: { contextSettings: { opacity: 0.25 } }, layers: [
+    { _class: 'symbolInstance', name: 'missing', isVisible: true, symbolID: 'NOPE', frame: frame(0, 0, 30, 30) },
+    { _class: 'symbolInstance', name: 'foreign', isVisible: true, symbolID: 'FOREIGN', frame: frame(0, 40, 30, 30), style: { fills: [{ fillType: 0, color: BLUE }] } },
+    { _class: 'symbolInstance', name: 'loop', isVisible: true, symbolID: 'LOOP', frame: frame(0, 80, 10, 10) }] },
+  { _class: 'text', name: 'styled', isVisible: true, frame: frame(10, 150, 100, 20), attributedString: { string: '' },
+    style: { textStyle: { encodedAttributes: font('HelveticaNeue-LightItalic', 13, RED) } } },
+  { _class: 'text', name: 'plain', isVisible: true, frame: frame(10, 180, 100, 20), attributedString: { string: 'Edge copy\u2028more' } },
+  { _class: 'text', name: 'two runs', isVisible: true, frame: frame(10, 210, 100, 40), attributedString: { string: 'Ab', attributes: [
+    { attributes: font('SFProDisplay-Heavy', 40, BLUE) }, { attributes: font('Inter-Italic', 12, RED) }] } },
+  { _class: 'slice', name: 'ignored', isVisible: true, frame: frame(0, 0, 1, 1) }] };
+export const edgeSketch = {
+  'document.json': { ...document, pages: [], assets: { colorAssets: [{ name: 'Danger', color: RED }, { name: 'Alarm', color: RED }], colors: [BLUE, null] },
+    sharedSwatches: { objects: [{ name: 'Blue / 500', value: BLUE }, { name: 'Nameless' }] },
+    layerTextStyles: { objects: [{ name: 'Caption', value: { textStyle: { encodedAttributes: font('Inter-Bold', 11, RED) } } }, { name: 'Empty', value: {} }] },
+    foreignSymbols: [{ symbolMaster: { _class: 'symbolMaster', name: 'Foreign Button', symbolID: 'FOREIGN', layers: [{ _class: 'bitmap', name: 'b', frame: frame(0, 0, 5, 5) }] } },
+      { symbolMaster: { ...master, name: 'Shadowed duplicate' } }] },
+  'pages/B.json': { _class: 'page', name: 'Second', layers: [edgeBoard, { ...detail, name: 'Hidden board', isVisible: false }, { _class: 'group', name: 'not a board', layers: [] }] },
+  'pages/A.json': { _class: 'page', name: 'First', layers: [{ ...master, name: 'Button / Primary' }, loop, { ...detail, name: 'Edge' }] },
+};
+
+test('Sketch edge cases: gradients, disabled styles, groups, symbols that are missing, foreign or recursive, text-style fallback', async t => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'sketch-import-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, 'Edge.sketch'), out = path.join(dir, 'out');
+  writeZip(file, edgeSketch);
+  const atlas = await importSketch({ source: file, outDir: out, screenshots: true });
+  const tk = atlas.tokens, tok = (k, v) => tk[k].find(x => x.value === v);
+  // pages without document refs come in zip order; hidden boards and non-boards are skipped; repeated names are numbered
+  assert.deepEqual(atlas.screens.map(s => [s.id, s.url, s.purpose]), [['edge', 'Second › Edge', 'Artboard'], ['button-primary', 'First › Button / Primary', 'Symbol master'],
+    ['loop', 'First › Loop', 'Symbol master'], ['edge-2', 'First › Edge', 'Artboard']]);
+  assert.equal(atlas.project.notes[0], 'Sketch unknown version: 2 page(s), 2 artboard(s), 2 symbol master(s).');
+  const edge = atlas.screens[0], by = r => edge.elements.filter(e => e.role === r);
+  assert.deepEqual(edge.inventory, { shape: 2, component: 3, text: 2, heading: 1 });
+  assert.deepEqual(by('shape').map(e => [e.tag, e.bg, e.color, e.radius]), [['rectangle', '#ff0000', '#0000ff', '9px'], ['shapeGroup', '#ff0000', null, null]],
+    'gradient start colour, first enabled border, largest point radius; a filled shape group is one shape');
+  assert.deepEqual(by('component').map(e => [e.name, e.bg]), [[null, null], ['Foreign Button', '#0000ff'], ['Loop', null]]);
+  assert.deepEqual(by('heading').map(e => [e.font, e.weight, e.fontSize, e.color]), [['SFPro Display', '800', '40px', '#0000ff']], 'first run decides');
+  assert.deepEqual(by('text').map(e => [e.font, e.weight, e.fontSize, e.color]), [['Helvetica Neue', '300', '13px', '#ff0000'], [null, null, null, null]], 'text style fallback; no style at all');
+  // tokens: colour-asset and swatch names as labels, disabled styles skipped, every run counted
+  assert.deepEqual([tok('colors', '#ff0000').label, tok('colors', '#ff0000').usage], ['Danger, Alarm', { text: 3, background: 2, border: 1 }]);
+  assert.deepEqual([tok('colors', '#0000ff').label, tok('colors', '#0000ff').usage], ['Blue / 500', { background: 2, border: 1, text: 1 }]);
+  assert.ok(!tok('colors', '#00ff00'), 'disabled fills, borders and shadows are skipped');
+  assert.deepEqual(tk.fonts.map(f => f.value), ['Inter', 'Helvetica Neue', 'SFPro Display']);
+  assert.deepEqual(tk.fontWeights.map(f => f.value), ['700', '300', '800', '400', '500']);
+  assert.deepEqual(tk.shadows.map(s => s.value), ['inset 1px 1px 2px 0px #00000080']);
+  assert.deepEqual(tk.cssVars, [{ name: '--blue-500', value: '#0000ff' }, { name: '--text-caption', value: '11px Inter 700' }]);
+  // the schematic
+  const svg = readFileSync(path.join(out, 'screens/edge.svg'), 'utf8');
+  assert.ok(svg.includes('<rect x="0" y="0" width="100" height="40" rx="9" fill="#ff0000" stroke="#0000ff" stroke-width="1" opacity="0.5"/>'));
+  assert.ok(svg.includes('<rect x="10" y="50" width="50" height="50" fill="#ff0000"/><g><rect x="75"'), 'a filled group draws as one shape; a hollow one draws its layers');
+  assert.ok(svg.includes('<g opacity="0.3"><rect x="200" y="0" width="30" height="30" fill="none" stroke="#999999" stroke-dasharray="4 3"/>'), 'group opacity; a missing symbol is a dashed box');
+  assert.ok(svg.includes('<g><rect x="200" y="40" width="5" height="5" fill="#cccccc" stroke="#999999"/></g>'), 'a foreign symbol draws its master');
+  assert.ok(svg.includes(`${'<g>'.repeat(8)}<rect x="208" y="88"`) && !svg.includes(`${'<g>'.repeat(9)}<rect x="208"`), 'a self-referencing symbol stops at depth 8');
+  assert.ok(svg.includes('font-family="sans-serif" font-size="12" fill="#000000">Edge copy</text>') && !svg.includes('more'), 'first line only, defaults');
+  assert.ok(!svg.includes('y="162"'), 'an empty text draws nothing');
+});
