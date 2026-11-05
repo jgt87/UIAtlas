@@ -5,7 +5,7 @@
 //   atlas import <path> [--name NAME] [--kind K]     import a file/folder; the adapter is picked from its type (see src/detect.mjs)
 //   atlas storybook <url> [--pages N] [--name NAME]  measure every story of a deployed Storybook
 //   atlas compare <atlas> (--against <atlas> | --previous)   brand check / drift report
-//   atlas export <atlas> [--format pdf,json,css] [--out DIR]   token sheet PDF + W3C tokens JSON + CSS variables
+//   atlas export <atlas> [--format pdf,json,css,html] [--out DIR]   token sheet PDF, W3C tokens JSON, CSS variables, HTML page + CSS
 //   atlas serve [--port P]                           serve the viewer + all extracted atlases
 // Crawling options (extract, storybook, html): --modes dark,mobile,... --delay MS --ignore-robots
 import path from 'node:path';
@@ -113,10 +113,10 @@ if (cmd === 'extract') {
   console.log(formatReport(report) + `\nFull report: ${path.relative(process.cwd(), file)}`);
 } else if (cmd === 'export') {
   const name = argv[1], atlasDir = atlasDirOf(name);
-  if (!hasAtlas(name)) { console.error('Usage: atlas export <atlas name> [--format pdf,json,css] [--out DIR]   (names: run atlas without arguments)'); process.exit(1); }
+  if (!hasAtlas(name)) { console.error('Usage: atlas export <atlas name> [--format pdf,json,css,html] [--out DIR]   (names: run atlas without arguments)'); process.exit(1); }
   const formats = opt('format', 'pdf,json,css').split(',').map(f => f.trim().toLowerCase());
-  const bad = formats.filter(f => !['pdf', 'json', 'css'].includes(f));
-  if (bad.length) { console.error(`Unknown format: ${bad.join(', ')} (use pdf, json, css)`); process.exit(1); }
+  const bad = formats.filter(f => !['pdf', 'json', 'css', 'html'].includes(f));
+  if (bad.length) { console.error(`Unknown format: ${bad.join(', ')} (use pdf, json, css, html)`); process.exit(1); }
   const { exportAtlas } = await import('../src/export.mjs');
   const files = await exportAtlas({ atlasDir, formats, ...(opt('out') ? { outDir: path.resolve(opt('out')) } : {}) });
   console.log('Exported:\n' + files.map(f => '  ' + path.relative(process.cwd(), f)).join('\n'));
@@ -132,8 +132,8 @@ if (cmd === 'extract') {
                                                      HTML/SVG, images, design-token JSON, .sketch, .pdf, template package (.zip/folder)
   atlas compare <atlas> --against <atlas>            brand check: which colours, fonts, sizes, radii are off-reference
   atlas compare <atlas> --previous                   drift since the previous extraction of the same atlas
-  atlas export <atlas> [--format pdf,json,css] [--out DIR]
-                                                     token sheet PDF, W3C design tokens JSON, CSS variables
+  atlas export <atlas> [--format pdf,json,css,html] [--out DIR]
+                                                     token sheet PDF, W3C design tokens JSON, CSS variables, HTML page + CSS
   atlas serve [--port P]
 
 Websites, Storybooks and HTML/SVG also take:

@@ -82,3 +82,14 @@ test('exports hold design tokens only: no source name, file name or quoted copy'
   for (const out of [sheetHtml(withCopy), JSON.stringify(toDtcg(withCopy)), toCss(withCopy)])
     for (const s of ['Fictive Brand', 'fictive.potx', 'Spring sale', 'PowerPoint']) assert.ok(!out.includes(s), s);
 });
+
+test('HTML export: a token page linking its CSS file, without the source\'s font URLs', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'atlas-test-')), atlasDir = path.join(dir, 'fictive');
+  mkdirSync(atlasDir); writeFileSync(path.join(atlasDir, 'atlas.json'), JSON.stringify({ ...atlas, fontFaces: [{ family: 'Fictive Sans', url: 'https://cdn.fictive.test/f.woff2', weight: '400', style: 'normal' }] }));
+  const files = await exportAtlas({ atlasDir, formats: ['html'] });
+  assert.deepEqual(files.map(f => path.basename(f)).sort(), ['fictive-brand-tokens.css', 'fictive-brand-tokens.html']);
+  const html = readFileSync(files.find(f => f.endsWith('.html')), 'utf8');
+  assert.match(html, /<link rel="stylesheet" href="fictive-brand-tokens.css">/);
+  assert.match(html, /<script>/, 'fallback fonts are marked when the page is opened');
+  for (const s of ['cdn.fictive.test', 'Fictive Brand', 'fictive.potx']) assert.ok(!html.includes(s), s);
+});

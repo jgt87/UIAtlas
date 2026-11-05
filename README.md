@@ -72,11 +72,15 @@ node bin/atlas.mjs compare <atlas> --previous                    # drift since t
 Reports how much of the atlas's token usage matches the reference (colours by CIEDE2000 ΔE, default `--delta-e 3`; sizes compared in px across `px`/`rem`/`pt`/`in`), lists off-reference colours with their nearest reference colour, fonts, sizes, weights, line heights, spacing and radii that aren't in the reference (with the nearest value), and near-duplicate colours within the atlas (e.g. `#e0e0e0` vs `#e8e8e8`). The full report is written to `data/<atlas>/reports/`. Re-extracting into the same name keeps the previous `atlas.json` in `data/<atlas>/history/`, which `--previous` compares against. A typical brand check: import the brand's tokens (JSON, PowerPoint file or Sketch file) as the reference, extract the site, compare.
 
 ## Viewer
-`atlas serve` shows screens, tokens (with a mode switcher when the atlas has modes), elements, **Components** (a styled sample of each variant with its colours, radius, type and padding) and **Map** (the crawled pages as a flow graph, laid out by link depth from the start page). Fonts are shown in themselves: web fonts load from the URLs in the source's own `@font-face` rules (recorded, never copied), other fonts only if installed. Wherever a font can't be shown in itself a **FALLBACK** tag says so, and weights a web font doesn't include are marked *synthesized*. A HEX / RGB toggle in the top bar switches how colours are written.
+In the viewer, **Export** next to **+ New** does the same for the selected atlas: tick PDF, JSON, CSS and/or HTML + CSS and download the files.
+
+`atlas serve` also lets you add atlases without the command line: **+ New** next to the atlas picker measures a website or Storybook by URL (with pages, modes and screenshots options) or imports a dropped file, shows progress, and opens the result. Only the UI Atlas page itself can start jobs (the server checks the Host, Origin and a request header), uploads are imported from a temporary copy that is deleted afterwards, and jobs run one at a time.
+
+It shows screens (click one for details in a modal), tokens (with a mode switcher when the atlas has modes), elements, **Components** (a styled sample of each variant with its colours, radius, type and padding) and **Map** (the crawled pages as a flow graph, laid out by link depth from the start page). Fonts are shown in themselves: web fonts load from the URLs in the source's own `@font-face` rules (recorded, never copied), other fonts only if installed. Wherever a font can't be shown in itself a **FALLBACK** tag says so, and weights a web font doesn't include are marked *synthesized*. A HEX / RGB toggle in the top bar switches how colours are written.
 
 ## Export
 ```
-node bin/atlas.mjs export <atlas> [--format pdf,json,css] [--out DIR]
+node bin/atlas.mjs export <atlas> [--format pdf,json,css,html] [--out DIR]
 ```
 Writes to `data/<atlas>/exports/` by default:
 - `<name>-tokens.pdf` — a printable A4 token sheet titled "Design tokens": palette with colour usage, per-mode palettes, type scale, fonts (in themselves, FALLBACK-tagged otherwise), weights, line heights, letter spacing, spacing, radii, shadows, contrast and the source's variables. No source name, screenshots or text.
@@ -87,6 +91,7 @@ Writes to `data/<atlas>/exports/` by default:
   - **component** — every style variant per role: `component.button.filled.background` → `{color.0f62fe}`, plus `text`, `border`, `radius`, `font-size`, `font-weight`, `padding-block`/`padding-inline`, with counts under `$extensions`.
   - **source** — the variables the source declared (CSS custom properties, theme slots, token paths), typed and aliased into the palette where they match.
   - Usage counts and shares sit under `$extensions["ui-atlas"]`. The format only has `px`/`rem` dimensions, so `pt` and `in` values are converted to `px` (the original is kept in `$extensions`); values with no token form (e.g. `50%` radii) are listed as `unrepresentable`.
+- `<name>-tokens.html` (with `--format html`) — the token sheet as a web page that links the CSS file below; fonts show if installed and are marked FALLBACK otherwise (the source's web-font URLs are left out, as they would name the source).
 - `<name>-tokens.css` — the same structure as CSS custom properties; aliases become `var()` references (`--component-button-background: var(--color-0f62fe)`).
 
 ## Tests

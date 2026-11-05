@@ -7,6 +7,9 @@ import { loadFontFaces, fontStatus, STATUS_LABEL, fontCss, hasWeight, fallbackTa
 import { fmtColor, colorFormat, setColorFormat } from './color-format.js';
 import { renderComponents } from './components-view.js';
 import { renderFlow } from './flow-view.js';
+import { openScreen } from './screen-modal.js';
+import { openNewItem } from './new-item.js';
+import { openExport } from './export-dialog.js';
 const main = document.getElementById('main');
 const pick = document.getElementById('atlasPick');
 const search = document.getElementById('search');
@@ -14,16 +17,21 @@ const meta = document.getElementById('meta');
 let atlas = null, q = '', mode = ''; // mode: '' = the base pass, else a key of atlas.modes
 
 
-async function boot() {
+// select: the atlas to show (after "+ New" finished one), else the first
+async function boot(select) {
   const names = await fetch('/api/atlases').then(r => r.json()).catch(() => []);
-  if (!names.length) { main.innerHTML = '<div class="empty">No atlases yet. Run <code>atlas extract &lt;url&gt;</code> or <code>atlas import &lt;file&gt;</code>, then reload.</div>'; return; }
+  if (!names.length) { main.innerHTML = '<div class="empty">No atlases yet. Click <b>+ New</b> to measure a website or import a file.</div>'; return; }
   pick.innerHTML = ''; for (const n of names) pick.append(h('option', { value: n }, n));
   pick.onchange = () => load(pick.value);
-  await load(names[0]);
+  const first = names.includes(select) ? select : names[0]; pick.value = first;
+  await load(first);
 }
+document.getElementById('newItem').addEventListener('click', () => openNewItem(name => boot(name)));
+const exportBtn = document.getElementById('exportBtn');
+exportBtn.addEventListener('click', () => atlas && openExport(atlas.name));
 async function load(name) {
   atlas = await fetch(`/data/${name}/atlas.json`).then(r => r.json());
-  atlas.name = name; mode = '';
+  atlas.name = name; mode = ''; exportBtn.disabled = false;
   const k = kindOf(atlas), notes = atlas.project.notes || [];
   meta.innerHTML = `<b>${esc(atlas.project.name)}</b><br>${k.label}${atlas.project.previews === 'schematic' ? ' · schematic previews' : ''}<br>${atlas.screens.length ? `${atlas.project.pages} ${k.screens}<br>` : ''}${atlas.tokens.colors.length} colours · ${atlas.tokens.fonts.length} fonts<br><span style="color:var(--ink-3)">${new Date(atlas.project.created).toLocaleString()}</span>${notes.length ? `<ul class="notes">${notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}`;
   for (const a of document.querySelectorAll('.navitem')) if (a.dataset.nav === 'screens') a.textContent = k.screens[0].toUpperCase() + k.screens.slice(1);
@@ -43,7 +51,9 @@ function renderScreens() {
   if (!atlas.screens.length) return main.replaceChildren(h('div', { class: 'empty' }, `This ${kindOf(atlas).label.toLowerCase()} has no ${kindOf(atlas).screens}; see Design tokens.`));
   const scr = atlas.screens.filter(s => !q || (s.title + ' ' + s.url).toLowerCase().includes(q));
   const base = `/data/${atlas.name}/`;
-  main.replaceChildren(h('div', { class: 'grid' }, scr.map(s => h(s.screenshot ? 'a' : 'div', { class: 'card', href: s.screenshot ? base + s.screenshot : null, target: s.screenshot ? '_blank' : null },
+  // a card opens the screen in a modal (keyboard: Enter/Space), instead of navigating to the image
+  const open = s => () => openScreen(atlas, s), key = s => e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openScreen(atlas, s); } };
+  main.replaceChildren(h('div', { class: 'grid' }, scr.map(s => h('div', { class: 'card clickable', role: 'button', tabindex: '0', 'aria-haspopup': 'dialog', onclick: open(s), onkeydown: key(s) },
     // without --screenshots there is no image at all: compact cards instead of empty boxes
     atlas.project.screenshots === false ? null : h('div', { class: 'shot' }, s.screenshot ? h('img', { src: base + s.screenshot, loading: 'lazy', alt: s.title }) : h('div', { class: 'empty' }, 'No preview')),
     h('div', { class: 'card-body' },

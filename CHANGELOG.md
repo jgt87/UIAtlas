@@ -1,6 +1,17 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- **+ New** in the viewer: measure a website or Storybook by URL, or import a dropped file (PowerPoint, PDF, Sketch, token JSON, images, HTML/SVG, template .zip), with progress shown and the new atlas opened when done. Only the UI Atlas page itself can start jobs; uploads are imported from a temporary copy that is deleted afterwards.
+- **Export** in the viewer: choose PDF, JSON, CSS and/or HTML + CSS for the selected atlas and download the files.
+- HTML export (`--format html`): the token sheet as a web page with its CSS file.
+- A logo (a folded map with a token swatch), next to the name and as the favicon.
+
+### Changed
+- The search box moved from the top bar into the page, above the listed items, centred and white.
+- The atlas picker is twice as wide; the top bar wraps on narrow screens instead of overflowing.
+- The atlas details (type, counts, date, notes) sit at the bottom of the sidebar.
+- Clicking a screen card opens it in a modal (screenshot when stored, size, element counts, colours used) instead of navigating away to the image; Esc, the close button or a click outside closes it, and cards open with Enter/Space too.
 
 ## [0.6.0] - 2026-10-26
 ### Added

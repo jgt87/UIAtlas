@@ -16,8 +16,19 @@ const tokenVars = atlas => (atlas.tokens.cssVars || []).filter(v => !/^\s*["']/.
 export const toDtcg = (atlas, opts) => buildTokens(atlas, opts);
 export const toCss = atlas => toCssVars(buildTokens(atlas));
 
+// Marks every font sample whose font isn't really there (it measures like a generic fallback). Runs in the page:
+// before printing the PDF, and inside the HTML export when it is opened.
+const MARK_FALLBACKS = `(async () => {
+  await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 8000))]);
+  const ctx = document.createElement('canvas').getContext('2d'), w = f => { ctx.font = '48px ' + f; return ctx.measureText('mmmmmmmmmlliWWQ@#0').width; };
+  const missing = fam => !['monospace', 'serif'].some(g => w('"' + fam + '", ' + g) !== w(g));
+  for (const el of document.querySelectorAll('[data-font]')) if (missing(el.dataset.font)) el.insertAdjacentHTML(el.parentElement.classList.contains('pills') ? 'beforeend' : 'afterend', '<span class="fb">FALLBACK</span>');
+})()`;
+
 // Printable token sheet. Kept in this file (not the viewer) so the PDF doesn't depend on the dev server.
-export function sheetHtml(atlas) {
+// For the HTML export: webFonts false (the source's font URLs would name the source), cssHref links the CSS export,
+// and the fallback marking runs when the page is opened.
+export function sheetHtml(atlas, { webFonts = true, cssHref = null, markFallbacks = false } = {}) {
   const t = atlas.tokens, p = atlas.project, sec = (title, body, n) => body ? `<section><h2>${esc(title)}${n != null ? ` <span>${n}</span>` : ''}</h2>${body}</section>` : '';
   const use = u => Object.entries(u || {}).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k === 'background' ? 'bg' : k} ${n}`).join(' · ');
   const palette = list => list.length ? `<div class="sw">${list.map(c => `<div class="c"><div class="chip" style="background:${esc(c.value)};color:${ink(c.value)}">${esc(c.value)}</div><div class="l">${esc(c.label || '')}</div>${c.usage ? `<div class="u">${esc(use(c.usage))}</div>` : ''}<div class="n">${share(c)}</div></div>`).join('')}</div>` : '';
@@ -39,13 +50,14 @@ export function sheetHtml(atlas) {
   const sizes = t.fontSizes.length ? t.fontSizes.slice().sort((a, b) => num(b.value) - num(a.value)).map(f => `<div class="row"><span class="k">${esc(f.value)}</span><span class="demo"${primary ? ` data-font="${esc(primary)}"` : ''} style="font-size:${esc(f.value)};${primary ? ff(primary) : ''}">Aa — The quick brown fox</span><span class="n">${f.count}×</span></div>`).join('') : '';
   const fonts = t.fonts.length ? t.fonts.map(f => `<div class="row"><span class="demo" data-font="${esc(f.value)}" style="${ff(f.value)};font-size:20px">${esc(f.value)}</span><span class="n">${f.count}×</span></div>`).join('') : '';
   const weights = t.fontWeights.length ? `<div class="pills">${t.fontWeights.map(w => `<span${primary ? ` data-font="${esc(primary)}"` : ''} style="font-weight:${esc(w.value)};${primary ? ff(primary) : ''}">${esc(w.value)} <small>${w.count}×</small></span>`).join('')}</div>` : '';
-  const faces = (atlas.fontFaces || []).map(f => `@font-face { font-family: '${esc(f.family.replace(/'/g, ''))}'; src: url(${JSON.stringify(f.url)}); font-weight: ${esc(f.weight)}; font-style: ${esc(f.style)};${f.unicodeRange ? ` unicode-range: ${esc(f.unicodeRange)};` : ''} }`).join('\n');
+  const faces = (webFonts ? atlas.fontFaces || [] : []).map(f => `@font-face { font-family: '${esc(f.family.replace(/'/g, ''))}'; src: url(${JSON.stringify(f.url)}); font-weight: ${esc(f.weight)}; font-style: ${esc(f.style)};${f.unicodeRange ? ` unicode-range: ${esc(f.unicodeRange)};` : ''} }`).join('\n');
   const maxSp = Math.max(1, ...t.spacing.map(s => num(s.value)));
   const spacing = t.spacing.length ? t.spacing.slice().sort((a, b) => num(a.value) - num(b.value)).map(s => `<div class="row"><span class="k">${esc(s.value)}</span><span class="bar" style="width:${Math.max(4, num(s.value) / maxSp * 380)}px"></span><span class="n">${s.count}×</span></div>`).join('') : '';
   const radii = t.radii.length ? `<div class="pills">${t.radii.map(r => `<span><i style="border-radius:${esc(r.value)}"></i>${esc(r.value)} <small>${r.count}×</small></span>`).join('')}</div>` : '';
   const shadows = t.shadows.length ? `<div class="sh">${t.shadows.map(s => `<div><div class="box" style="box-shadow:${esc(s.value)}"></div><code>${esc(s.value)}</code></div>`).join('')}</div>` : '';
   const vars = tokenVars(atlas).length ? `<table>${tokenVars(atlas).map(v => `<tr><td>${esc(v.name)}</td><td>${/^#[0-9a-f]{3,8}$/i.test(v.value) ? `<i style="background:${esc(v.value)}"></i>` : ''}${esc(v.value)}</td></tr>`).join('')}</table>` : '';
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Design tokens</title><style>
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Design tokens</title>${cssHref ? `<link rel="stylesheet" href="${esc(cssHref)}">` : ''}<style>
+  @media screen { body { max-width: 900px; margin: 32px auto !important; padding: 0 16px; background: #fff; } }
   ${faces}
   @page { size: A4; margin: 16mm 14mm; }
   .fb { display: inline-block; margin-left: 6px; padding: 0 4px; border: 1px dashed #5b6370; border-radius: 3px; font: 600 7px ui-monospace, Consolas, monospace; letter-spacing: .04em; color: #14161a; vertical-align: middle; }
@@ -67,27 +79,24 @@ export function sheetHtml(atlas) {
   <header><h1>Design tokens</h1><p>Extracted ${esc(new Date(p.created).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }))}</p></header>
   ${sec('Colour palette', colors, t.colors.length)}${sec('Type scale', sizes, t.fontSizes.length)}${sec('Font families', fonts, t.fonts.length)}${sec('Font weights', weights)}${sec('Line heights (× font size)', lineHeights)}${sec('Letter spacing', letterSpacings)}
   ${sec('Spacing scale', spacing, t.spacing.length)}${sec('Radii', radii)}${sec('Shadows', shadows, t.shadows.length)}${modes}${sec('Components', comps)}${sec(`Contrast — ${rated.filter(c => c.level === 'fail').length} of ${rated.length} pairs fail WCAG AA`, contrast)}${sec({ pptx: 'Theme slots & grid', sketch: 'Swatches & text styles', tokens: 'All tokens' }[p.kind] || 'Variables', vars, tokenVars(atlas).length)}
-  </body></html>`;
+  ${markFallbacks ? `<script>${MARK_FALLBACKS}</script>` : ''}</body></html>`;
 }
 
+// formats: pdf, json, css, html (a token page + the CSS file it links, written together)
 export async function exportAtlas({ atlasDir, outDir = path.join(atlasDir, 'exports'), formats = ['pdf', 'json', 'css'] }) {
   const atlas = JSON.parse(readFileSync(path.join(atlasDir, 'atlas.json'), 'utf8'));
   mkdirSync(outDir, { recursive: true });
   const base = slug(atlas.project.name), written = [];
   if (formats.includes('json')) { const f = path.join(outDir, `${base}.tokens.json`); writeFileSync(f, JSON.stringify(toDtcg(atlas), null, 2)); written.push(f); }
-  if (formats.includes('css')) { const f = path.join(outDir, `${base}-tokens.css`); writeFileSync(f, toCss(atlas)); written.push(f); }
+  if (formats.includes('css') || formats.includes('html')) { const f = path.join(outDir, `${base}-tokens.css`); writeFileSync(f, toCss(atlas)); written.push(f); }
+  if (formats.includes('html')) { const f = path.join(outDir, `${base}-tokens.html`); writeFileSync(f, sheetHtml(atlas, { webFonts: false, cssHref: `${base}-tokens.css`, markFallbacks: true })); written.push(f); }
   if (formats.includes('pdf')) {
     const browser = await launchBrowser();
     try {
       const page = await browser.newPage();
       await page.setContent(sheetHtml(atlas), { waitUntil: 'load' });
       // wait for web fonts, then mark every sample whose font isn't really there (measures like a generic fallback)
-      await page.evaluate(async () => {
-        await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 8000))]);
-        const ctx = document.createElement('canvas').getContext('2d'), w = f => { ctx.font = `48px ${f}`; return ctx.measureText('mmmmmmmmmlliWWQ@#0').width; };
-        const missing = fam => !['monospace', 'serif'].some(g => w(`"${fam}", ${g}`) !== w(g));
-        for (const el of document.querySelectorAll('[data-font]')) if (missing(el.dataset.font)) el.insertAdjacentHTML(el.parentElement.classList.contains('pills') ? 'beforeend' : 'afterend', '<span class="fb">FALLBACK</span>');
-      });
+      await page.evaluate(MARK_FALLBACKS);
       const f = path.join(outDir, `${base}-tokens.pdf`);
       await page.pdf({ path: f, format: 'A4', printBackground: true, displayHeaderFooter: true, headerTemplate: '<span></span>',
         footerTemplate: `<div style="font:8px system-ui;color:#8a93a0;width:100%;padding:0 14mm;display:flex;justify-content:space-between"><span>Design tokens</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`,
