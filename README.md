@@ -83,12 +83,23 @@ It shows screens (click one for details in a modal), tokens (with a mode switche
 ### Screenshots
 The atlas below was made with `atlas extract https://getbootstrap.com/ --pages 6 --modes html:data-bs-theme=dark --screenshots`.
 
-| | |
-|---|---|
-| **Screens** — one card per captured page with its element inventory<br>![Screens](docs/screenshots/screens.png) | **Screen details** — the screenshot plus size, elements and colours<br>![Screen details](docs/screenshots/screen-modal.png) |
-| **Components** — each role's style variants, with colours, radius, type and padding<br>![Components](docs/screenshots/components.png) | **Elements** — text-free style samples of notable elements<br>![Elements](docs/screenshots/elements.png) |
-| **Map** — the crawled pages as a flow graph by link depth<br>![Map](docs/screenshots/map.png) | **+ New** — measure a website or Storybook, or import a file<br>![New atlas](docs/screenshots/new-atlas.png) |
-| **Export** — download the token sheet as PDF, JSON, CSS or HTML<br>![Export](docs/screenshots/export.png) | |
+<table>
+<tr>
+<td width="50%"><b>Screens</b> — one card per captured page with its element inventory<br><img src="docs/screenshots/screens.png" alt="Screens"></td>
+<td width="50%"><b>Screen details</b> — the screenshot plus size, elements and colours<br><img src="docs/screenshots/screen-modal.png" alt="Screen details"></td>
+</tr>
+<tr>
+<td width="50%"><b>Components</b> — each role's style variants, with colours, radius, type and padding<br><img src="docs/screenshots/components.png" alt="Components"></td>
+<td width="50%"><b>Elements</b> — text-free style samples of notable elements<br><img src="docs/screenshots/elements.png" alt="Elements"></td>
+</tr>
+<tr>
+<td width="50%"><b>Map</b> — the crawled pages as a flow graph by link depth<br><img src="docs/screenshots/map.png" alt="Map"></td>
+<td width="50%"><b>+ New</b> — measure a website or Storybook, or import a file<br><img src="docs/screenshots/new-atlas.png" alt="New atlas"></td>
+</tr>
+<tr>
+<td colspan="2"><b>Export</b> — download the token sheet as PDF, JSON, CSS or HTML<br><img src="docs/screenshots/export.png" alt="Export" width="50%"></td>
+</tr>
+</table>
 
 ## Export
 ```
