@@ -2,6 +2,8 @@
 
 Extract the **design tokens** of a website, component library or design file into an ordered, browsable atlas.
 
+![UI Atlas: the design tokens of a crawled site, with a mode switcher for its dark theme](docs/screenshots/tokens.png)
+
 Point it at a source and it produces, per project:
 - **Design tokens** — the colour palette (with what each colour is used for: text, background, border, fill), type scale, font families/weights, line heights, letter spacing, spacing rhythm, radii, shadows and declared variables.
 - **Contrast** — every measured text/background pair with its WCAG 2 ratio and level (AA/AAA/fail); text over images, gradients or a backdrop that can't be measured is marked *not measurable* instead of guessed.
@@ -77,6 +79,16 @@ In the viewer, **Export** next to **+ New** does the same for the selected atlas
 `atlas serve` also lets you add atlases without the command line: **+ New** next to the atlas picker measures a website or Storybook by URL (with pages, modes and screenshots options) or imports a dropped file, shows progress, and opens the result. Only the UI Atlas page itself can start jobs (the server checks the Host, Origin and a request header), uploads are imported from a temporary copy that is deleted afterwards, and jobs run one at a time.
 
 It shows screens (click one for details in a modal), tokens (with a mode switcher when the atlas has modes), elements, **Components** (a styled sample of each variant with its colours, radius, type and padding) and **Map** (the crawled pages as a flow graph, laid out by link depth from the start page). Fonts are shown in themselves: web fonts load from the URLs in the source's own `@font-face` rules (recorded, never copied), other fonts only if installed. Wherever a font can't be shown in itself a **FALLBACK** tag says so, and weights a web font doesn't include are marked *synthesized*. A HEX / RGB toggle in the top bar switches how colours are written.
+
+### Screenshots
+The atlas below was made with `atlas extract https://getbootstrap.com/ --pages 6 --modes html:data-bs-theme=dark --screenshots`.
+
+| | |
+|---|---|
+| **Screens** — one card per captured page with its element inventory<br>![Screens](docs/screenshots/screens.png) | **Screen details** — the screenshot plus size, elements and colours<br>![Screen details](docs/screenshots/screen-modal.png) |
+| **Components** — each role's style variants, with colours, radius, type and padding<br>![Components](docs/screenshots/components.png) | **Elements** — text-free style samples of notable elements<br>![Elements](docs/screenshots/elements.png) |
+| **Map** — the crawled pages as a flow graph by link depth<br>![Map](docs/screenshots/map.png) | **+ New** — measure a website or Storybook, or import a file<br>![New atlas](docs/screenshots/new-atlas.png) |
+| **Export** — download the token sheet as PDF, JSON, CSS or HTML<br>![Export](docs/screenshots/export.png) | |
 
 ## Export
 ```
