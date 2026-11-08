@@ -69,3 +69,21 @@ Pipeline: **adapter → `atlas.json` → viewer / export**. The `atlas.json` sch
 ## Notes
 - For websites `project.name` is the start URL's hostname; `--name` only changes the output folder (which is what the viewer lists).
 - Extraction uses a fresh, signed-out browser context and only measures pages; source files are only read. Keep it that way.
+
+<!-- commonshared:begin (managed by __CommonShared/sync; edit it there, not here) -->
+## Shared practices
+This project follows the generic best practices in `C:/Files/Apps/__CommonShared`. This file
+and the project's own DESIGN.md / PRODUCT.md win where they are more specific.
+- Conventions: its `docs/` (visual design 01, interaction 02, testing 04, structure and
+  release 05, code organisation 08, change management 09, gitignore 11, line endings 12,
+  agent workflow 14, lessons learned 15, UI fixes 17).
+- Rules: `.claude/rules/commonshared-*.md` are managed copies of its `rules/` (loaded by
+  file type; refreshed at session start and by its sync). Do not edit them: put this
+  project's own rules in `.claude/rules/project-<area>.md`, which win on conflict.
+- Starters: its `templates/` (tokens, gitignore, gitattributes, editorconfig, check scripts,
+  design-rule tests). Copy in; do not link.
+- Audit: `python -I C:/Files/Apps/__CommonShared/.claude/skills/new-project/scripts/check_project.py .`
+- A lesson learned here that would hold in any project goes in `tasks/lessons.md` (rule,
+  Why with date, check). It is pulled upstream into the shared lessons, which load at every
+  session start through the shared-lessons hook.
+<!-- commonshared:end -->
