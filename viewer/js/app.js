@@ -1,7 +1,7 @@
 // UI Atlas viewer. Fetches the list of extracted atlases, loads the selected one, and renders
 // three views (Screens, Design tokens, Elements) with hash routing and a live search filter.
 import { kindOf } from './kinds.js';
-import { h, esc } from './dom.js';
+import { h, esc, scrollBox } from './dom.js';
 import { contrastSection } from './contrast.js';
 import { loadFontFaces, fontStatus, STATUS_LABEL, fontCss, hasWeight, fallbackTag } from './fonts.js';
 import { fmtColor, colorFormat, setColorFormat } from './color-format.js';
@@ -43,7 +43,7 @@ async function load(name) {
 const view = () => (location.hash.replace('#/', '') || (atlas?.screens.length ? 'screens' : 'tokens'));
 function route() {
   const v = view();
-  for (const a of document.querySelectorAll('.navitem')) a.classList.toggle('active', a.dataset.nav === v);
+  for (const a of document.querySelectorAll('.navitem')) { const on = a.dataset.nav === v; a.classList.toggle('active', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); }
   ({ screens: renderScreens, tokens: renderTokens, elements: renderElements, components: () => main.replaceChildren(...renderComponents(atlas, q)), map: () => main.replaceChildren(...renderFlow(atlas)) }[v] || renderScreens)();
 }
 
@@ -57,8 +57,8 @@ function renderScreens() {
     // without --screenshots there is no image at all: compact cards instead of empty boxes
     atlas.project.screenshots === false ? null : h('div', { class: 'shot' }, s.screenshot ? h('img', { src: base + s.screenshot, loading: 'lazy', alt: s.title }) : h('div', { class: 'empty' }, 'No preview')),
     h('div', { class: 'card-body' },
-      h('div', { class: 'card-title' }, s.title || s.url),
-      h('div', { class: 'card-url' }, s.purpose || s.url),
+      h('div', { class: 'card-title', title: s.title || s.url }, s.title || s.url),
+      h('div', { class: 'card-url', title: s.purpose || s.url }, s.purpose || s.url),
       h('div', { class: 'badges' }, Object.entries(s.inventory || {}).map(([k, n]) => h('span', { class: 'badge' }, `${n} ${k}`))))))));
 }
 
@@ -95,7 +95,7 @@ function renderTokens() {
   });
   const kids = [];
   // light/dark, screen sizes, themes: switch which pass's tokens are shown
-  if (modes.length) kids.push(h('div', { class: 'modes' }, ['', ...modes].map(m => h('button', { class: 'pill' + (m === mode ? ' on' : ''), onclick: () => { mode = m; renderTokens(); } }, m || 'Base'))));
+  if (modes.length) kids.push(h('div', { class: 'modes' }, ['', ...modes].map(m => h('button', { type: 'button', class: 'pill' + (m === mode ? ' on' : ''), 'aria-pressed': String(m === mode), onclick: () => { mode = m; renderTokens(); } }, m || 'Base'))));
   kids.push(h('h2', { class: 'sec' }, `Colour palette (${t.colors.length})`), h('div', { class: 'swatches' }, sw));
   if (sizes.length) kids.push(h('h2', { class: 'sec' }, 'Type scale'), fallbackNote, h('div', { class: 'scale' }, sizes));
   if (fonts.length) kids.push(h('h2', { class: 'sec' }, 'Font families'), h('div', { class: 'font-list' }, fonts));
@@ -106,7 +106,7 @@ function renderTokens() {
   if (radii.length) kids.push(h('h2', { class: 'sec' }, 'Radii'), h('div', { class: 'chips-row' }, radii));
   if (shadows.length) kids.push(h('h2', { class: 'sec' }, 'Shadows'), h('div', { class: 'shadow-grid' }, shadows));
   kids.push(...contrastSection(current ? current.contrast : atlas.contrast)); // before the (often long) variables list
-  if (vars.length) kids.push(h('h2', { class: 'sec' }, `${kindOf(atlas).vars} (${(t.cssVars || []).length})`), h('table', { class: 'vars' }, h('tbody', {}, vars)));
+  if (vars.length) kids.push(h('h2', { class: 'sec' }, `${kindOf(atlas).vars} (${(t.cssVars || []).length})`), scrollBox(h('table', { class: 'vars' }, h('tbody', {}, vars))));
   main.replaceChildren(...kids.filter(Boolean));
 }
 
@@ -128,14 +128,14 @@ function renderElements() {
     h('td', { class: 'mono' }, e.color ? h('span', {}, h('span', { class: 'dot', style: `background:${e.color}` }), fmtColor(e.color)) : '—'),
     h('td', { class: 'mono' }, e.fontSize || '—'), h('td', { class: 'mono' }, e.weight || '—'), fontCol && e.font ? h('td', {}, h('span', { style: fontCss(e.font) }, e.font), fontStatus(e.font, atlas.fontFaces) === 'missing' ? fallbackTag(h) : null) : h('td', { class: 'mono' }, (fontCol ? e.font : e.radius) || '—'),
     h('td', { style: 'color:var(--ink-3);font-size:12px' }, e.screen)));
-  main.replaceChildren(summary, h('table', { class: 'tbl' },
+  main.replaceChildren(summary, scrollBox(h('table', { class: 'tbl' },
     h('thead', {}, h('tr', {}, ['Role', 'Element', 'Background', 'Text colour', 'Size', 'Weight', fontCol ? 'Font' : 'Radius', k.screen].map(x => h('th', {}, x)))),
-    h('tbody', {}, body)));
+    h('tbody', {}, body))));
 }
 
 // HEX / RGB toggle in the top bar
 const fmtButtons = document.querySelectorAll('#colorFmt button');
-const showFmt = () => fmtButtons.forEach(b => b.classList.toggle('on', b.dataset.f === colorFormat()));
+const showFmt = () => fmtButtons.forEach(b => { const on = b.dataset.f === colorFormat(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
 fmtButtons.forEach(b => b.addEventListener('click', () => { setColorFormat(b.dataset.f); showFmt(); if (atlas) route(); }));
 showFmt();
 search.addEventListener('input', () => { q = search.value.trim().toLowerCase(); route(); });

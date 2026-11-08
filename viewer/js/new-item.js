@@ -24,7 +24,7 @@ export function openNewItem(onDone) {
   const tabs = [['extract', 'Website'], ['storybook', 'Storybook'], ['import', 'File']].map(([k, label]) => h('button', { type: 'button', class: 'pill', 'data-k': k, onclick: () => { kind = k; show(); } }, label));
   const urlField = field('URL', url), fileField = drop, pagesField = field('Pages', pages, 'How many pages (website) or stories (Storybook) to measure');
   const modesField = field('Modes', modes, 'Optional extra passes, comma-separated'), go = h('button', { type: 'submit', class: 'primary' }, 'Start');
-  const show = () => { for (const t of tabs) t.classList.toggle('on', t.dataset.k === kind);
+  const show = () => { for (const t of tabs) { t.classList.toggle('on', t.dataset.k === kind); t.setAttribute('aria-pressed', String(t.dataset.k === kind)); }
     urlField.hidden = kind === 'import'; fileField.hidden = kind !== 'import'; modesField.hidden = kind === 'import'; url.required = kind !== 'import'; };
   const form = h('form', { class: 'modal-body new-form', onsubmit: async e => { e.preventDefault(); if (busy) return;
     if (kind === 'import' && !file) return (status.textContent = 'Choose a file first.');

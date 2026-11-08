@@ -13,6 +13,14 @@
 - The atlas details (type, counts, date, notes) sit at the bottom of the sidebar.
 - Clicking a screen card opens it in a modal (screenshot when stored, size, element counts, colours used) instead of navigating away to the image; Esc, the close button or a click outside closes it, and cards open with Enter/Space too.
 
+### Fixed
+- Viewer keyboard focus is visible everywhere: one 2px ring for every control (+ New, Export, screen cards, close buttons, downloads and the drop zone showed none).
+- Viewer contrast: muted text is at least 4.5:1 and field edges at least 3:1 on both backgrounds (they were 2.9:1 and 1.2:1).
+- Wide tables (Elements, CSS variables, Contrast) scroll inside their own box, and long names and values wrap, so the page no longer scrolls sideways on narrow windows.
+- On phones the atlas picker keeps a readable width (it shrank to 24px); the side links stay on one line.
+- The top bar controls share one height (34px, 44px on touch screens); other small controls get a 44px hit area on touch screens, and hover styles apply only to devices that hover. Font and type-scale samples wrap instead of widening the page on phones.
+- Toggles (HEX/RGB, modes, the New dialog's kinds) report their state to screen readers, the current view is marked in the side links, and long screen titles show in full as a tooltip.
+
 ## [0.6.0] - 2026-10-26
 ### Added
 - Component variants: buttons, links, inputs, navigation, symbols and shapes are clustered into style variants (filled, outline, plain, …) with counts and screen coverage — a Components view in the viewer, a section in the PDF sheet, and per-variant tokens in the JSON export (`component.button.filled.background`, `…padding-inline`).
