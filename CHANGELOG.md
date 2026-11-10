@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [0.7.0] - 2026-11-10
 ### Added
 - **+ New** in the viewer: measure a website or Storybook by URL, or import a dropped file (PowerPoint, PDF, Sketch, token JSON, images, HTML/SVG, template .zip), with progress shown and the new atlas opened when done. Only the UI Atlas page itself can start jobs; uploads are imported from a temporary copy that is deleted afterwards.
 - **Export** in the viewer: choose PDF, JSON, CSS and/or HTML + CSS for the selected atlas and download the files.
