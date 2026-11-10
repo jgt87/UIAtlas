@@ -120,8 +120,12 @@ Writes to `data/<atlas>/exports/` by default:
 ## Tests
 ```
 npm test
+npm run lint    # function size/complexity ratchet and line endings
+npm run smoke   # import and export a generated token file, no browser needed
 ```
 Fixtures are generated at test time; the browser-based tests need the same browser as the extractor.
+
+Contributors: run `npm run hooks` once per clone. It enables the commit-msg hook in `.githooks/`, which refuses agent co-author trailers.
 
 ## Architecture
 - `bin/atlas.mjs` — CLI; `src/detect.mjs` picks the import adapter.

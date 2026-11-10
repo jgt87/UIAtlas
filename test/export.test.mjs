@@ -83,6 +83,25 @@ test('exports hold design tokens only: no source name, file name or quoted copy'
     for (const s of ['Fictive Brand', 'fictive.potx', 'Spring sale', 'PowerPoint']) assert.ok(!out.includes(s), s);
 });
 
+test('token sheet: component samples, contrast, modes and font faces each get their section', () => {
+  const rich = { ...atlas, project: { ...atlas.project, kind: 'web' },
+    contrast: [{ fg: '#000000', bg: '#ffffff', ratio: 21, level: 'AAA', count: 2 }, { fg: '#777777', bg: '#888888', ratio: 1.2, level: 'fail', large: true, overImage: true, count: 1 }, { fg: '#111111', bg: '#222222', level: 'unknown', count: 1 }],
+    components: { button: [{ name: 'filled', count: 3, screens: 2, style: { bg: '#10069f', color: '#ffffff', radius: '4px', fontSize: '14px', weight: '600', padding: '8px 16px' } }, { name: 'plain', count: 1, screens: 1, style: { color: '#ffffff' } }] },
+    modes: { dark: { tokens: { colors: [{ value: '#000000', count: 2 }] } } },
+    fontFaces: [{ family: 'Fictive Sans', url: 'https://cdn.fictive.test/f.woff2', weight: '400', style: 'normal', unicodeRange: 'U+0000-00FF' }] };
+  const html = sheetHtml(rich);
+  assert.match(html, /<span style="background:#10069f;color:#ffffff;border:1px dashed #d0d4da;border-radius:4px;font-size:14px;font-weight:600;padding:8px 16px">Button<\/span>/);
+  assert.match(html, /bg #10069f · text #ffffff · radius 4px · 14px 600 · padding 8px 16px/);
+  assert.match(html, /<td class="stage dk">/, 'light text with no background is staged on dark');
+  assert.match(html, /Contrast — 1 of 2 pairs fail WCAG AA/);
+  assert.match(html, /#777777 on #888888 \+ image<\/td><td>1.2:1<\/td><td class="f">Fails AA \(large\)/);
+  assert.match(html, /<td>—<\/td><td class="">Not measurable/);
+  assert.match(html, /Colour palette — dark <span>1<\/span>/);
+  assert.match(html, /@font-face \{ font-family: 'Fictive Sans'; src: url\("https:\/\/cdn.fictive.test\/f.woff2"\); font-weight: 400; font-style: normal; unicode-range: U\+0000-00FF; \}/);
+  assert.match(html, /<h2>Variables <span>2<\/span><\/h2>/);
+  assert.ok(!sheetHtml(rich, { webFonts: false }).includes('@font-face'));
+});
+
 test('HTML export: a token page linking its CSS file, without the source\'s font URLs', async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'atlas-test-')), atlasDir = path.join(dir, 'fictive');
   mkdirSync(atlasDir); writeFileSync(path.join(atlasDir, 'atlas.json'), JSON.stringify({ ...atlas, fontFaces: [{ family: 'Fictive Sans', url: 'https://cdn.fictive.test/f.woff2', weight: '400', style: 'normal' }] }));

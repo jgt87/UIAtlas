@@ -10,7 +10,10 @@
   "scripts": {
     "extract": "node bin/atlas.mjs extract",
     "serve": "node bin/atlas.mjs serve",
-    "test": "node --test \"test/**/*.test.mjs\""
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "lint": "node scripts/check-code-size.mjs && node scripts/check-eol.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "hooks": "git config core.hooksPath .githooks"
   },
   "engines": {
     "node": ">=20"
@@ -18,5 +21,8 @@
   "dependencies": {
     "pdfjs-dist": "6.4.299",
     "playwright": "1.64.1"
+  },
+  "devDependencies": {
+    "eslint": "10.14.0"
   }
 }

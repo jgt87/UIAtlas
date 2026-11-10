@@ -1,6 +1,6 @@
 node_modules/
 # Extracted atlases (screenshots + data) can be large and are regenerable; also holds runtime files (.port, serve.log).
-data/
+/data/
 *.log
 # Local secrets / env
 .env
@@ -16,3 +16,6 @@ desktop.ini
 .idea/
 # Local Repowise index/cache (machine-specific)
 .repowise/
+
+# Agent lessons: machine-local (C:\Files\Apps\__CommonShared\agent)
+tasks/lessons.md

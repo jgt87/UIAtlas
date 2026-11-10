@@ -1,0 +1,68 @@
+{
+  "bin/atlas.mjs": {
+    "complexity": 1
+  },
+  "src/atlas-util.mjs": {
+    "complexity": 1
+  },
+  "src/compare.mjs": {
+    "complexity": 4
+  },
+  "src/components.mjs": {
+    "complexity": 1
+  },
+  "src/detect.mjs": {
+    "complexity": 1
+  },
+  "src/image-import.mjs": {
+    "complexity": 2
+  },
+  "src/jobs.mjs": {
+    "complexity": 1
+  },
+  "src/ooxml.mjs": {
+    "complexity": 1
+  },
+  "src/pdf-import.mjs": {
+    "complexity": 2
+  },
+  "src/polite.mjs": {
+    "complexity": 3
+  },
+  "src/pptx-import.mjs": {
+    "complexity": 4
+  },
+  "src/retheme-import.mjs": {
+    "complexity": 2
+  },
+  "src/serve.mjs": {
+    "complexity": 1
+  },
+  "src/sketch-import.mjs": {
+    "complexity": 7
+  },
+  "src/storybook-import.mjs": {
+    "complexity": 1
+  },
+  "src/tokens-import.mjs": {
+    "complexity": 5
+  },
+  "src/tokens-json.mjs": {
+    "complexity": 6
+  },
+  "src/web-extract.mjs": {
+    "complexity": 6
+  },
+  "viewer/js/app.js": {
+    "complexity": 2
+  },
+  "viewer/js/flow-view.js": {
+    "complexity": 1
+  },
+  "viewer/js/new-item.js": {
+    "complexity": 1
+  },
+  "viewer/js/screen-modal.js": {
+    "complexity": 1
+  }
+}

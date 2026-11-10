@@ -25,37 +25,62 @@ const MARK_FALLBACKS = `(async () => {
   for (const el of document.querySelectorAll('[data-font]')) if (missing(el.dataset.font)) el.insertAdjacentHTML(el.parentElement.classList.contains('pills') ? 'beforeend' : 'afterend', '<span class="fb">FALLBACK</span>');
 })()`;
 
+// --- Token sheet building blocks. Each returns an HTML fragment, or '' when there is nothing to show. ---
+const section = (title, body, n) => body ? `<section><h2>${esc(title)}${n != null ? ` <span>${n}</span>` : ''}</h2>${body}</section>` : '';
+const wrapped = (cls, list, item) => list?.length ? `<div class="${cls}">${list.map(item).join('')}</div>` : '';
+const countPill = l => `<span>${esc(l.value)} <small>${l.count}×</small></span>`;
+const fontStack = f => `font-family:'${String(f).replace(/'/g, '')}', system-ui, sans-serif`;
+
+const usageText = u => Object.entries(u || {}).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k === 'background' ? 'bg' : k} ${n}`).join(' · ');
+const swatch = c => `<div class="c"><div class="chip" style="background:${esc(c.value)};color:${ink(c.value)}">${esc(c.value)}</div><div class="l">${esc(c.label || '')}</div>${c.usage ? `<div class="u">${esc(usageText(c.usage))}</div>` : ''}<div class="n">${share(c)}</div></div>`;
+const palette = list => wrapped('sw', list, swatch);
+const modeSections = modes => Object.entries(modes || {}).map(([m, v]) => section(`Colour palette — ${m}`, palette(v.tokens?.colors || []), v.tokens?.colors?.length)).join('');
+
+const LEVEL = { fail: 'Fails AA', AA: 'AA', AAA: 'AAA', unknown: 'Not measurable' };
+const contrastRow = c => `<tr><td><b style="color:${esc(c.fg)};background:${esc(c.bg)}">Aa</b></td><td>${esc(c.fg)} on ${esc(c.bg)}${c.overImage ? ' + image' : ''}</td><td>${c.level === 'unknown' ? '—' : `${c.ratio}:1`}</td><td class="${c.level === 'fail' ? 'f' : ''}">${LEVEL[c.level] || esc(c.level)}${c.large ? ' (large)' : ''}</td><td>${c.count}×</td></tr>`;
+const contrastTable = list => list?.length ? `<table class="ct">${list.map(contrastRow).join('')}</table>` : '';
+const contrastTitle = list => { const rated = (list || []).filter(c => c.level !== 'unknown'); return `Contrast — ${rated.filter(c => c.level === 'fail').length} of ${rated.length} pairs fail WCAG AA`; };
+
+// Component variants: a live sample styled like the variant, then a text summary of its style.
+const isLight = hex => { const n = parseInt(String(hex || '').slice(1, 7), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 186; };
+const SAMPLE_CSS = [['bg', v => `background:${v}`], ['color', v => `color:${v}`], ['border', null], ['radius', v => `border-radius:${v}`],
+  ['fontSize', v => `font-size:${v}`], ['weight', v => `font-weight:${v}`], ['padding', v => `padding:${v}`], ['font', fontStack]];
+const sampleCss = st => SAMPLE_CSS.map(([k, f]) => f ? st[k] && f(st[k]) : `border:1px ${st.border ? `solid ${st.border}` : 'dashed #d0d4da'}`).filter(Boolean).map(esc).join(';');
+const SUMMARY = [['bg', v => `bg ${v}`], ['color', v => `text ${v}`], ['border', v => `border ${v}`], ['radius', v => `radius ${v}`],
+  ['fontSize', (v, st) => `${v} ${st.weight || ''}`], ['padding', v => `padding ${v}`]];
+const styleSummary = st => SUMMARY.map(([k, f]) => st[k] && f(st[k], st)).filter(Boolean).map(esc).join(' · ');
+const variantRow = role => v => `<tr><td class="stage${!v.style.bg && isLight(v.style.color) ? ' dk' : ''}"><span style="${sampleCss(v.style)}">${esc(role.charAt(0).toUpperCase() + role.slice(1))}</span></td>
+    <td><b>${esc(v.name)}</b> <small>${v.count}× · ${v.screens} screen(s)</small><br>${styleSummary(v.style)}</td></tr>`;
+const componentTables = components => Object.entries(components || {}).map(([role, list]) => `<h3>${esc(role)}</h3><table class="cv">${list.map(variantRow(role)).join('')}</table>`).join('');
+
+// fonts are shown in themselves (web fonts from the source's @font-face URLs, else installed ones); data-font marks
+// every sample so exportAtlas can stamp 'fallback' on the ones that couldn't use the real font
+function typography(t) {
+  const ff = f => esc(fontStack(f)), primary = t.fonts[0]?.value;
+  const inPrimary = primary ? ` data-font="${esc(primary)}"` : '', primaryCss = primary ? ff(primary) : '';
+  const sizes = t.fontSizes.slice().sort((a, b) => num(b.value) - num(a.value)).map(f => `<div class="row"><span class="k">${esc(f.value)}</span><span class="demo"${inPrimary} style="font-size:${esc(f.value)};${primaryCss}">Aa — The quick brown fox</span><span class="n">${f.count}×</span></div>`).join('');
+  const fonts = t.fonts.map(f => `<div class="row"><span class="demo" data-font="${esc(f.value)}" style="${ff(f.value)};font-size:20px">${esc(f.value)}</span><span class="n">${f.count}×</span></div>`).join('');
+  const weights = wrapped('pills', t.fontWeights, w => `<span${inPrimary} style="font-weight:${esc(w.value)};${primaryCss}">${esc(w.value)} <small>${w.count}×</small></span>`);
+  return { sizes, fonts, weights };
+}
+const fontFaceRule = f => `@font-face { font-family: '${esc(f.family.replace(/'/g, ''))}'; src: url(${JSON.stringify(f.url)}); font-weight: ${esc(f.weight)}; font-style: ${esc(f.style)};${f.unicodeRange ? ` unicode-range: ${esc(f.unicodeRange)};` : ''} }`;
+
+function spacingRows(spacing) {
+  const max = Math.max(1, ...spacing.map(s => num(s.value)));
+  return spacing.slice().sort((a, b) => num(a.value) - num(b.value)).map(s => `<div class="row"><span class="k">${esc(s.value)}</span><span class="bar" style="width:${Math.max(4, num(s.value) / max * 380)}px"></span><span class="n">${s.count}×</span></div>`).join('');
+}
+const radiusPill = r => `<span><i style="border-radius:${esc(r.value)}"></i>${esc(r.value)} <small>${r.count}×</small></span>`;
+const shadowBox = s => `<div><div class="box" style="box-shadow:${esc(s.value)}"></div><code>${esc(s.value)}</code></div>`;
+const varRow = v => `<tr><td>${esc(v.name)}</td><td>${/^#[0-9a-f]{3,8}$/i.test(v.value) ? `<i style="background:${esc(v.value)}"></i>` : ''}${esc(v.value)}</td></tr>`;
+const varsTable = list => list.length ? `<table>${list.map(varRow).join('')}</table>` : '';
+const VARS_TITLE = { pptx: 'Theme slots & grid', sketch: 'Swatches & text styles', tokens: 'All tokens' };
+
 // Printable token sheet. Kept in this file (not the viewer) so the PDF doesn't depend on the dev server.
 // For the HTML export: webFonts false (the source's font URLs would name the source), cssHref links the CSS export,
 // and the fallback marking runs when the page is opened.
 export function sheetHtml(atlas, { webFonts = true, cssHref = null, markFallbacks = false } = {}) {
-  const t = atlas.tokens, p = atlas.project, sec = (title, body, n) => body ? `<section><h2>${esc(title)}${n != null ? ` <span>${n}</span>` : ''}</h2>${body}</section>` : '';
-  const use = u => Object.entries(u || {}).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k === 'background' ? 'bg' : k} ${n}`).join(' · ');
-  const palette = list => list.length ? `<div class="sw">${list.map(c => `<div class="c"><div class="chip" style="background:${esc(c.value)};color:${ink(c.value)}">${esc(c.value)}</div><div class="l">${esc(c.label || '')}</div>${c.usage ? `<div class="u">${esc(use(c.usage))}</div>` : ''}<div class="n">${share(c)}</div></div>`).join('')}</div>` : '';
-  const colors = palette(t.colors);
-  const lineHeights = t.lineHeights?.length ? `<div class="pills">${t.lineHeights.map(l => `<span>${esc(l.value)} <small>${l.count}×</small></span>`).join('')}</div>` : '';
-  const letterSpacings = t.letterSpacings?.length ? `<div class="pills">${t.letterSpacings.map(l => `<span>${esc(l.value)} <small>${l.count}×</small></span>`).join('')}</div>` : '';
-  const LEVEL = { fail: 'Fails AA', AA: 'AA', AAA: 'AAA', unknown: 'Not measurable' };
-  const contrast = atlas.contrast?.length ? `<table class="ct">${atlas.contrast.map(c => `<tr><td><b style="color:${esc(c.fg)};background:${esc(c.bg)}">Aa</b></td><td>${esc(c.fg)} on ${esc(c.bg)}${c.overImage ? ' + image' : ''}</td><td>${c.level === 'unknown' ? '—' : `${c.ratio}:1`}</td><td class="${c.level === 'fail' ? 'f' : ''}">${LEVEL[c.level] || esc(c.level)}${c.large ? ' (large)' : ''}</td><td>${c.count}×</td></tr>`).join('')}</table>` : '';
-  const rated = (atlas.contrast || []).filter(c => c.level !== 'unknown');
-  const light = hex => { const n = parseInt(String(hex || '').slice(1, 7), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 186; };
-  const vcss = st => [st.bg && `background:${st.bg}`, st.color && `color:${st.color}`, `border:1px ${st.border ? `solid ${st.border}` : 'dashed #d0d4da'}`, st.radius && `border-radius:${st.radius}`,
-    st.fontSize && `font-size:${st.fontSize}`, st.weight && `font-weight:${st.weight}`, st.padding && `padding:${st.padding}`, st.font && `font-family:'${String(st.font).replace(/'/g, '')}', system-ui, sans-serif`].filter(Boolean).map(esc).join(';');
-  const comps = Object.entries(atlas.components || {}).map(([role, list]) => `<h3>${esc(role)}</h3><table class="cv">${list.map(v => `<tr><td class="stage${!v.style.bg && light(v.style.color) ? ' dk' : ''}"><span style="${vcss(v.style)}">${esc(role.charAt(0).toUpperCase() + role.slice(1))}</span></td>
-    <td><b>${esc(v.name)}</b> <small>${v.count}× · ${v.screens} screen(s)</small><br>${[v.style.bg && `bg ${v.style.bg}`, v.style.color && `text ${v.style.color}`, v.style.border && `border ${v.style.border}`, v.style.radius && `radius ${v.style.radius}`, v.style.fontSize && `${v.style.fontSize} ${v.style.weight || ''}`, v.style.padding && `padding ${v.style.padding}`].filter(Boolean).map(esc).join(' · ')}</td></tr>`).join('')}</table>`).join('');
-  const modes = Object.entries(atlas.modes || {}).map(([m, v]) => sec(`Colour palette — ${m}`, palette(v.tokens?.colors || []), v.tokens?.colors?.length)).join('');
-  // fonts are shown in themselves (web fonts from the source's @font-face URLs, else installed ones); data-font marks
-  // every sample so exportAtlas can stamp 'fallback' on the ones that couldn't use the real font
-  const ff = f => `font-family:'${esc(String(f).replace(/'/g, ''))}', system-ui, sans-serif`, primary = t.fonts[0]?.value;
-  const sizes = t.fontSizes.length ? t.fontSizes.slice().sort((a, b) => num(b.value) - num(a.value)).map(f => `<div class="row"><span class="k">${esc(f.value)}</span><span class="demo"${primary ? ` data-font="${esc(primary)}"` : ''} style="font-size:${esc(f.value)};${primary ? ff(primary) : ''}">Aa — The quick brown fox</span><span class="n">${f.count}×</span></div>`).join('') : '';
-  const fonts = t.fonts.length ? t.fonts.map(f => `<div class="row"><span class="demo" data-font="${esc(f.value)}" style="${ff(f.value)};font-size:20px">${esc(f.value)}</span><span class="n">${f.count}×</span></div>`).join('') : '';
-  const weights = t.fontWeights.length ? `<div class="pills">${t.fontWeights.map(w => `<span${primary ? ` data-font="${esc(primary)}"` : ''} style="font-weight:${esc(w.value)};${primary ? ff(primary) : ''}">${esc(w.value)} <small>${w.count}×</small></span>`).join('')}</div>` : '';
-  const faces = (webFonts ? atlas.fontFaces || [] : []).map(f => `@font-face { font-family: '${esc(f.family.replace(/'/g, ''))}'; src: url(${JSON.stringify(f.url)}); font-weight: ${esc(f.weight)}; font-style: ${esc(f.style)};${f.unicodeRange ? ` unicode-range: ${esc(f.unicodeRange)};` : ''} }`).join('\n');
-  const maxSp = Math.max(1, ...t.spacing.map(s => num(s.value)));
-  const spacing = t.spacing.length ? t.spacing.slice().sort((a, b) => num(a.value) - num(b.value)).map(s => `<div class="row"><span class="k">${esc(s.value)}</span><span class="bar" style="width:${Math.max(4, num(s.value) / maxSp * 380)}px"></span><span class="n">${s.count}×</span></div>`).join('') : '';
-  const radii = t.radii.length ? `<div class="pills">${t.radii.map(r => `<span><i style="border-radius:${esc(r.value)}"></i>${esc(r.value)} <small>${r.count}×</small></span>`).join('')}</div>` : '';
-  const shadows = t.shadows.length ? `<div class="sh">${t.shadows.map(s => `<div><div class="box" style="box-shadow:${esc(s.value)}"></div><code>${esc(s.value)}</code></div>`).join('')}</div>` : '';
-  const vars = tokenVars(atlas).length ? `<table>${tokenVars(atlas).map(v => `<tr><td>${esc(v.name)}</td><td>${/^#[0-9a-f]{3,8}$/i.test(v.value) ? `<i style="background:${esc(v.value)}"></i>` : ''}${esc(v.value)}</td></tr>`).join('')}</table>` : '';
+  const t = atlas.tokens, p = atlas.project, vars = tokenVars(atlas), { sizes, fonts, weights } = typography(t);
+  const faces = (webFonts ? atlas.fontFaces || [] : []).map(fontFaceRule).join('\n');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Design tokens</title>${cssHref ? `<link rel="stylesheet" href="${esc(cssHref)}">` : ''}<style>
   @media screen { body { max-width: 900px; margin: 32px auto !important; padding: 0 16px; background: #fff; } }
   ${faces}
@@ -77,8 +102,8 @@ export function sheetHtml(atlas, { webFonts = true, cssHref = null, markFallback
   td i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; border: 1px solid #0002; }
   </style></head><body>
   <header><h1>Design tokens</h1><p>Extracted ${esc(new Date(p.created).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }))}</p></header>
-  ${sec('Colour palette', colors, t.colors.length)}${sec('Type scale', sizes, t.fontSizes.length)}${sec('Font families', fonts, t.fonts.length)}${sec('Font weights', weights)}${sec('Line heights (× font size)', lineHeights)}${sec('Letter spacing', letterSpacings)}
-  ${sec('Spacing scale', spacing, t.spacing.length)}${sec('Radii', radii)}${sec('Shadows', shadows, t.shadows.length)}${modes}${sec('Components', comps)}${sec(`Contrast — ${rated.filter(c => c.level === 'fail').length} of ${rated.length} pairs fail WCAG AA`, contrast)}${sec({ pptx: 'Theme slots & grid', sketch: 'Swatches & text styles', tokens: 'All tokens' }[p.kind] || 'Variables', vars, tokenVars(atlas).length)}
+  ${section('Colour palette', palette(t.colors), t.colors.length)}${section('Type scale', sizes, t.fontSizes.length)}${section('Font families', fonts, t.fonts.length)}${section('Font weights', weights)}${section('Line heights (× font size)', wrapped('pills', t.lineHeights, countPill))}${section('Letter spacing', wrapped('pills', t.letterSpacings, countPill))}
+  ${section('Spacing scale', spacingRows(t.spacing), t.spacing.length)}${section('Radii', wrapped('pills', t.radii, radiusPill))}${section('Shadows', wrapped('sh', t.shadows, shadowBox), t.shadows.length)}${modeSections(atlas.modes)}${section('Components', componentTables(atlas.components))}${section(contrastTitle(atlas.contrast), contrastTable(atlas.contrast))}${section(VARS_TITLE[p.kind] || 'Variables', varsTable(vars), vars.length)}
   ${markFallbacks ? `<script>${MARK_FALLBACKS}</script>` : ''}</body></html>`;
 }
 

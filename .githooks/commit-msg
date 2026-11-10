@@ -1,0 +1,4 @@
+#!/bin/sh
+# Refuses agent co-author/session trailers in new commits (scripts/check-commit-msg.mjs).
+# Enabled per clone with: npm run hooks   (sets core.hooksPath to .githooks)
+exec node scripts/check-commit-msg.mjs "$1"

@@ -180,7 +180,8 @@ export async function extractSite({ startUrl, maxPages = 1, outDir, viewport = {
   const browser = await launchBrowser();
   const page = await newMeasuringPage(browser, viewport, { colorScheme, identify: web });
   const normalize = u => { try { const x = new URL(u); x.hash = ''; if (x.pathname !== '/' && x.pathname.endsWith('/')) x.pathname = x.pathname.replace(/\/+$/, ''); return x.href; } catch { return u; } };
-  const queue = [normalize(startUrl)], seen = new Set(), screens = [], tokenAcc = {}, linksOf = new Map(), idOf = new Map();
+  // queued holds every URL ever queued; each one leaves the queue only into seen, so it answers "seen or still queued"
+  const queue = [normalize(startUrl)], queued = new Set(queue), seen = new Set(), screens = [], tokenAcc = {}, linksOf = new Map(), idOf = new Map();
   try {
     while (queue.length && screens.length < maxPages) {
       const url = normalize(queue.shift()); if (seen.has(url)) continue; seen.add(url);
@@ -192,7 +193,7 @@ export async function extractSite({ startUrl, maxPages = 1, outDir, viewport = {
       if (scope) got.screen.url = got.screen.title = decodeURIComponent(url.slice(scope.length));
       screens.push(got.screen);
       console.log(`  [${screens.length}/${maxPages}] ${got.screen.url}  (${Object.entries(got.screen.inventory).map(([k, v]) => `${v} ${k}`).join(', ')})`);
-      if (screens.length < maxPages) for (const l of got.links.map(normalize)) if (!seen.has(l) && !queue.includes(l) && (!scope || l.startsWith(scope))) queue.push(l);
+      if (screens.length < maxPages) for (const l of got.links.map(normalize)) if (!queued.has(l) && (!scope || l.startsWith(scope))) { queued.add(l); queue.push(l); }
     }
   } finally { await browser.close(); }
   // flow: which captured pages link to which (links to pages outside the crawl are left out)
