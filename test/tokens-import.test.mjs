@@ -82,6 +82,82 @@ test('Tokens Studio multi-file folder: files are sets, aliases cross files', asy
   assert.equal(vars(a)['--theme-dark-surface-text'], '#101820');
 });
 
+// Synthetic token JSON written to a temp file, for branches the fixtures don't reach.
+const runData = async (data, name = 'synthetic.json') => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-tokens-src-'));
+  try {
+    fs.writeFileSync(path.join(dir, name), JSON.stringify(data));
+    const outDir = path.join(dir, 'out'), atlas = await importTokens({ source: path.join(dir, name), outDir });
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(outDir, 'atlas.json'), 'utf8')), atlas);
+    return atlas;
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+};
+
+test('Style Dictionary inference: value shapes, path words in order, attribute hints', async () => {
+  const a = await runData({
+    misc: { typo: { value: { fontFamily: 'Q', fontSize: 11 } }, colObj: { value: { hex: '#010203' } }, sh: { value: { color: '#000', x: 1 } },
+      shArr: { value: [{ color: '#111' }, { color: '#222', x: 2 }] }, empty: { value: [] }, rgba: { value: 'rgba(1,2,3,0.4)' }, auto: { value: 'auto' } },
+    color: { num: { value: '123' }, gap: { value: 4 } },
+    elevation: { e: { value: '0 0 1px red' } }, corner: { r: { value: 5 } }, text_size: { t: { value: 12 } }, typeface: { t: { value: 'Mono' } },
+    weight: { w: { value: 'bold' } }, gutter: { g: { value: 3 } },
+    hinted: { y: { value: 16, attributes: { category: 'size', type: 'font' } } },
+  }), t = a.tokens, v = vars(a);
+  assert.equal(a.project.format, 'style-dictionary');
+  assert.deepEqual(vals(t.colors), ['#010203', '#01020366']);
+  assert.deepEqual(vals(t.fonts), ['Q', 'Mono']);
+  assert.deepEqual(vals(t.fontSizes), ['11px', '12px', '16px']);
+  assert.deepEqual(vals(t.fontWeights), ['700']);
+  assert.deepEqual(vals(t.spacing), ['4px', '3px'], 'a spacing word under color/ still wins over the colour path');
+  assert.deepEqual(vals(t.radii), ['5px']);
+  assert.deepEqual(vals(t.shadows), ['1px 0px 0px 0px #000000', '0px 0px 0px 0px #111111, 2px 0px 0px 0px #222222', '0 0 1px red']);
+  assert.equal(v['--color-num'], '123', 'a bare number under color/ is not a colour');
+  assert.equal(v['--misc-empty'], '');
+  assert.equal(v['--misc-auto'], 'auto');
+});
+
+test('DTCG: dimension refined by path, fallback CSS for untallied types, colour objects', async () => {
+  const a = await runData({
+    font: { size: { d: { $type: 'dimension', $value: '17px' } } },
+    c: { $type: 'color', hexA: { $value: { hex: '#112233', alpha: 0.25 } }, plain: { $value: { components: [1, 1, 1], alpha: 0.5 } },
+      p3: { $value: { colorSpace: 'display-p3', components: [0.1, 0.2], alpha: 0.4 } } },
+    o: { cb: { $type: 'cubicBezier', $value: [0.1, 0.2, 0.3, 1] }, dur: { $type: 'duration', $value: { value: 100, unit: 'ms' } },
+      border: { $type: 'border', $value: { width: 2, style: 'dashed' } }, obj: { $type: 'weird', $value: { a: 1 } },
+      fw: { $type: 'fontWeight', $value: 'mystery' }, ctor: { $type: 'constructor', $value: '#abcdef' } },
+  }), t = a.tokens, v = vars(a);
+  assert.deepEqual(vals(t.fontSizes), ['17px']);
+  assert.deepEqual(vals(t.colors), ['#11223340', '#ffffff80']);
+  assert.equal(v['--c-p3'], 'color(display-p3 0.1 0.2 / 0.4)');
+  assert.equal(v['--o-cb'], 'cubic-bezier(0.1, 0.2, 0.3, 1)');
+  assert.equal(v['--o-dur'], '100ms');
+  assert.equal(v['--o-border'], '2px dashed');
+  assert.equal(v['--o-obj'], '{"a":1}');
+  assert.equal(v['--o-fw'], 'mystery', 'unknown weight name kept as written');
+  assert.deepEqual(vals(t.fontWeights), []);
+  assert.equal(v['--o-ctor'], '#abcdef', 'a type named like an Object member is untyped, not a crash');
+});
+
+test('notes: singular alias, list capped at 8, empty file has no format', async () => {
+  const one = await runData({ a: { $value: '{nope}' }, b: { $type: 'color', $value: '#fff' } });
+  assert.deepEqual(one.project.notes, ['2 tokens from 1 file', '1 unresolved alias (kept raw in cssVars): a']);
+  const many = await runData(Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`u${i}`, { $value: `{m.${i}}` }])));
+  assert.equal(many.project.notes[1], '9 unresolved aliases (kept raw in cssVars): u0, u1, u2, u3, u4, u5, u6, u7, …');
+  const empty = await runData({}, 'Empty.JSON');
+  assert.equal(empty.project.format, null);
+  assert.equal(empty.project.name, 'Empty');
+});
+
+test('aliases: embedded references, nested values, cycles and misses', async () => {
+  const a = await runData({
+    sp: { $type: 'dimension', a: { $value: '4px' } },
+    e: { calc: { $type: 'dimension', $value: 'calc({sp.a} * 2)' }, miss: { $type: 'dimension', $value: 'calc({sp.zz} * 2)' },
+      sh: { $type: 'shadow', $value: [{ color: '#000', offsetX: '{sp.a}', offsetY: 0 }] }, self: { $value: '{e.self}' }, toSelf: { $value: '{ e.self }' } },
+  }), v = vars(a);
+  assert.equal(v['--e-calc'], 'calc(4px * 2)');
+  assert.equal(v['--e-miss'], 'calc({sp.zz} * 2)');
+  assert.deepEqual(vals(a.tokens.shadows), ['4px 0px 0px 0px #000000']);
+  assert.match(a.project.notes[1], /^3 unresolved aliases.*e\.miss, e\.self, e\.toSelf$/);
+});
+
 test('folder of mixed formats is merged at the root', async () => {
   const a = await run('mixed'), t = a.tokens;
   assert.equal(a.project.format, 'mixed');

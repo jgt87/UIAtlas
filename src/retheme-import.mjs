@@ -12,14 +12,19 @@ const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^
 const hex = h => (h ? '#' + String(h).replace(/^#/, '').toLowerCase() : null);
 const pngWidth = b => (b && b.length > 24 && b.readUInt32BE(12) === 0x49484452 ? b.readUInt32BE(16) : null);
 
+// A folder package: template.json at the top plus everything under previews/ (no other subfolder is descended into).
+function walkFolder(dir, rel, files) {
+  for (const f of readdirSync(dir)) {
+    const full = path.join(dir, f), r = rel ? `${rel}/${f}` : f;
+    if (statSync(full).isDirectory()) { if (f === 'previews') walkFolder(full, r, files); }
+    else if (r === 'template.json' || r.startsWith('previews/')) files.set(r, readFileSync(full));
+  }
+  return files;
+}
+
 // Read the package's files into memory, from either a folder or a zip (which may nest everything in one top folder).
 function readPackage(src) {
-  let files;
-  if (statSync(src).isDirectory()) {
-    files = new Map();
-    const walk = (dir, rel) => { for (const f of readdirSync(dir)) { const full = path.join(dir, f), r = rel ? `${rel}/${f}` : f; if (statSync(full).isDirectory()) { if (f === 'previews') walk(full, r); } else if (r === 'template.json' || r.startsWith('previews/')) files.set(r, readFileSync(full)); } };
-    walk(src, '');
-  } else files = readZip(src);
+  const files = statSync(src).isDirectory() ? walkFolder(src, '', new Map()) : readZip(src);
   const manifestKey = [...files.keys()].filter(k => k === 'template.json' || k.endsWith('/template.json')).sort((a, b) => a.length - b.length)[0];
   if (!manifestKey) throw new Error(`No template.json in ${path.basename(src)} — is this a template package?`);
   const prefix = manifestKey.slice(0, -'template.json'.length);
@@ -101,21 +106,20 @@ function layoutScreen(rt, m, layout, env) {
 }
 
 // the template's declared variables: theme slots, heading/body fonts, grid measures in inches
-function declaredVars(m) {
-  const cssVars = [];
-  for (const c of m.colors || []) if (c.theme_slot && c.hex) cssVars.push({ name: `--${c.theme_slot}`, value: hex(c.hex) });
-  if (m.fonts?.heading) cssVars.push({ name: '--font-heading', value: m.fonts.heading });
-  if (m.fonts?.body) cssVars.push({ name: '--font-body', value: m.fonts.body });
-  for (const [k, v] of Object.entries(m.grid || {})) if (k.endsWith('_in') && v != null) cssVars.push({ name: `--${k.slice(0, -3).replace(/_/g, '-')}`, value: `${v}in` });
-  return cssVars;
-}
+const themeVars = colors => (colors || []).filter(c => c.theme_slot && c.hex).map(c => ({ name: `--${c.theme_slot}`, value: hex(c.hex) }));
+const fontVars = fonts => ['heading', 'body'].filter(k => fonts?.[k]).map(k => ({ name: `--font-${k}`, value: fonts[k] }));
+// only measures (`*_in`) are variables; counts like `columns` are not
+const gridVars = grid => Object.entries(grid || {}).filter(([k, v]) => k.endsWith('_in') && v != null)
+  .map(([k, v]) => ({ name: `--${k.slice(0, -3).replace(/_/g, '-')}`, value: `${v}in` }));
+const declaredVars = m => [...themeVars(m.colors), ...fontVars(m.fonts), ...gridVars(m.grid)];
 const colorTokens = rt => top(rt, 'colors').map(c => ({ ...c, ...(rt.labels.has(c.value) ? { label: rt.labels.get(c.value) } : {}), ...(rt.usage.has(c.value) ? { usage: rt.usage.get(c.value) } : {}) }));
 
 // Slide size in inches, and the inches -> pixels conversion: preview pixels per inch, so element boxes match the
 // screenshots; 96 when there are no previews.
+// declared geometry first, then the grid, then a 16:9 PowerPoint default
+const slideInches = (geo, grid) => ({ widthIn: geo.width_in || grid.slide_width_in || 13.333, heightIn: geo.height_in || grid.slide_height_in || 7.5 });
 function slideGeometry(m, file) {
-  const geo = m.slide_geometry || {};
-  const widthIn = geo.width_in || m.grid?.slide_width_in || 13.333, heightIn = geo.height_in || m.grid?.slide_height_in || 7.5;
+  const { widthIn, heightIn } = slideInches(m.slide_geometry || {}, m.grid || {});
   const previewOf = layout => file(`previews/layout-${slug(layout.name)}.png`);
   const firstPreview = (m.layouts || []).map(previewOf).find(Boolean);
   const ppi = (pngWidth(firstPreview) || 0) / widthIn || 96;

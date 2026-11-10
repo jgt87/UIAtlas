@@ -44,25 +44,34 @@ const dist = (p, q) => deltaE2000(p, q) + 100 * Math.abs(p.alpha - q.alpha);
 // Distance between two hex colours (null when either is unreadable).
 export const colorDistance = (a, b) => { const p = lab(a), q = lab(b); return p && q ? r2(dist(p, q)) : null; };
 
+// Closest reference colour as { r, d }, or null; an identical hex is 0 so it always reads as exact.
+function nearestRef(p, refs) {
+  let best = null; if (!p) return best;
+  for (const r of refs) { const d = r.lab.hex === p.hex ? 0 : dist(p, r.lab); if (!best || d < best.d) best = { r, d }; }
+  return best;
+}
+// Pairs of distinct target colours closer than dupDeltaE, closest first; identical hexes are one colour, not a pair.
+function nearDuplicatePairs(tl, dupDeltaE) {
+  const pairs = [];
+  for (let i = 0; i < tl.length; i++) for (let j = i + 1; j < tl.length; j++) {
+    const p = tl[i].lab, q = tl[j].lab; if (!p || !q || p.hex === q.hex) continue;
+    const d = dist(p, q); if (d < dupDeltaE) pairs.push({ a: tl[i].value, b: tl[j].value, deltaE: r2(d) });
+  }
+  return pairs.sort((a, b) => a.deltaE - b.deltaE);
+}
+
 function compareColors(target = [], reference = [], deltaE, dupDeltaE) {
   const refs = reference.map(c => ({ value: c.value, lab: lab(c.value) })).filter(c => c.lab);
   const tl = target.map(c => ({ ...c, lab: lab(c.value) }));
   const matched = [], offBrand = [], used = new Set();
   for (const c of tl) {
-    let best = null;
-    if (c.lab) for (const r of refs) { const d = r.lab.hex === c.lab.hex ? 0 : dist(c.lab, r.lab); if (!best || d < best.d) best = { r, d }; }
-    const usage = c.usage ? { usage: c.usage } : {};
+    const best = nearestRef(c.lab, refs), usage = c.usage ? { usage: c.usage } : {};
     if (best && best.d <= deltaE) { used.add(best.r.value); matched.push({ value: c.value, count: cnt(c), ref: best.r.value, exact: best.d === 0, deltaE: r2(best.d), ...usage }); }
     else offBrand.push({ value: c.value, count: cnt(c), ...usage, nearest: best ? { value: best.r.value, deltaE: r2(best.d) } : null });
   }
-  const nearDuplicates = [];
-  for (let i = 0; i < tl.length; i++) for (let j = i + 1; j < tl.length; j++) {
-    const p = tl[i].lab, q = tl[j].lab; if (!p || !q || p.hex === q.hex) continue;
-    const d = dist(p, q); if (d < dupDeltaE) nearDuplicates.push({ a: tl[i].value, b: tl[j].value, deltaE: r2(d) });
-  }
   const desc = (a, b) => b.count - a.count;
   return { matched: matched.sort(desc), offBrand: offBrand.sort(desc), unused: reference.filter(c => !used.has(c.value)).map(c => ({ value: c.value })),
-    nearDuplicates: nearDuplicates.sort((a, b) => a.deltaE - b.deltaE) };
+    nearDuplicates: nearDuplicatePairs(tl, dupDeltaE) };
 }
 
 // --- other token lists: normalise to a key, then exact match -------------------------------------------------
@@ -78,6 +87,15 @@ const NORM = {
 };
 const LISTS = Object.keys(NORM);
 
+const NUMERIC = /^-?[\d.]+(px)?$/;
+// Numeric keys: the closest numeric reference as { value, diff }, so a miss says how far off it is; else null.
+function nearestNumber(k, refByKey) {
+  const n = parseFloat(k); if (!Number.isFinite(n) || !NUMERIC.test(k)) return null;
+  let best = null;
+  for (const [rk, rv] of refByKey) { const rn = parseFloat(rk); if (NUMERIC.test(rk) && (!best || Math.abs(rn - n) < best.diff)) best = { value: rv, diff: r2(Math.abs(rn - n)) }; }
+  return best;
+}
+
 function compareList(key, target = [], reference = []) {
   const norm = NORM[key], refByKey = new Map(), used = new Set();
   for (const r of reference) if (!refByKey.has(norm(r.value))) refByKey.set(norm(r.value), r.value);
@@ -85,11 +103,8 @@ function compareList(key, target = [], reference = []) {
   for (const t of target) {
     const k = norm(t.value), ref = refByKey.get(k);
     if (ref != null) { used.add(k); matched.push({ value: t.value, count: cnt(t), ref, exact: String(t.value).trim() === String(ref).trim() }); continue; }
-    const m = { value: t.value, count: cnt(t) }, n = key === 'fonts' ? null : parseFloat(k); // numeric keys: say how far off the nearest is
-    if (Number.isFinite(n) && /^-?[\d.]+(px)?$/.test(k)) {
-      let best = null; for (const [rk, rv] of refByKey) { const rn = parseFloat(rk); if (/^-?[\d.]+(px)?$/.test(rk) && (!best || Math.abs(rn - n) < best.diff)) best = { value: rv, diff: r2(Math.abs(rn - n)) }; }
-      if (best) m.nearest = best;
-    }
+    const m = { value: t.value, count: cnt(t) }, nearest = key === 'fonts' ? null : nearestNumber(k, refByKey); // font names are never numeric
+    if (nearest) m.nearest = nearest;
     missing.push(m);
   }
   const desc = (a, b) => b.count - a.count;
@@ -98,42 +113,58 @@ function compareList(key, target = [], reference = []) {
 
 const meta = a => ({ name: a?.project?.name ?? null, kind: a?.project?.kind ?? null, created: a?.project?.created ?? null });
 const sum = l => l.reduce((s, x) => s + x.count, 0);
+const tokensOf = a => a?.tokens || {};
+const listOf = (tokens, k) => tokens[k] || []; // null lists in older atlases count as empty
 
-export function compareAtlases(target, reference, { deltaE = 3, dupDeltaE = deltaE } = {}) {
-  const tt = target?.tokens || {}, rt = reference?.tokens || {};
-  const report = { target: meta(target), reference: meta(reference), options: { deltaE, dupDeltaE, colorDistance: 'CIEDE2000' },
-    colors: compareColors(tt.colors || [], rt.colors || [], deltaE, dupDeltaE) };
-  for (const k of LISTS) report[k] = compareList(k, tt[k] || [], rt[k] || []);
+// Usage-weighted share of matched tokens, overall and per list: null for an unused list, 1 when nothing was used at all.
+function scoreOf(report) {
   const scores = {}; let hit = 0, all = 0;
   for (const k of ['colors', ...LISTS]) {
     const m = sum(report[k].matched), t = m + sum(report[k].offBrand || report[k].missing);
     hit += m; all += t; scores[k] = t ? r2(m / t) : null;
   }
+  return { score: all ? r2(hit / all) : 1, scores };
+}
+function summarize(report) {
   const c = report.colors;
-  report.summary = { score: all ? r2(hit / all) : 1, scores,
+  return { ...scoreOf(report),
     exactColors: c.matched.filter(x => x.exact).length, nearColors: c.matched.filter(x => !x.exact).length, offBrandColors: c.offBrand.length,
     unusedColors: c.unused.length, nearDuplicateColors: c.nearDuplicates.length,
     ...Object.fromEntries(LISTS.map(k => [`missing${k[0].toUpperCase()}${k.slice(1)}`, report[k].missing.length])) };
+}
+
+export function compareAtlases(target, reference, { deltaE = 3, dupDeltaE = deltaE } = {}) {
+  const tt = tokensOf(target), rt = tokensOf(reference);
+  const report = { target: meta(target), reference: meta(reference), options: { deltaE, dupDeltaE, colorDistance: 'CIEDE2000' },
+    colors: compareColors(listOf(tt, 'colors'), listOf(rt, 'colors'), deltaE, dupDeltaE) };
+  for (const k of LISTS) report[k] = compareList(k, listOf(tt, k), listOf(rt, k));
+  report.summary = summarize(report);
   return report;
 }
 
+const pct = v => v == null ? '-' : `${Math.round(v * 100)}%`;
+const who = m => `${m.name ?? '?'} (${m.kind ?? '?'})`;
+const colourLines = (r, top) => [
+  ...r.colors.offBrand.slice(0, top).map(c => `  off-brand ${c.value} x${c.count}` + (c.nearest ? ` -> nearest ${c.nearest.value} (ΔE ${c.nearest.deltaE})` : '')),
+  ...r.colors.nearDuplicates.slice(0, top).map(d => `  near-dup  ${d.a} ~ ${d.b} (ΔE ${d.deltaE})`)];
+// One line per token list; a list empty on both sides says nothing, so it is left out.
+function listLine(k, l, score, top) {
+  if (!l.matched.length && !l.missing.length && !l.unused.length) return null;
+  const miss = l.missing.slice(0, top).map(m => m.value + (m.nearest ? ` (~${m.nearest.value})` : '')).join(', ');
+  return `${k}: ${pct(score)} matched, ${l.missing.length} not in reference${miss ? ': ' + miss : ''}`;
+}
+
 export function formatReport(r, { top = 5 } = {}) {
-  const s = r.summary, pct = v => v == null ? '-' : `${Math.round(v * 100)}%`, who = m => `${m.name ?? '?'} (${m.kind ?? '?'})`;
-  const out = [`${who(r.target)} vs ${who(r.reference)}`, `Score: ${pct(s.score)} of token usage matches the reference`,
-    `Colours: ${s.exactColors} exact, ${s.nearColors} near, ${s.offBrandColors} off-brand, ${s.nearDuplicateColors} near-duplicate pairs (ΔE00 < ${r.options.dupDeltaE})`];
-  for (const c of r.colors.offBrand.slice(0, top)) out.push(`  off-brand ${c.value} x${c.count}` + (c.nearest ? ` -> nearest ${c.nearest.value} (ΔE ${c.nearest.deltaE})` : ''));
-  for (const d of r.colors.nearDuplicates.slice(0, top)) out.push(`  near-dup  ${d.a} ~ ${d.b} (ΔE ${d.deltaE})`);
-  for (const k of LISTS) {
-    const l = r[k]; if (!l.matched.length && !l.missing.length && !l.unused.length) continue;
-    const miss = l.missing.slice(0, top).map(m => m.value + (m.nearest ? ` (~${m.nearest.value})` : '')).join(', ');
-    out.push(`${k}: ${pct(s.scores[k])} matched, ${l.missing.length} not in reference${miss ? ': ' + miss : ''}`);
-  }
-  return out.join('\n');
+  const s = r.summary;
+  return [`${who(r.target)} vs ${who(r.reference)}`, `Score: ${pct(s.score)} of token usage matches the reference`,
+    `Colours: ${s.exactColors} exact, ${s.nearColors} near, ${s.offBrandColors} off-brand, ${s.nearDuplicateColors} near-duplicate pairs (ΔE00 < ${r.options.dupDeltaE})`,
+    ...colourLines(r, top), ...LISTS.map(k => listLine(k, r[k], s.scores[k], top)).filter(x => x != null)].join('\n');
 }
 
 // Newest snapshot in <atlasDir>/history/ (file names are ISO timestamps with ':' -> '-', so they sort by name), or null.
 export function latestSnapshot(atlasDir) {
-  let files; try { files = readdirSync(path.join(atlasDir, 'history')).filter(f => f.endsWith('.json')).sort().reverse(); } catch { return null; }
+  let files; try { files = readdirSync(path.join(atlasDir, 'history')).filter(f => f.endsWith('.json')).sort().reverse(); } catch { return null; } // no history/ yet: no snapshot
+  // Newest first and stops at the first that parses: older files are read only when a newer one is unreadable.
   for (const f of files) { try { return JSON.parse(readFileSync(path.join(atlasDir, 'history', f), 'utf8')); } catch { /* unreadable: try older */ } }
   return null;
 }

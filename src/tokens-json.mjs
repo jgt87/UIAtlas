@@ -34,12 +34,18 @@ export function dimensionValue(v) {
 
 // CSS box-shadow text (any order of colour and lengths, layers comma-separated) -> shadow value(s).
 export function shadowValue(css) {
-  const layers = String(css).split(/,(?![^(]*\))/).map(l => {
-    const colorM = /(rgba?\([^)]*\)|#[0-9a-f]{3,8}\b)/i.exec(l), lens = l.replace(colorM?.[0] || '', '').match(/-?\d*\.?\d+(px)?/g) || [];
-    const c = colorM ? toHex(colorM[0]) : '#000000', [x = 0, y = 0, blur = 0, spread = 0] = lens.map(parseFloat);
-    return c && { color: colorValue(c), offsetX: { value: x, unit: 'px' }, offsetY: { value: y, unit: 'px' }, blur: { value: blur, unit: 'px' }, spread: { value: spread, unit: 'px' }, ...(/\binset\b/.test(l) ? { inset: true } : {}) };
-  }).filter(Boolean);
+  const layers = String(css).split(/,(?![^(]*\))/).map(shadowLayer).filter(Boolean);
   return layers.length ? (layers.length === 1 ? layers[0] : layers) : null;
+}
+const px = value => ({ value, unit: 'px' });
+// a layer's colour (black when it names none) and its lengths; the colour is cut out first so its digits aren't lengths
+function shadowParts(l) {
+  const colorM = /(rgba?\([^)]*\)|#[0-9a-f]{3,8}\b)/i.exec(l), lens = l.replace(colorM?.[0] || '', '').match(/-?\d*\.?\d+(px)?/g) || [];
+  return { c: colorM ? toHex(colorM[0]) : '#000000', lens: lens.map(parseFloat) };
+}
+function shadowLayer(l) {
+  const { c, lens: [x = 0, y = 0, blur = 0, spread = 0] } = shadowParts(l);
+  return c && { color: colorValue(c), offsetX: px(x), offsetY: px(y), blur: px(blur), spread: px(spread), ...(/\binset\b/.test(l) ? { inset: true } : {}) };
 }
 function toHex(c) {
   const m = /^#([0-9a-f]{3,8})$/i.exec(c); if (m) return '#' + (m[1].length <= 4 ? [...m[1]].map(x => x + x).join('') : m[1]).toLowerCase();
@@ -121,14 +127,18 @@ function lineHeightGroup({ t, refs, skipped }) {
   }
   return Object.keys(g).length > 1 ? g : null;
 }
+// [group under font, list in atlas.tokens, builder]; in output order. A builder returning null left nothing representable.
+const FONT_GROUPS = [
+  ['family', 'fonts', familyGroup],
+  ['size', 'fontSizes', b => dimGroup(b, b.t.fontSizes, b.refs.size, 'font.size')],
+  ['weight', 'fontWeights', weightGroup],
+  ['lineHeight', 'lineHeights', lineHeightGroup],
+  ['letterSpacing', 'letterSpacings', b => dimGroup(b, b.t.letterSpacings, b.refs.letterSpacing, 'font.letterSpacing')],
+];
 function fontPrimitives(b) {
-  const { t, out, refs } = b, font = {};
-  if (t.fonts?.length) font.family = familyGroup(b);
-  if (t.fontSizes?.length) { const g = dimGroup(b, t.fontSizes, refs.size, 'font.size'); if (g) font.size = g; }
-  if (t.fontWeights?.length) font.weight = weightGroup(b);
-  if (t.lineHeights?.length) { const g = lineHeightGroup(b); if (g) font.lineHeight = g; }
-  if (t.letterSpacings?.length) { const g = dimGroup(b, t.letterSpacings, refs.letterSpacing, 'font.letterSpacing'); if (g) font.letterSpacing = g; }
-  if (Object.keys(font).length) out.font = font;
+  const font = {};
+  for (const [k, list, build] of FONT_GROUPS) { const g = b.t[list]?.length && build(b); if (g) font[k] = g; }
+  if (Object.keys(font).length) b.out.font = font;
 }
 function shadowPrimitives({ t, out, skipped }) {
   if (!t.shadows?.length) return;
@@ -140,10 +150,15 @@ function shadowPrimitives({ t, out, skipped }) {
 // Derived layers: aliases into the primitives where the value is one of them, else the literal value.
 // color-usage: per kind of use, the colours most used that way (at least 2% of that use), ranked.
 const USE_KINDS = { text: 'text', background: 'background', border: 'border', fill: 'fill' };
-function colorUsage({ t, out, refs }) {
+// palette colours per known kind of use, with how often each is used that way
+function usesByKind({ t, refs }) {
   const byUse = {};
   for (const c of t.colors || []) for (const [k, n] of Object.entries(c.usage || {})) if (USE_KINDS[k] && refs.color.has(c.value)) (byUse[k] ||= []).push({ value: c.value, n });
-  for (const [k, list] of Object.entries(byUse)) {
+  return byUse;
+}
+function colorUsage(b) {
+  const { out, refs } = b;
+  for (const [k, list] of Object.entries(usesByKind(b))) {
     const total = list.reduce((a, x) => a + x.n, 0), ranked = list.filter(x => x.n / total >= 0.02).sort((a, b) => b.n - a.n).slice(0, 6);
     if (!ranked.length) continue;
     const g = ((out['color-usage'] ||= {})[USE_KINDS[k]] = { $type: 'color' });
@@ -151,11 +166,14 @@ function colorUsage({ t, out, refs }) {
   }
 }
 // typography: the most common type style per element role
+const weightLit = v => Number(v) || 400; // a weight with no number reads as regular
+// line height and letter spacing are optional parts of a type style: null when absent or with no token form
+const lineHeightPart = (refs, lh) => lh != null && Number.isFinite(parseFloat(lh)) ? alias(refs.lineHeight, String(lh), v => parseFloat(v)) : null;
+const letterSpacingPart = (refs, ls) => ls != null && dimensionValue(ls) ? alias(refs.letterSpacing, ls, dimensionValue) : null;
 function typeStyle(refs, r, fallbackFont) {
   const fam = r.font || fallbackFont, size = dimensionValue(r.fontSize); if (!fam || !size) return null;
-  const lh = r.lineHeight != null && Number.isFinite(parseFloat(r.lineHeight)) ? alias(refs.lineHeight, String(r.lineHeight), v => parseFloat(v)) : null;
-  const ls = r.letterSpacing != null && dimensionValue(r.letterSpacing) ? alias(refs.letterSpacing, r.letterSpacing, dimensionValue) : null;
-  return { fontFamily: alias(refs.family, fam, v => v), fontSize: alias(refs.size, r.fontSize, () => size), fontWeight: alias(refs.weight, String(r.weight ?? 400), v => Number(v) || 400),
+  const lh = lineHeightPart(refs, r.lineHeight), ls = letterSpacingPart(refs, r.letterSpacing);
+  return { fontFamily: alias(refs.family, fam, v => v), fontSize: alias(refs.size, r.fontSize, () => size), fontWeight: alias(refs.weight, String(r.weight ?? 400), weightLit),
     ...(lh != null ? { lineHeight: lh } : {}), ...(ls ? { letterSpacing: ls } : {}) };
 }
 function typography({ t, out, refs }, atlas) {
@@ -168,16 +186,25 @@ function typography({ t, out, refs }, atlas) {
   }
 }
 // component: style variants per role (see components.mjs), each property aliased into the primitives where it is one
+const paddingPart = (padding, i) => { const d = dimensionValue(padding.split(' ')[i]); return d?.value ? d : undefined; }; // "block inline"; zero is no padding
+// [property, style field, $type, value]; in output order. A value of undefined means no token for that property; a
+// colour that doesn't parse still gets one (with a null value), as it always has.
+const COMPONENT_PROPS = [
+  ['background', 'bg', 'color', colorRef],
+  ['text', 'color', 'color', colorRef],
+  ['border', 'border', 'color', colorRef],
+  ['radius', 'radius', 'dimension', (refs, v) => refs.radius.get(v) || dimensionValue(v) || undefined],
+  ['font-size', 'fontSize', 'dimension', (refs, v) => dimensionValue(v) ? alias(refs.size, v, dimensionValue) : undefined],
+  ['font-weight', 'weight', 'fontWeight', (refs, v) => alias(refs.weight, String(v), weightLit)],
+  ['padding-block', 'padding', 'dimension', (refs, v) => paddingPart(v, 0)],
+  ['padding-inline', 'padding', 'dimension', (refs, v) => paddingPart(v, 1)],
+];
 function componentStyle(refs, st) {
-  const c = {}, rad = st.radius ? (refs.radius.get(st.radius) || dimensionValue(st.radius)) : null, [pv, ph] = (st.padding || '').split(' ').map(dimensionValue);
-  if (st.bg) c.background = { $type: 'color', $value: colorRef(refs, st.bg) };
-  if (st.color) c.text = { $type: 'color', $value: colorRef(refs, st.color) };
-  if (st.border) c.border = { $type: 'color', $value: colorRef(refs, st.border) };
-  if (rad) c.radius = { $type: 'dimension', $value: rad };
-  if (st.fontSize && dimensionValue(st.fontSize)) c['font-size'] = { $type: 'dimension', $value: alias(refs.size, st.fontSize, dimensionValue) };
-  if (st.weight) c['font-weight'] = { $type: 'fontWeight', $value: alias(refs.weight, String(st.weight), x => Number(x) || 400) };
-  if (pv?.value) c['padding-block'] = { $type: 'dimension', $value: pv };
-  if (ph?.value) c['padding-inline'] = { $type: 'dimension', $value: ph };
+  const c = {};
+  for (const [prop, field, $type, value] of COMPONENT_PROPS) {
+    const v = st[field] ? value(refs, st[field]) : undefined;
+    if (v !== undefined) c[prop] = { $type, $value: v };
+  }
   return c;
 }
 const pageBackground = colors => [...(colors || [])].filter(c => c.usage?.background).sort((a, b) => b.usage.background - a.usage.background)[0]?.value;
@@ -190,13 +217,21 @@ function componentTokens({ t, out, refs }, atlas) {
 }
 
 // The source's declared variables (CSS custom properties, theme slots, token paths), typed where possible.
+function colorSource(refs, val) {
+  const hex = /^(#[0-9a-f]{3,8}|rgba?\([^)]*\))$/i.test(val) && toHex(val), c = hex && colorValue(hex);
+  return c && { $type: 'color', $value: refs.color.get(hex) || c };
+}
+const dimensionSource = (refs, val) => { const d = /[a-z]$/i.test(val) && dimensionValue(val); return d && { $type: 'dimension', $value: d }; }; // a dimension needs a unit
+// unitless: a weight (when the name says so and it is in range), else a line height, ratio...
+function numberSource(refs, val, varName) {
+  if (!/^-?\d*\.?\d+$/.test(val)) return null;
+  const n = parseFloat(val);
+  return /weight/i.test(varName) && n >= 1 && n <= 1000 ? { $type: 'fontWeight', $value: n } : { $type: 'number', $value: n };
+}
+const SOURCE_TYPES = [colorSource, dimensionSource, numberSource]; // tried in order: the first that reads the value types it
 function sourceToken(refs, v) {
-  const val = v.value.trim(), hex = /^(#[0-9a-f]{3,8}|rgba?\([^)]*\))$/i.test(val) && toHex(val);
-  const c = hex && colorValue(hex), d = !c && /[a-z]$/i.test(val) && dimensionValue(val); // a dimension needs a unit
-  const n = !c && !d && /^-?\d*\.?\d+$/.test(val) ? parseFloat(val) : null; // unitless: a weight, line height, ratio...
-  if (c) return { $type: 'color', $value: refs.color.get(hex) || c };
-  if (d) return { $type: 'dimension', $value: d };
-  if (n != null) return /weight/i.test(v.name) && n >= 1 && n <= 1000 ? { $type: 'fontWeight', $value: n } : { $type: 'number', $value: n };
+  const val = v.value.trim();
+  for (const read of SOURCE_TYPES) { const tok = read(refs, val, v.name); if (tok) return tok; }
   return null;
 }
 function sourceVariables({ t, out, refs }) {
@@ -246,12 +281,14 @@ export function cssValue(type, v) {
   return String(v);
 }
 
+// CSS has no composite type style: a typography token becomes one variable per part it has, [suffix, part, $type]
+const TYPE_PARTS = [['font-family', 'fontFamily', 'fontFamily'], ['font-size', 'fontSize', 'dimension'], ['font-weight', 'fontWeight', 'fontWeight'], ['line-height', 'lineHeight', 'number'], ['letter-spacing', 'letterSpacing', 'dimension']];
+const typographyVars = (base, value) => TYPE_PARTS.filter(([, sub]) => value[sub] != null).map(([p, sub, type]) => `  --${base}-${p}: ${cssValue(type, value[sub])};`);
 export function toCssVars(tokens) {
   const lines = [];
   for (const { path, type, value } of walkTokens(tokens)) {
-    if (type === 'typography') for (const [p, sub, type] of [['font-family', 'fontFamily', 'fontFamily'], ['font-size', 'fontSize', 'dimension'], ['font-weight', 'fontWeight', 'fontWeight'], ['line-height', 'lineHeight', 'number'], ['letter-spacing', 'letterSpacing', 'dimension']]) {
-      if (value[sub] != null) lines.push(`  --${path.join('-')}-${p}: ${cssValue(type, value[sub])};`);
-    } else lines.push(`  --${path.join('-')}: ${cssValue(type, value)};`);
+    const base = path.join('-');
+    if (type === 'typography') lines.push(...typographyVars(base, value)); else lines.push(`  --${base}: ${cssValue(type, value)};`);
   }
   return `/* Design tokens, extracted by UI Atlas */\n:root {\n${lines.join('\n')}\n}\n`;
 }

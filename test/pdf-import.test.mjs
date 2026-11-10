@@ -30,6 +30,19 @@ test('parseFontName strips subset prefixes and style suffixes', () => {
   assert.equal(parseFontName('Lato').weight, '400');
 });
 
+test('parseFontName: weight table order, stacked suffixes, separators and empty names', () => {
+  assert.deepEqual(parseFontName('ABCDEF+Name-BoldItalic'), { font: 'Name-BoldItalic', family: 'Name', weight: '700' });
+  assert.deepEqual(parseFontName('SegoeUI-Semibold'), { font: 'SegoeUI-Semibold', family: 'Segoe UI', weight: '600' });
+  for (const [name, weight] of [['Inter-Semi-Bold', '600'], ['Futura-DemiBold', '600'], ['Roboto-Heavy', '900'], ['Roboto-Thin', '300'], ['Roboto-Medium', '500']])
+    assert.equal(parseFontName(name).weight, weight, name); // semibold/demi beat plain bold; heavy is black
+  assert.equal(parseFontName('BoldItalic').family, 'Bold'); // suffixes strip one at a time, never down to an empty family
+  assert.equal(parseFontName('Bold').family, 'Bold');
+  assert.equal(parseFontName('Foo,Bold').family, 'Foo');
+  assert.equal(parseFontName('abcdef+lower').family, 'abcdef+lower'); // only an upper-case six-letter subset tag is a prefix
+  assert.deepEqual(parseFontName(''), { font: null, family: null, weight: '400' });
+  assert.deepEqual(parseFontName(null), { font: null, family: null, weight: '400' });
+});
+
 test('importPdf: pages, fonts, sizes and colours, and no text or page images stored', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-pdf-')), out = path.join(tmp, 'out'), pdf = path.join(tmp, 'brochure.pdf');
   fs.mkdirSync(out);

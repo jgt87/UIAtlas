@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readdirSync } from '
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { extractSite, parseFontFaces } from '../src/web-extract.mjs';
+import { extractSite, parseFontFaces, mergeTokens, finalizeTokens, finalizeContrast, finalizeFontFaces } from '../src/web-extract.mjs';
 import { contrastRatio, wcagLevel, contrastReport } from '../src/atlas-util.mjs';
 import { parseMode, addModes } from '../src/modes.mjs';
 import { toDtcg } from '../src/export.mjs';
@@ -74,6 +74,32 @@ test('font faces: woff2 preferred, URLs resolved, data: URLs skipped', () => {
     @font-face { font-family: Inline; src: url(data:font/woff2;base64,AAAA) }`;
   assert.deepEqual(parseFontFaces(css, 'https://fonts.example.test/css/a.css'),
     [{ family: 'Fictive Grotesk', url: 'https://fonts.example.test/f.woff2', weight: '400 700', style: 'normal' }]);
+});
+
+test('font faces: rules without a family or usable file are skipped; .woff2 by extension; descriptors kept', () => {
+  const css = `@font-face { src: url(nofamily.woff2) } @font-face { font-family: Local; src: local(Local) }
+    @FONT-FACE { font-family: 'Sub'; src: url(a.ttf), url("b.woff2?v=2"); font-style: italic; font-weight: bold; unicode-range: U+0000-00FF }
+    @font-face { font-family: First; src: url(one.otf), url(two.ttf) } @font-face { font-family: Bad; src: url(x.woff2) }`;
+  assert.deepEqual(parseFontFaces(css, 'https://h.example.test/css/'), [
+    { family: 'Sub', url: 'https://h.example.test/css/b.woff2?v=2', weight: 'bold', style: 'italic', unicodeRange: 'U+0000-00FF' },
+    { family: 'First', url: 'https://h.example.test/css/one.otf', weight: '400', style: 'normal' },
+    { family: 'Bad', url: 'https://h.example.test/css/x.woff2', weight: '400', style: 'normal' }]);
+  assert.deepEqual(parseFontFaces('@font-face { font-family: Bad; src: url(x.woff2) }', 'not a base'), [], 'an unresolvable URL is skipped');
+  assert.deepEqual(parseFontFaces(null, 'https://h.example.test/'), []);
+});
+
+test('token merge: counts, colour usage, variables, contrast pairs and Latin font faces add up across pages', () => {
+  const acc = {}, face = (family, unicodeRange) => ({ family, url: `u-${family}-${unicodeRange}`, weight: '400', style: 'normal', ...(unicodeRange ? { unicodeRange } : {}) });
+  mergeTokens(acc, { colors: [{ value: '#111111', count: 2, usage: { text: 2 } }], fonts: [{ value: 'Sub', count: 1 }], cssVars: [{ name: '--a', value: '1' }] },
+    [{ fg: '#000000', bg: '#ffffff', large: false, count: 1 }], [face('Sub', 'U+0000-00FF'), face('Sub', 'U+0400-04FF'), face('Unused')]);
+  mergeTokens(acc, { colors: [{ value: '#111111', count: 1, usage: { text: 1, border: 1 } }, { value: '#222222', count: 5 }], cssVars: [{ name: '--a', value: '2' }] },
+    [{ fg: '#000000', bg: '#ffffff', large: false, count: 2 }]);
+  mergeTokens(acc, {});
+  const tokens = finalizeTokens(acc);
+  assert.deepEqual(tokens.colors, [{ value: '#222222', count: 5 }, { value: '#111111', count: 3, usage: { text: 3, border: 1 } }]);
+  assert.deepEqual(tokens.cssVars, [{ name: '--a', value: '2' }]);
+  assert.deepEqual(finalizeContrast(acc).map(c => c.count), [3]);
+  assert.deepEqual(finalizeFontFaces(acc, tokens).map(f => f.url), ['u-Sub-U+0000-00FF']);
 });
 
 test('modern colour spaces (oklch, color()) are converted to sRGB hex, not dropped', async () => {

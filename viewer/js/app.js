@@ -47,89 +47,111 @@ function route() {
   ({ screens: renderScreens, tokens: renderTokens, elements: renderElements, components: () => main.replaceChildren(...renderComponents(atlas, q)), map: () => main.replaceChildren(...renderFlow(atlas)) }[v] || renderScreens)();
 }
 
+// --- shared pieces of the views ---
+const matches = text => !q || text.toLowerCase().includes(q); // the live search filter
+const colorValue = v => h('span', {}, h('span', { class: 'dot', style: `background:${v}` }), fmtColor(v)); // dot + HEX/RGB text
+const countText = c => c.share != null ? `${(c.share * 100).toFixed(c.share < 0.1 ? 1 : 0)}%` : `${c.count}×`;
+const pill = (parts, count, ...after) => h('span', { class: 'pill' }, ...parts, ' ', h('small', {}, `${count}×`), ...after);
+// a heading and its wrapped items, or nothing when there are no items (extra nodes go between the two)
+const section = (title, cls, items, ...between) => items.length ? [h('h2', { class: 'sec' }, title), ...between, h('div', { class: cls }, items)] : [];
+
+// --- Screens ---
+// a card opens the screen in a modal (keyboard: Enter/Space), instead of navigating to the image
+const openOnKey = s => e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openScreen(atlas, s); } };
+// without --screenshots there is no image at all: compact cards instead of empty boxes
+const screenShot = (s, base) => atlas.project.screenshots === false ? null
+  : h('div', { class: 'shot' }, s.screenshot ? h('img', { src: base + s.screenshot, loading: 'lazy', alt: s.title }) : h('div', { class: 'empty' }, 'No preview'));
+const screenCard = (s, base) => h('div', { class: 'card clickable', role: 'button', tabindex: '0', 'aria-haspopup': 'dialog', onclick: () => openScreen(atlas, s), onkeydown: openOnKey(s) },
+  screenShot(s, base),
+  h('div', { class: 'card-body' },
+    h('div', { class: 'card-title', title: s.title || s.url }, s.title || s.url),
+    h('div', { class: 'card-url', title: s.purpose || s.url }, s.purpose || s.url),
+    h('div', { class: 'badges' }, Object.entries(s.inventory || {}).map(([k, n]) => h('span', { class: 'badge' }, `${n} ${k}`)))));
 function renderScreens() {
   if (!atlas.screens.length) return main.replaceChildren(h('div', { class: 'empty' }, `This ${kindOf(atlas).label.toLowerCase()} has no ${kindOf(atlas).screens}; see Design tokens.`));
-  const scr = atlas.screens.filter(s => !q || (s.title + ' ' + s.url).toLowerCase().includes(q));
   const base = `/data/${atlas.name}/`;
-  // a card opens the screen in a modal (keyboard: Enter/Space), instead of navigating to the image
-  const open = s => () => openScreen(atlas, s), key = s => e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openScreen(atlas, s); } };
-  main.replaceChildren(h('div', { class: 'grid' }, scr.map(s => h('div', { class: 'card clickable', role: 'button', tabindex: '0', 'aria-haspopup': 'dialog', onclick: open(s), onkeydown: key(s) },
-    // without --screenshots there is no image at all: compact cards instead of empty boxes
-    atlas.project.screenshots === false ? null : h('div', { class: 'shot' }, s.screenshot ? h('img', { src: base + s.screenshot, loading: 'lazy', alt: s.title }) : h('div', { class: 'empty' }, 'No preview')),
-    h('div', { class: 'card-body' },
-      h('div', { class: 'card-title', title: s.title || s.url }, s.title || s.url),
-      h('div', { class: 'card-url', title: s.purpose || s.url }, s.purpose || s.url),
-      h('div', { class: 'badges' }, Object.entries(s.inventory || {}).map(([k, n]) => h('span', { class: 'badge' }, `${n} ${k}`))))))));
+  main.replaceChildren(h('div', { class: 'grid' }, atlas.screens.filter(s => matches(s.title + ' ' + s.url)).map(s => screenCard(s, base))));
 }
 
+// --- Design tokens ---
 // what a colour is used for, most used first: 'text 23 · bg 4'
 const usageText = u => Object.entries(u || {}).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k === 'background' ? 'bg' : k} ${n}`).join(' · ');
+const swatch = c => h('div', { class: 'swatch' },
+  h('div', { class: 'chip', style: `background:${c.value}` }),
+  h('div', { class: 'lbl' }, fmtColor(c.value), c.label ? h('small', {}, c.label) : null, c.usage ? h('small', {}, usageText(c.usage)) : null, h('small', {}, countText(c))));
+const swatches = colors => colors.filter(c => matches(c.value + ' ' + (c.label || '') + ' ' + usageText(c.usage))).map(swatch);
+const typeScale = t => t.fontSizes.slice().sort((a, b) => parseFloat(b.value) - parseFloat(a.value)).map(f =>
+  h('div', { class: 'row' }, h('span', { class: 'k' }, f.value), h('span', { style: `font-size:${f.value};${fontCss(t.fonts[0]?.value || 'system-ui')}` }, 'The quick brown fox'), h('span', { class: 'count', style: 'margin-left:auto' }, `${f.count}×`)));
+function spacingBars(spacing) {
+  const max = Math.max(...spacing.map(s => parseFloat(s.value)), 1);
+  return spacing.slice().sort((a, b) => parseFloat(a.value) - parseFloat(b.value)).map(s =>
+    h('div', { class: 'row' }, h('span', { class: 'k' }, s.value), h('span', { class: 'bar', style: `width:${Math.max(6, parseFloat(s.value) / max * 240)}px` }), h('span', { class: 'count' }, `${s.count}×`)));
+}
+// each family shown in itself, with whether that's the real font (web font / installed) or a fallback
+const fontRow = f => { const st = fontStatus(f.value, atlas.fontFaces); return h('div', { class: 'font-row' + (st === 'missing' ? ' missing' : '') },
+  h('span', { class: 'font-demo', style: fontCss(f.value) }, f.value), st === 'missing' ? fallbackTag(h) : h('small', {}, STATUS_LABEL[st]), h('span', { class: 'count' }, `${f.count}×`)); };
+const fallbackNote = (primary, status) => status === 'missing' ? h('p', { class: 'fallback-note' }, fallbackTag(h), ` ${primary} isn't available here, so these samples use a fallback font.`) : null;
+// weights in the primary font; a web font without that weight is drawn synthesized, which is marked
+const weightTag = (primary, status, w) => status === 'web' && !hasWeight(primary, w.value) ? h('span', { class: 'tag-fallback', title: `${primary} has no ${w.value} weight loaded; the browser fakes it.` }, 'synthesized')
+  : status === 'missing' ? fallbackTag(h) : null;
+const weightPill = (primary, status) => w => pill([h('span', { style: `font-weight:${w.value};${primary ? fontCss(primary) : ''}` }, w.value)], w.count, weightTag(primary, status, w));
+const radiusPill = r => pill([h('span', { class: 'dot', style: `border-radius:${r.value};width:16px;height:16px;background:var(--ink)` }), r.value], r.count);
+const shadowBox = s => h('div', { class: 'shadow-box', style: `box-shadow:${s.value}`, title: s.value });
+const varRow = v => h('tr', {}, h('td', {}, v.name), h('td', {}, /^#|rgb|hsl/.test(v.value) ? colorValue(v.value) : v.value));
+// light/dark, screen sizes, themes: switch which pass's tokens are shown
+const modeButtons = modes => modes.length ? h('div', { class: 'modes' }, ['', ...modes].map(m =>
+  h('button', { type: 'button', class: 'pill' + (m === mode ? ' on' : ''), 'aria-pressed': String(m === mode), onclick: () => { mode = m; renderTokens(); } }, m || 'Base'))) : null;
+
+// the tokens and contrast of the selected pass: the base extraction, or one of its modes
+const shownPass = () => { const current = mode && atlas.modes?.[mode];
+  return { t: { lineHeights: [], letterSpacings: [], ...(current ? current.tokens : atlas.tokens) }, contrast: current ? current.contrast : atlas.contrast }; };
+const varsSection = t => { const vars = (t.cssVars || []).filter(v => matches(v.name + v.value)).map(varRow);
+  return vars.length ? [h('h2', { class: 'sec' }, `${kindOf(atlas).vars} (${(t.cssVars || []).length})`), scrollBox(h('table', { class: 'vars' }, h('tbody', {}, vars)))] : []; };
 
 function renderTokens() {
-  const modes = Object.keys(atlas.modes || {}), current = mode && atlas.modes?.[mode];
-  const t = { lineHeights: [], letterSpacings: [], ...(current ? current.tokens : atlas.tokens) };
-  const sw = t.colors.filter(c => !q || (c.value + ' ' + (c.label || '') + ' ' + usageText(c.usage)).toLowerCase().includes(q)).map(c => h('div', { class: 'swatch' },
-    h('div', { class: 'chip', style: `background:${c.value}` }),
-    h('div', { class: 'lbl' }, fmtColor(c.value), c.label ? h('small', {}, c.label) : null, c.usage ? h('small', {}, usageText(c.usage)) : null,
-      h('small', {}, c.share != null ? `${(c.share * 100).toFixed(c.share < 0.1 ? 1 : 0)}%` : `${c.count}×`))));
-  const sizes = t.fontSizes.slice().sort((a, b) => parseFloat(b.value) - parseFloat(a.value)).map(f =>
-    h('div', { class: 'row' }, h('span', { class: 'k' }, f.value), h('span', { style: `font-size:${f.value};${fontCss(t.fonts[0]?.value || 'system-ui')}` }, 'The quick brown fox'), h('span', { class: 'count', style: 'margin-left:auto' }, `${f.count}×`)));
-  const maxSp = Math.max(...t.spacing.map(s => parseFloat(s.value)), 1);
-  const spacing = t.spacing.slice().sort((a, b) => parseFloat(a.value) - parseFloat(b.value)).map(s =>
-    h('div', { class: 'row' }, h('span', { class: 'k' }, s.value), h('span', { class: 'bar', style: `width:${Math.max(6, parseFloat(s.value) / maxSp * 240)}px` }), h('span', { class: 'count' }, `${s.count}×`)));
-  // each family shown in itself, with whether that's the real font (web font / installed) or a fallback
-  const fonts = t.fonts.map(f => { const st = fontStatus(f.value, atlas.fontFaces); return h('div', { class: 'font-row' + (st === 'missing' ? ' missing' : '') },
-    h('span', { class: 'font-demo', style: fontCss(f.value) }, f.value), st === 'missing' ? fallbackTag(h) : h('small', {}, STATUS_LABEL[st]), h('span', { class: 'count' }, `${f.count}×`)); });
+  const { t, contrast } = shownPass();
   const primary = t.fonts[0]?.value, primaryStatus = primary && fontStatus(primary, atlas.fontFaces);
-  const fallbackNote = primaryStatus === 'missing' ? h('p', { class: 'fallback-note' }, fallbackTag(h), ` ${primary} isn't available here, so these samples use a fallback font.`) : null;
-  const lineHeights = t.lineHeights.map(l => h('span', { class: 'pill' }, l.value, ' ', h('small', {}, `${l.count}×`)));
-  const letterSpacings = t.letterSpacings.map(l => h('span', { class: 'pill' }, h('span', { style: `letter-spacing:${l.value}` }, l.value), ' ', h('small', {}, `${l.count}×`)));
-  // weights in the primary font; a web font without that weight is drawn synthesized, which is marked
-  const weights = t.fontWeights.map(w => h('span', { class: 'pill' }, h('span', { style: `font-weight:${w.value};${primary ? fontCss(primary) : ''}` }, w.value), ' ', h('small', {}, `${w.count}×`),
-    primaryStatus === 'web' && !hasWeight(primary, w.value) ? h('span', { class: 'tag-fallback', title: `${primary} has no ${w.value} weight loaded; the browser fakes it.` }, 'synthesized') : primaryStatus === 'missing' ? fallbackTag(h) : null));
-  const radii = t.radii.map(r => h('span', { class: 'pill' }, h('span', { class: 'dot', style: `border-radius:${r.value};width:16px;height:16px;background:var(--ink)` }), r.value, ' ', h('small', {}, `${r.count}×`)));
-  const shadows = t.shadows.map(s => h('div', { class: 'shadow-box', style: `box-shadow:${s.value}`, title: s.value }));
-  const vars = (t.cssVars || []).filter(v => !q || (v.name + v.value).toLowerCase().includes(q)).map(v => {
-    const isColor = /^#|rgb|hsl/.test(v.value);
-    return h('tr', {}, h('td', {}, v.name), h('td', {}, isColor ? h('span', {}, h('span', { class: 'dot', style: `background:${v.value}` }), fmtColor(v.value)) : v.value));
-  });
-  const kids = [];
-  // light/dark, screen sizes, themes: switch which pass's tokens are shown
-  if (modes.length) kids.push(h('div', { class: 'modes' }, ['', ...modes].map(m => h('button', { type: 'button', class: 'pill' + (m === mode ? ' on' : ''), 'aria-pressed': String(m === mode), onclick: () => { mode = m; renderTokens(); } }, m || 'Base'))));
-  kids.push(h('h2', { class: 'sec' }, `Colour palette (${t.colors.length})`), h('div', { class: 'swatches' }, sw));
-  if (sizes.length) kids.push(h('h2', { class: 'sec' }, 'Type scale'), fallbackNote, h('div', { class: 'scale' }, sizes));
-  if (fonts.length) kids.push(h('h2', { class: 'sec' }, 'Font families'), h('div', { class: 'font-list' }, fonts));
-  if (weights.length) kids.push(h('h2', { class: 'sec' }, 'Font weights'), h('div', { class: 'chips-row' }, weights));
-  if (lineHeights.length) kids.push(h('h2', { class: 'sec' }, 'Line heights (× font size)'), h('div', { class: 'chips-row' }, lineHeights));
-  if (letterSpacings.length) kids.push(h('h2', { class: 'sec' }, 'Letter spacing'), h('div', { class: 'chips-row' }, letterSpacings));
-  if (spacing.length) kids.push(h('h2', { class: 'sec' }, 'Spacing scale'), h('div', { class: 'spacing-bars' }, spacing));
-  if (radii.length) kids.push(h('h2', { class: 'sec' }, 'Radii'), h('div', { class: 'chips-row' }, radii));
-  if (shadows.length) kids.push(h('h2', { class: 'sec' }, 'Shadows'), h('div', { class: 'shadow-grid' }, shadows));
-  kids.push(...contrastSection(current ? current.contrast : atlas.contrast)); // before the (often long) variables list
-  if (vars.length) kids.push(h('h2', { class: 'sec' }, `${kindOf(atlas).vars} (${(t.cssVars || []).length})`), scrollBox(h('table', { class: 'vars' }, h('tbody', {}, vars))));
-  main.replaceChildren(...kids.filter(Boolean));
+  main.replaceChildren(...[
+    modeButtons(Object.keys(atlas.modes || {})),
+    h('h2', { class: 'sec' }, `Colour palette (${t.colors.length})`), h('div', { class: 'swatches' }, swatches(t.colors)),
+    ...section('Type scale', 'scale', typeScale(t), fallbackNote(primary, primaryStatus)),
+    ...section('Font families', 'font-list', t.fonts.map(fontRow)),
+    ...section('Font weights', 'chips-row', t.fontWeights.map(weightPill(primary, primaryStatus))),
+    ...section('Line heights (× font size)', 'chips-row', t.lineHeights.map(l => pill([l.value], l.count))),
+    ...section('Letter spacing', 'chips-row', t.letterSpacings.map(l => pill([h('span', { style: `letter-spacing:${l.value}` }, l.value)], l.count))),
+    ...section('Spacing scale', 'spacing-bars', spacingBars(t.spacing)),
+    ...section('Radii', 'chips-row', t.radii.map(radiusPill)),
+    ...section('Shadows', 'shadow-grid', t.shadows.map(shadowBox)),
+    ...contrastSection(contrast), // before the (often long) variables list
+    ...varsSection(t),
+  ].filter(Boolean));
 }
 
-function renderElements() {
-  const k = kindOf(atlas);
-  const rows = [];
-  for (const s of atlas.screens) for (const e of (s.elements || [])) rows.push({ ...e, screen: s.title || s.url });
-  if (!rows.length) return main.replaceChildren(h('div', { class: 'empty' }, 'No elements in this atlas.'));
-  const fontCol = rows.some(r => r.font); // design files carry font names; web pages carry radii
-  // group by role, count, and list examples
+// --- Elements ---
+const elementRows = () => atlas.screens.flatMap(s => (s.elements || []).map(e => ({ ...e, screen: s.title || s.url })));
+// one chip per role with its count, most common first
+function roleSummary(rows) {
   const byRole = {};
   for (const r of rows) (byRole[r.role] ||= []).push(r);
-  const filtered = rows.filter(r => !q || [r.name, r.role, r.tag, r.screen].join(' ').toLowerCase().includes(q));
-  const summary = h('div', { class: 'chips-row', style: 'margin-bottom:16px' }, Object.entries(byRole).sort((a, b) => b[1].length - a[1].length).map(([role, list]) => h('span', { class: 'pill' }, role, ' ', h('small', {}, `${list.length}`))));
-  const body = filtered.slice(0, 600).map(e => h('tr', {},
-    h('td', { class: 'rolecell' }, e.role),
-    h('td', {}, e.name || h('span', { style: 'color:var(--ink-3)' }, `<${e.tag}>`)), // atlases hold no text content
-    h('td', { class: 'mono' }, e.bg ? h('span', {}, h('span', { class: 'dot', style: `background:${e.bg}` }), fmtColor(e.bg)) : '—'),
-    h('td', { class: 'mono' }, e.color ? h('span', {}, h('span', { class: 'dot', style: `background:${e.color}` }), fmtColor(e.color)) : '—'),
-    h('td', { class: 'mono' }, e.fontSize || '—'), h('td', { class: 'mono' }, e.weight || '—'), fontCol && e.font ? h('td', {}, h('span', { style: fontCss(e.font) }, e.font), fontStatus(e.font, atlas.fontFaces) === 'missing' ? fallbackTag(h) : null) : h('td', { class: 'mono' }, (fontCol ? e.font : e.radius) || '—'),
-    h('td', { style: 'color:var(--ink-3);font-size:12px' }, e.screen)));
-  main.replaceChildren(summary, scrollBox(h('table', { class: 'tbl' },
-    h('thead', {}, h('tr', {}, ['Role', 'Element', 'Background', 'Text colour', 'Size', 'Weight', fontCol ? 'Font' : 'Radius', k.screen].map(x => h('th', {}, x)))),
+  return h('div', { class: 'chips-row', style: 'margin-bottom:16px' }, Object.entries(byRole).sort((a, b) => b[1].length - a[1].length).map(([role, list]) => h('span', { class: 'pill' }, role, ' ', h('small', {}, `${list.length}`))));
+}
+const colorCell = v => h('td', { class: 'mono' }, v ? colorValue(v) : '—');
+// design files carry font names (shown in themselves); web pages carry radii
+const styleCell = (e, fontCol) => fontCol && e.font ? h('td', {}, h('span', { style: fontCss(e.font) }, e.font), fontStatus(e.font, atlas.fontFaces) === 'missing' ? fallbackTag(h) : null)
+  : h('td', { class: 'mono' }, (fontCol ? e.font : e.radius) || '—');
+const elementRow = fontCol => e => h('tr', {},
+  h('td', { class: 'rolecell' }, e.role),
+  h('td', {}, e.name || h('span', { style: 'color:var(--ink-3)' }, `<${e.tag}>`)), // atlases hold no text content
+  colorCell(e.bg), colorCell(e.color),
+  h('td', { class: 'mono' }, e.fontSize || '—'), h('td', { class: 'mono' }, e.weight || '—'), styleCell(e, fontCol),
+  h('td', { style: 'color:var(--ink-3);font-size:12px' }, e.screen));
+function renderElements() {
+  const rows = elementRows();
+  if (!rows.length) return main.replaceChildren(h('div', { class: 'empty' }, 'No elements in this atlas.'));
+  const fontCol = rows.some(r => r.font);
+  const body = rows.filter(r => matches([r.name, r.role, r.tag, r.screen].join(' '))).slice(0, 600).map(elementRow(fontCol));
+  main.replaceChildren(roleSummary(rows), scrollBox(h('table', { class: 'tbl' },
+    h('thead', {}, h('tr', {}, ['Role', 'Element', 'Background', 'Text colour', 'Size', 'Weight', fontCol ? 'Font' : 'Radius', kindOf(atlas).screen].map(x => h('th', {}, x)))),
     h('tbody', {}, body))));
 }
 

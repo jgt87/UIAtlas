@@ -23,16 +23,16 @@ const safe = s => s.replace(/[^a-z0-9.-]/gi, '_');
 const created = []; // output folders made by this run: removed again if the run fails before writing an atlas
 const outFor = name => { const d = path.join(dataDir, safe(name)); if (!existsSync(d)) created.push(d); mkdirSync(d, { recursive: true }); return d; };
 // Failures print one readable line (no stack, no local paths; --debug shows the full error) and leave nothing behind.
+const removePartialOutput = () => { for (const d of created) if (!existsSync(path.join(d, 'atlas.json'))) rmSync(d, { recursive: true, force: true }); };
+// local paths in an error message, in both slash styles: the source shows as its base name, temp as <temp>, home as ~, the repo as .
+function publicMessage(e) {
+  const src = argv[1] && path.resolve(argv[1]);
+  const hide = [[src, src && path.basename(src)], [os.tmpdir(), '<temp>'], [os.homedir(), '~'], [root, '.']].filter(([from]) => from);
+  return hide.flatMap(([from, to]) => [[from, to], [from.replace(/\\/g, '/'), to]]).reduce((msg, [f, to]) => msg.split(f).join(to), String(e?.message || e));
+}
 process.on('uncaughtException', e => {
-  for (const d of created) if (!existsSync(path.join(d, 'atlas.json'))) rmSync(d, { recursive: true, force: true });
-  if (argv.includes('--debug')) console.error(e);
-  else {
-    let msg = String(e?.message || e);
-    const src = argv[1] && path.resolve(argv[1]);
-    const hide = [[src, src && path.basename(src)], [os.tmpdir(), '<temp>'], [os.homedir(), '~'], [root, '.']];
-    for (const [from, to] of hide) if (from) for (const f of [from, from.replace(/\\/g, '/')]) msg = msg.split(f).join(to);
-    console.error(`Error: ${msg}`);
-  }
+  removePartialOutput();
+  console.error(argv.includes('--debug') ? e : `Error: ${publicMessage(e)}`);
   process.exit(1);
 });
 const pages = d => Math.max(1, Number(opt('pages', String(d))) || d);

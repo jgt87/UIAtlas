@@ -24,5 +24,8 @@ From the CommonShared audit (2026-11-10).
       source name ends up inside the HTML. Found by the smoke check. Decide: neutral file names (e.g.
       `tokens.css`), or accept it, since the file names already carry the slug.
 - [ ] DESIGN.md "Known gaps": dark theme, 34px controls, 14px dialog radius, unmarked 22px glyph, 16px coarse inputs.
-- [ ] `src/web-extract.mjs` `collect` (complexity 96): it runs inside the page via `page.evaluate`, so it can't call
-      module-level helpers. Splitting it needs an injected measuring script, which is a design decision.
+- [x] Health refactors (2026-11-10): app.js, bin/atlas.mjs, web-extract (incl. `collect`, split into helpers declared
+      inside it), retheme-import, tokens-import, tokens-json, pdf-import, sketch-import, compare. Each locked by
+      before/after golden output; size baseline 54 → 19 violations.
+- [ ] The viewer (`viewer/js/*.js`) has no tests of its own beyond the CSS rules. A Playwright test on a test port with
+      generated atlases in a temp data dir would pin the views (the refactor used a scratch golden over `data/`).

@@ -2,7 +2,7 @@
 // variable typing, weights without a name, given component variants. (The main structure is covered in export.test.)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildTokens } from '../src/tokens-json.mjs';
+import { buildTokens, shadowValue, toCssVars } from '../src/tokens-json.mjs';
 
 const atlas = {
   tokens: {
@@ -52,4 +52,41 @@ test('buildTokens: given component variants are used as they are; a variant with
   assert.deepEqual(c.card.filled.radius.$value, '{radius.4px}');
   assert.deepEqual([c.card.filled['font-weight'].$value, c.card.filled['padding-block'], c.card.filled['padding-inline'].$value], [400, undefined, { value: 2, unit: 'px' }]);
   assert.deepEqual(Object.keys(buildTokens({ tokens: {}, screens: [] }, { exported: 'X' })), ['$description', '$extensions']);
+});
+
+test('buildTokens: component properties alias, fall back to literals, or are left out', () => {
+  const tokens = { colors: [{ value: '#123456', count: 1 }], fontSizes: [{ value: '14px', count: 1 }], fontWeights: [{ value: '600', count: 1 }] };
+  const style = { color: '#123456', border: '#abcdef', bg: 'red', radius: '50%', fontSize: '14px', weight: '600', padding: '8px' };
+  const s = buildTokens({ tokens, screens: [], components: { chip: [{ name: 'a', style }, { name: 'b', style: { fontSize: '13px', border: '#123456' } }, { name: 'c', style: { fontSize: '1em' } }] } }, { exported: 'X' }).component.chip;
+  assert.deepEqual(Object.keys(s.a), ['background', 'text', 'border', 'font-size', 'font-weight', 'padding-block', '$extensions'], 'no radius without a dimension form, no inline padding from one value');
+  assert.deepEqual([s.a.text.$value, s.a.border.$value.hex, s.a['font-size'].$value, s.a['font-weight'].$value, s.a['padding-block'].$value], ['{color.123456}', '#abcdef', '{font.size.14px}', '{font.weight.semi-bold}', { value: 8, unit: 'px' }]);
+  assert.equal(s.a.background.$value, null, 'a colour with no hex form keeps its property, with no value');
+  assert.deepEqual([s.b['font-size'].$value, s.b.border.$value], [{ value: 13, unit: 'px' }, '{color.123456}']);
+  assert.ok(!s.c, 'an em size alone is no style');
+});
+
+test('buildTokens: source numbers are a weight only by name and in range; a unit-less dimension is a number', () => {
+  const cssVars = [{ name: '--weight-x', value: '0' }, { name: '--weight-y', value: '1000' }, { name: '--size', value: '12' }, { name: '--em', value: '10em' }, { name: '--c', value: 'rgb(18, 52, 86)' }];
+  const src = buildTokens({ tokens: { colors: [{ value: '#123456', count: 1 }], cssVars }, screens: [] }, { exported: 'X' }).source;
+  assert.deepEqual([src['weight-x'].$type, src['weight-y'].$type, src.size.$type, src.c.$value], ['number', 'fontWeight', 'number', '{color.123456}']);
+  assert.deepEqual(src.$extensions['ui-atlas'].untyped, { '--em': '10em' });
+});
+
+test('buildTokens: type styles alias line height and letter spacing where they are primitives, else carry the value', () => {
+  const tokens = { fonts: [{ value: 'Inter', count: 1 }], fontSizes: [{ value: '16px', count: 1 }], lineHeights: [{ value: '1.5', count: 1 }], letterSpacings: [{ value: '1px', count: 1 }] };
+  const el = (role, x) => ({ role, fontSize: '16px', ...x });
+  const tk = buildTokens({ tokens, screens: [{ elements: [el('a', { lineHeight: '1.5', letterSpacing: '1px' }), el('b', { lineHeight: '1.2', letterSpacing: '2px', weight: 'bold' }), el('c', { letterSpacing: '0.1em' })] }] }, { exported: 'X' });
+  assert.deepEqual(Object.keys(tk.font), ['family', 'size', 'lineHeight', 'letterSpacing']);
+  assert.deepEqual(tk.typography.a.$value, { fontFamily: '{font.family.inter}', fontSize: '{font.size.16px}', fontWeight: 400, lineHeight: '{font.lineHeight.1-5}', letterSpacing: '{font.letterSpacing.1px}' });
+  assert.deepEqual([tk.typography.b.$value.lineHeight, tk.typography.b.$value.letterSpacing], [1.2, { value: 2, unit: 'px' }]);
+  assert.ok(!('letterSpacing' in tk.typography.c.$value), 'an em letter spacing has no token form');
+  const css = toCssVars(tk);
+  assert.ok(css.includes('--typography-a-line-height: var(--font-lineHeight-1-5);\n  --typography-a-letter-spacing: var(--font-letterSpacing-1px);'));
+  assert.ok(!css.includes('--typography-c-letter-spacing'), 'parts a style lacks get no variable');
+  assert.ok(!buildTokens({ tokens: { lineHeights: [{ value: 'normal', count: 1 }] }, screens: [] }, { exported: 'X' }).font, 'a font group with nothing representable is left out');
+});
+
+test('shadowValue: one layer is an object, a layer naming no colour is black, lengths default to zero', () => {
+  assert.deepEqual(shadowValue('2px 3px'), { color: { colorSpace: 'srgb', components: [0, 0, 0], hex: '#000000' }, offsetX: { value: 2, unit: 'px' }, offsetY: { value: 3, unit: 'px' }, blur: { value: 0, unit: 'px' }, spread: { value: 0, unit: 'px' } });
+  assert.equal(shadowValue('1px 1px #abc, 0 0 2px #fff').length, 2);
 });

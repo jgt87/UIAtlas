@@ -75,6 +75,23 @@ test('older atlases without optional lists or usage do not crash; score is usage
   assert.equal(compareAtlases(atlas('e', 'web', {}), brand).summary.score, 1, 'nothing used, nothing off-brand');
 });
 
+test('nearest is given only for numeric misses with a numeric reference; null lists count as empty', () => {
+  const t = atlas('t', 'web', { fonts: [{ value: '12', count: 1 }], spacing: [{ value: 'auto', count: 1 }, { value: '20px', count: 1 }], radii: [{ value: '3px', count: 1 }], colors: null });
+  const r = compareAtlases(t, atlas('ref', 'tokens', { fonts: [{ value: '14' }], spacing: [{ value: '1rem' }, { value: '18px' }], radii: [{ value: '50%' }] }));
+  assert.deepEqual(r.fonts.missing, [{ value: '12', count: 1 }], 'font names are not measured');
+  assert.deepEqual(r.spacing.missing.find(m => m.value === '20px').nearest, { value: '18px', diff: 2 });
+  assert.equal('nearest' in r.spacing.missing.find(m => m.value === 'auto'), false);
+  assert.equal('nearest' in r.radii.missing[0], false, 'no numeric reference to measure against');
+  assert.deepEqual(r.colors, { matched: [], offBrand: [], unused: [], nearDuplicates: [] });
+});
+
+test('formatReport honours top and leaves out lists empty on both sides', () => {
+  const r = compareAtlases(site, brand), lines = formatReport(r, { top: 1 }).split('\n');
+  assert.equal(lines.filter(l => l.startsWith('  off-brand')).length, 1);
+  assert.ok(lines.some(l => l.startsWith('lineHeights: -')), 'unused-only list still reported');
+  assert.ok(!formatReport(compareAtlases(atlas('e', 'web', {}), atlas('f', 'web', {}))).includes('fonts:'));
+});
+
 test('formatReport is a short plain-text summary of names and token values', () => {
   const r = compareAtlases(site, brand), txt = formatReport(r);
   assert.match(txt, /^example\.test \(web\) vs Fictive Brand \(tokens\)/);
@@ -92,4 +109,13 @@ test('latestSnapshot returns the newest history file or null', () => {
   put('2026-03-01T09:00:00.000Z', 'march'); put('2026-10-02T17:45:12.000Z', 'october'); put('2026-07-15T23:59:59.999Z', 'july');
   writeFileSync(path.join(dir, 'history', 'notes.txt'), 'x');
   assert.equal(latestSnapshot(dir).project.name, 'october');
+  writeFileSync(path.join(dir, 'history', '2026-11-01T00-00-00.000Z.json'), '{corrupt');
+  assert.equal(latestSnapshot(dir).project.name, 'october', 'an unreadable newest snapshot falls back to the next one');
+});
+
+test('latestSnapshot is null when every snapshot is unreadable', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'atlas-compare-'));
+  mkdirSync(path.join(dir, 'history'));
+  writeFileSync(path.join(dir, 'history', 'a.json'), ''); writeFileSync(path.join(dir, 'history', 'b.json'), '{');
+  assert.equal(latestSnapshot(dir), null);
 });
