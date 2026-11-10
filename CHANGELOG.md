@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-10
+### Changed
+- Internal restructuring of the extractors, importers, comparison, viewer and CLI for maintainability. Nothing you see changes: every import, export, view and error message was checked to give identical output before and after.
+
 ## [0.7.0] - 2026-11-10
 ### Added
 - **+ New** in the viewer: measure a website or Storybook by URL, or import a dropped file (PowerPoint, PDF, Sketch, token JSON, images, HTML/SVG, template .zip), with progress shown and the new atlas opened when done. Only the UI Atlas page itself can start jobs; uploads are imported from a temporary copy that is deleted afterwards.
