@@ -4,7 +4,7 @@ paths:
   - ".env*"
   - "**/*.{json,toml,yaml,yml}"
 ---
-<!-- managed by __CommonShared/rules/security.md; sha256:08ce6f8c68235018; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/security.md; sha256:900828a495909095; edit it there, put project rules in project-*.md -->
 # Security rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -24,7 +24,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Give each app a fixed, documented port, passed explicitly; never a framework default or a port reserved on the machine. (docs/05 §7, docs/14 §10)
 - Never pick a port browsers block (the Fetch spec's bad-port list, e.g. 4190). (docs/05 §7, L-BUILD)
 - Tests use their own port and data dir, never the dev or live instance. (docs/05 §7, docs/15 §0)
-- A port is free only when no process holds it (`Get-NetTCPConnection` on Windows, `lsof -i` elsewhere), not after one failed probe. (docs/07 §4)
+- A port is free only when no process holds it: bind it or search process command lines (Windows listener tables miss held ports; `lsof -i` elsewhere), never one failed probe. (docs/07 §4)
 
 ## Secrets and config
 - Commit `*.example` with every key documented and a working default; gitignore `.env`, `.secrets/`, vaults. (docs/05 §4, docs/11 §1)

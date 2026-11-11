@@ -9,7 +9,7 @@ paths:
   - "e2e/**"
   - ".github/workflows/**"
 ---
-<!-- managed by __CommonShared/rules/testing.md; sha256:862f4a113be86d04; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/testing.md; sha256:6c8b4b0914866a13; edit it there, put project rules in project-*.md -->
 # Testing rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -51,6 +51,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 
 ## Browser, a11y and e2e
 - E2E runs against the built app on a dedicated test port, never the user's running instance. (docs/04 §4, L-TEST)
+- Before driving a test server, check its log says it started and the page title is the app's; find and stop servers by command line, not by port listing. (docs/07 §4)
 - If the project uses Playwright: `workers: 1`, `trace: 'retain-on-failure'`. (docs/04 §1)
 - Run an automated WCAG A/AA check (e.g. axe) with reduced motion, and assert zero console errors in the same run. (docs/04 §3)
 - Check 200 % zoom and narrow-width no-overflow; screenshot light and dark at 1440/768/390. (docs/04 §3)
@@ -63,6 +64,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Coverage gates where set: statements 80, branches 75, functions 60, lines 80; per-file ratchets allowed. (docs/04 §4)
 - CI order: private-material grep → typecheck → lint → test:coverage → build (size budget) → e2e. (docs/04 §5, docs/10 §7)
 - CI on push and pull_request, skipping markdown-only changes, with `concurrency: cancel-in-progress`. (docs/04 §5)
+- Before a release, run every CI step locally, lint included, and treat any red step as a blocker; after a push, report the CI run's result. (docs/07 §5)
 - Use a supported runtime LTS and current action majors; check the run reports a non-zero test count (a glob can match nothing). (L-TEST)
 - Pin actions by SHA looked up with `gh api`, never from memory; keep the tag in a trailing comment. (docs/10 §7)
 - Run CI on the OS whose fonts the layout and screenshot tests assume. (docs/10 §7)

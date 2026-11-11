@@ -7,7 +7,7 @@ paths:
   - "scripts/**"
   - "tools/**"
 ---
-<!-- managed by __CommonShared/rules/code.md; sha256:4a42743f9eb3698c; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/code.md; sha256:5b24ce8d6dd9781f; edit it there, put project rules in project-*.md -->
 # Code rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -18,6 +18,8 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Enforce size with a ratchet against a committed baseline: no file gains a violation, a new file has none. (docs/08 §1)
 - Lower the size baseline only after a split; raising a number is the operator's decision. Tests are exempt. (docs/08 §1)
 - Chain the size check into the project's lint script so the release gate runs it. (docs/08 §1, L-TEST)
+- A lint-based check fails when it linted no files or a file failed to parse; an empty run is not a pass. (docs/07 §6)
+- Before acting on an analyzer finding, measure the file at HEAD; a whole-file wrapper that is the design (guarded closure, IIFE) is not a long function. (docs/07 §10)
 
 ## Module shape
 - Put labels, wording, geometry, validation and key handling in a pure module named by role (`*Model`, `*Wording`, `*Geometry`). (docs/08 §2)

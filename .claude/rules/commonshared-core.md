@@ -1,4 +1,4 @@
-<!-- managed by __CommonShared/rules/core.md; sha256:00fc31068a3387ee; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/core.md; sha256:aa3bd471ee27c124; edit it there, put project rules in project-*.md -->
 # Core rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -49,6 +49,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Build the minimum asked; every changed line traces to the request; mention unrelated dead code, don't delete it. (docs/14 §3)
 - Turn tasks into checks: a failing test then green; a refactor passes the same tests before and after. (docs/14 §3)
 - "Done" means the project's own check scripts pass; report each command with its output. (docs/14 §5, L-TEST)
+- Call a failure "the environment" only after a probe reproduces it; never skip a gate on your own. (docs/07 §2)
 - Verify the live thing (served bundle, deployed function, device) with numbers; restart servers after backend edits. (docs/07 §5, L-AGENT)
 - Check the outcome, not the status: a 200, "succeeded" or zero result is a claim to probe. (docs/15 §0, L-DEPLOY)
 - Confirm "the code lacks X" only by reading the whole path; an empty grep proves nothing. (docs/07 §5, L-AGENT)

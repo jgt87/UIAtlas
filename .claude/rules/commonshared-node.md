@@ -4,7 +4,7 @@ paths:
   - "package.json"
   - "tsconfig*.json"
 ---
-<!-- managed by __CommonShared/rules/stack/node.md; sha256:8ca509b6f314cd08; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/stack/node.md; sha256:74e2f8e3a80e00d2; edit it there, put project rules in project-*.md -->
 # Node and TypeScript rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -39,6 +39,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Listen for `error` on every spawned child; an unhandled ENOENT kills the server. (L-WIN)
 - Run TS servers as one process (`node --import tsx`), not through an `npx tsx` wrapper. (L-WIN)
 - Exit code 3221226505 after the work finished is a Node exit crash: rerun before calling it a fault. (docs/07 §4)
+- Start a TypeScript server as one process (`node --import tsx server.ts`), not `npx tsx`: stopping the launcher leaves the child on the port. (docs/07 §4)
 
 ## Web apps and dev servers
 - In a Vite + TypeScript app, `build` typechecks first (`tsc -b && vite build`). (docs/05 §1)
