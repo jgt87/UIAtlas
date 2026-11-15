@@ -2,7 +2,7 @@
 paths:
   - "**/*{ErrorState,errorState,error-state,ErrorBoundary,errorBoundary,error-boundary,Banner,banner}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
 ---
-<!-- managed by __CommonShared/rules/elements/el-error-state.md; sha256:348f218285681068; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-error-state.md; sha256:d9ce3c200a3dee07; edit it there, put project rules in project-*.md -->
 # Error state rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -21,6 +21,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Banners push content down above what they concern; no entrance animation on routine loads. (docs/19 §7, docs/21 §13)
 - Stale views say so with a time; never present old data as current. (docs/03 §3)
 - Retrying shows a spinner on the action while the message stays. (docs/21 §13)
+- Retry re-sends the failed request exactly: same call, same arguments, same steps after success. (docs/21 §13)
 ## Accessibility
 - An error that appears after an action is `role="alert"`; a banner present on load is `role="status"` or plain text. (docs/01 §6, docs/21 §13)
 - Field errors use `aria-invalid` plus `aria-describedby` pointing at the message. (docs/19 §7)

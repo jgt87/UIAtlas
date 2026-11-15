@@ -7,7 +7,7 @@ paths:
   - "scripts/**"
   - "tools/**"
 ---
-<!-- managed by __CommonShared/rules/code.md; sha256:5b24ce8d6dd9781f; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/code.md; sha256:2b8ff95df3644d39; edit it there, put project rules in project-*.md -->
 # Code rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -35,11 +35,13 @@ DESIGN.md and PRODUCT.md win on conflict.
 - No module beneath the store imports the store instance; pass a getter bound at creation. (docs/08 §3)
 - Classify every new field as document, session/UI or user preference, and record it in the project doc. (docs/08 §3)
 - Model a cross-tree request (open a dialog, focus a field) as a field set by the asker and cleared by the doer. (docs/08 §3)
+- Apply an async result only if its request is still the current one (check a token or key after each await). (docs/08 §3)
 
 ## Persistence
 - One storage key per concern behind a `getStoredX`/`persistX` pair in `try/catch`, degrading to memory. (docs/08 §4)
 - Treat everything read back as untrusted: sanitize on read and whitelist fields and types. (docs/08 §4)
 - Decode by sniffing a format marker (`codec: 1`); old shapes load forever, unknown fields survive a round trip. (docs/08 §4)
+- A stored value that fails to decode is an error: keep it, never write defaults over it. (docs/08 §4)
 - Keep app version, schema version and codec marker independent; never tie one to another. (docs/08 §4)
 - Never put a sensitive column on a table that other roles may read; give it its own table. (docs/08 §4)
 - Key data on ids, never on names, amounts or positions; assert the id set, not the count. (L-DATA)
@@ -54,6 +56,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - In typed code, make such tables total over the kind type, so a new kind fails to compile until it names its entry. (docs/08 §6)
 - Mark files that change together by design in the project doc; the coupling to hunt is a copied constant. (docs/08 §5)
 - One definition per concept, derived, never duplicated in a second implementation. (L-METHOD)
+- Removing or renaming a class, prop or function: search its users in the same change; delete what became unreachable. (docs/08 §5)
 
 ## Imports and bundles
 - Write import arrows down and lint them per folder (e.g. `no-restricted-imports`); data and domain code never import UI. (docs/08 §7)

@@ -9,7 +9,7 @@ paths:
   - "e2e/**"
   - ".github/workflows/**"
 ---
-<!-- managed by __CommonShared/rules/testing.md; sha256:6c8b4b0914866a13; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/testing.md; sha256:3a9fe17decf21839; edit it there, put project rules in project-*.md -->
 # Testing rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -37,6 +37,9 @@ DESIGN.md and PRODUCT.md win on conflict.
 - A protocol server's smoke parses all of stdout as the protocol (e.g. JSON-RPC), so one stray line fails it. (docs/04 §3)
 - Add contract tests where docs and code must agree: version carriers equal, README tool list equals code. (docs/04 §3, L-GIT)
 - Pin refactors with golden outputs that are identical before and after. (L-TEST)
+- A record that crosses a language boundary has one committed fixture that both sides' tests read. (docs/04 §3)
+- Test a stated guarantee at three sizes (small, typical, ten times typical), in the unit the person sees. (docs/04 §3)
+- A speed test counts operations or compares scaling, never wall-clock milliseconds; a rule test fails on a clock read in a test file (`templates/tests/speed-rules.test.mjs`). (docs/04 §3)
 - Parity tests on real captures use thresholds that only ratchet up. (docs/04 §3, L-TEST)
 
 ## Rule-enforcement tests
@@ -54,7 +57,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Before driving a test server, check its log says it started and the page title is the app's; find and stop servers by command line, not by port listing. (docs/07 §4)
 - If the project uses Playwright: `workers: 1`, `trace: 'retain-on-failure'`. (docs/04 §1)
 - Run an automated WCAG A/AA check (e.g. axe) with reduced motion, and assert zero console errors in the same run. (docs/04 §3)
-- Check 200 % zoom and narrow-width no-overflow; screenshot light and dark at 1440/768/390. (docs/04 §3)
+- Check 200 % zoom and narrow-width no-overflow; screenshot light and dark at 1440/768/720/390. (docs/04 §3)
 - Prove each e2e step changed something before asserting; a vacuous pass is a failure. (L-TEST)
 - Wait for a selector, never `networkidle`, when a realtime socket is open. (L-TEST)
 - Headless media uses pre-generated fixtures and the Chrome or Edge channel (Chromium lacks H.264). (L-TEST)
@@ -64,7 +67,8 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Coverage gates where set: statements 80, branches 75, functions 60, lines 80; per-file ratchets allowed. (docs/04 §4)
 - CI order: private-material grep → typecheck → lint → test:coverage → build (size budget) → e2e. (docs/04 §5, docs/10 §7)
 - CI on push and pull_request, skipping markdown-only changes, with `concurrency: cancel-in-progress`. (docs/04 §5)
-- Before a release, run every CI step locally, lint included, and treat any red step as a blocker; after a push, report the CI run's result. (docs/07 §5)
+- CI runs every test runner the repo has, and rebuilds committed build output to compare it. (docs/04 §5)
+- Before a release, run every CI step locally, lint included, and treat any red step as a blocker; after a push, report every run of the commit, branch and tag (`gh run list --commit`). (docs/07 §5)
 - Use a supported runtime LTS and current action majors; check the run reports a non-zero test count (a glob can match nothing). (L-TEST)
 - Pin actions by SHA looked up with `gh api`, never from memory; keep the tag in a trailing comment. (docs/10 §7)
 - Run CI on the OS whose fonts the layout and screenshot tests assume. (docs/10 §7)

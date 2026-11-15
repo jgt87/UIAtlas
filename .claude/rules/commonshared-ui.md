@@ -4,7 +4,7 @@ paths:
   - "DESIGN.md"
   - "PRODUCT.md"
 ---
-<!-- managed by __CommonShared/rules/ui.md; sha256:f079cc48c6e434e7; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/ui.md; sha256:6da3237811fe2e8d; edit it there, put project rules in project-*.md -->
 # UI rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -38,7 +38,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - `tabular-nums` on every changing number; numeric columns and their headers right-aligned. (docs/01 §3, docs/17 §1)
 - Spacing on 4px steps (2 4 8 12 16 24 32); radius 4–8 controls, 6–12 menus, 10–12 cards; pills for one-line text only. (docs/01 §4, docs/17 §3)
 - Control heights 24/28/32/36px (32 default); inputs match buttons; icon buttons square, ≥ 28px clickable. (docs/01 §5, §6, docs/17 §2)
-- One height per bar and per control kind, checked by a test over rendered heights at desktop and phone width. (docs/17 §2)
+- One height per bar and per control kind (bordered controls `box-sizing: border-box`), checked over rendered heights at desktop and phone width (`check-control-rows.mjs`). (docs/17 §2)
 - Coarse pointer: reach 44px via padding or an invisible `::after` in `:where()`, never a bigger visible box. (docs/10 §4, docs/17 §2)
 - Coarse-pointer inputs use `font-size: max(16px, 1em)`; never block zoom with `maximum-scale=1`. (docs/10 §4, docs/17 §2)
 - Wrap every `:hover` in `@media (hover: hover)`; hover never overrides active/selected (`:hover:not(.active)`). (docs/01 §7, docs/17 §7)

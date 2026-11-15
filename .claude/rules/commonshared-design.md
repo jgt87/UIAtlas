@@ -4,7 +4,7 @@ paths:
   - "DESIGN.md"
   - "PRODUCT.md"
 ---
-<!-- managed by __CommonShared/rules/design.md; sha256:b1bafacdd8832b86; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/design.md; sha256:7208131760439c04; edit it there, put project rules in project-*.md -->
 # Design quality rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -29,6 +29,14 @@ DESIGN.md and PRODUCT.md win on conflict.
 - One container level: no card in a card; border or shadow, never both. (docs/19 §4)
 - No status pills or dots that only say "fine"; surface status when it needs attention. (docs/19 §4)
 - One name per action through the flow ("Publish" → "Published"); errors say what happened and the fix. (docs/19 §4)
+- A state the interface infers is worded as likely ("may", "seems") with what comes next; only what it observed is stated as fact. (docs/19 §4)
+- A button named for an action performs it and says what came of it; one that only re-reads an unchanged state is not a button. (docs/19 §4)
+- One name per thing: a label never reuses a word the interface uses for something else. (docs/19 §4)
+- One way per question: a second way to see or do the same thing replaces the first or is not built. (docs/19 §4)
+- A bar holds actions and navigation; options for what a view draws live in its filter or view panel. (docs/19 §4)
+- A state is explained once, in one banner above what it concerns; a disabled control keeps its own short reason. (docs/19 §4)
+- A regrouped view keeps the grouping it replaced visible, named inside each group. (docs/19 §4)
+- Every row that looks clickable acts; a read-only list in a navigation bar is styled as plain text. (docs/19 §4)
 - No lorem ipsum or `[placeholder]` left in; demo contacts on `.example` domains, test-enforced. (docs/19 §4)
 - A look is chosen in DESIGN.md, deliberately, after checking the category's first-idea reflex. (docs/19 §4)
 
@@ -44,6 +52,9 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Fixed 8–12px gaps between text and neighbours; never leftover `space-between`. (docs/19 §6)
 - Edges align exactly or differ by ≥ 8px; nested radius = inner radius + padding. (docs/19 §6)
 - List rows share one grid template; controls hug content; fit content rather than widen. (docs/19 §6)
+- A label over data marks gets reserved room in the layout at its drawn size, tested on geometry; a halo only hides it. (docs/17 §10)
+- Every text field is its own visible area: an edge (or fill) of 3:1 against what is behind it, at rest; never borderless text in a card. (docs/17 §2)
+- A view that fills the window grows by flex in a `min-height` container; no counted `calc(100dvh - Npx)`. (docs/17 §9)
 - Twice the space above a heading as below; `overflow-x: clip`; reflow narrow, never scale down. (docs/19 §6)
 
 ## Motion and states
@@ -55,10 +66,14 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Reduced motion keeps opacity and colour, drops movement; motion over 5s gets a pause control. (docs/19 §7)
 - Stagger and entrance motion: brand register only, one first-load group. (docs/19 §7, §10)
 - Design all 8 states: default, hover, focus, active, disabled, loading, error, success. (docs/19 §7)
+- Progress shows only steps the interface observes; an unobservable wait is a spinner with the time waited. (docs/19 §7)
 - Known toggling labels reserve the widest; a spinner is already turning when shown. (docs/19 §7)
 
 ## Verification
-- Check rendered pages at 1440, 1024, 768, 390 and a 320 walk, light and dark, keyboard only. (docs/19 §8)
+- Check rendered pages at 1440, 1024, 768, 720 (a half-snapped window), 390 and a 320 walk, light and dark, keyboard only. (docs/19 §8)
+- The view's main control starts on the first screen at every width; run `check-design-rules.mjs` for it. (docs/19 §8)
+- Before a release, review the whole interface rendered in a fresh context: every view and state. (docs/19 §8)
+- A rule counts as checked only for the states its check visits; the check lists them. (docs/19 §8)
 - Load once with scripts off and once with reduced motion: no content may stay hidden. (docs/19 §8)
 - Run the rendered-DOM layout lint; "never intentional" findings fail, candidates get a judgement. (docs/19 §8)
 - Hiding or marking an element to clear a finding is a bug; waivers carry a reason, max 5. (docs/19 §8)

@@ -4,7 +4,7 @@ paths:
   - ".env*"
   - "**/*.{json,toml,yaml,yml}"
 ---
-<!-- managed by __CommonShared/rules/security.md; sha256:900828a495909095; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/security.md; sha256:183688e2c1941902; edit it there, put project rules in project-*.md -->
 # Security rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -42,6 +42,8 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Offer a read-only switch (`<APP>_READ_ONLY`); introduce new logic observe-only before it acts. (docs/05 §5, L-DEPLOY)
 - Never retry writes or publishes; retry idempotent calls on transport/408/429/5xx with backoff, jitter, capped `Retry-After`. (docs/05 §5, L-DEPLOY)
 - Audit "get" parameters for write flags (`finalize=true`) before calling a source system. (L-SEC)
+- A write or delete names the container it means (tenant, vault, project); the server refuses a mismatch. (docs/05 §5)
+- An action made reachable later or from another place re-checks its invariants there. (docs/05 §5)
 - Verify a new production control on an endpoint that writes nothing when it is off, before any write path. (docs/07 §5)
 - Back up before a vendor "repair" tool; an installer that edits settings writes a `.bak` and refuses invalid JSON. (L-BUILD)
 

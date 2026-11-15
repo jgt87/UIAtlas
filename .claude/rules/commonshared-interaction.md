@@ -2,7 +2,7 @@
 paths:
   - "**/*.{tsx,jsx,ts,js,vue,svelte}"
 ---
-<!-- managed by __CommonShared/rules/interaction.md; sha256:250ade2b0c7cc032; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/interaction.md; sha256:9a37dd09b349e72c; edit it there, put project rules in project-*.md -->
 # Interaction rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -63,6 +63,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - `touch-action: none` (or `pan-y`) only on surfaces you drive yourself, `manipulation` on buttons. (docs/02 §6, docs/17 §9)
 - `user-select: none` on the canvas or app area only; inputs opt back in. (docs/17 §9)
 - No information or action reachable only on hover: touch gets a tap or `:active` path. (docs/02 §7, docs/17 §7)
+- A highlight (search results, a selection) hides nothing: items outside it stay reachable by pointer. (docs/07 §5)
 - Busy actions disable the control, show an inline spinner and label, and lock against double submission. (docs/02 §7)
 
 ## Undo and destructive actions

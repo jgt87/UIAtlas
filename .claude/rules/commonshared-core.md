@@ -1,4 +1,4 @@
-<!-- managed by __CommonShared/rules/core.md; sha256:aa3bd471ee27c124; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/core.md; sha256:4c876cc0f425a4d8; edit it there, put project rules in project-*.md -->
 # Core rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -56,20 +56,22 @@ DESIGN.md and PRODUCT.md win on conflict.
 - After a runtime or CLI upgrade, run the full suite and build before any other work. (docs/07 §4, L-BUILD)
 - Stop and re-plan when something goes sideways; after two failed corrections, restart with one better prompt. (docs/09 §7, docs/14 §8)
 - A guideline missed twice gets a machine check (test, lint, hook) proven to fail on a broken example. (docs/07 §1, docs/14 §1)
-- An operator correction becomes a `tasks/lessons.md` entry in the same turn: rule, Why with date, check. (docs/07 §1)
+- An operator correction becomes a `tasks/lessons.md` entry in the same turn (rule, Why with date, check); if it holds in any project, it goes upstream in that turn too. (docs/07 §1)
 
 ## Reporting
-- Answer code questions from the code; counts come from a command, never mental arithmetic. (docs/07 §2, L-AGENT)
+- Answer code questions from the code, and check each point of a critique against today's build; counts come from a command, never mental arithmetic. (docs/07 §2, L-AGENT)
 - Number every option; letters under a number are alternatives of one decision. (docs/07 §2)
 - Commands to paste use absolute paths, never environment variables. (docs/07 §2)
 
 ## Edits and shell
 - Edit with the edit tools after reading the file with the read tool; never `sed -i`, `node -e` or a heredoc. (docs/07 §3, docs/12 §4)
 - An edit script keeps the file's line ending, matches on `\n`, throws on a miss; check the file isn't mixed after. (docs/12 §4)
+- An edit script is safe to rerun: it skips a pair whose replacement is already in the file. (docs/07 §3)
 - List the folder case-insensitively before creating a file; in a shared folder re-list right before writing. (docs/07 §3)
 - Shell state and `/tmp` don't survive calls: use absolute paths, the session's scratch directory or gitignored `temp/`. (docs/07 §4)
 - Probe downloads and captures go to the session's scratch directory, never into the repo. (docs/07 §4, docs/11 §3)
 - Quote every path variable in a shell loop (`"$p"`) and check the first iteration's output. (docs/07 §4)
+- Never pipe a script that owns a browser or server into `head`: the closed pipe skips its cleanup. (docs/07 §4)
 
 ## Subagents
 - Brief like a peer: goal, files, constraints, done, and the irreversible actions it must not take. (docs/14 §7, docs/07 §5)
