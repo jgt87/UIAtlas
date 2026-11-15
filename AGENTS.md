@@ -3,7 +3,7 @@
 Guidance for coding agents working in this repository.
 
 ## Commands
-Node >= 20, ES modules, dependencies `playwright` and `pdfjs-dist` (both pinned exactly); dev dependency `eslint`, used only by the size check. No build step.
+Node >= 22, ES modules, dependencies `playwright` and `pdfjs-dist` (both pinned exactly); dev dependency `eslint`, used only by the size check. No build step.
 
 ```
 npm install
@@ -11,6 +11,8 @@ npm run hooks                                                       # once per c
 npm test                                                            # node --test "test/**/*.test.mjs"; one file: node --test test/export.test.mjs
 npm run lint                                                        # size/complexity ratchet (scripts/code-size-baseline.json) + line endings
 npm run smoke                                                       # token file -> import -> JSON/CSS/HTML export; no browser, temp dir only
+npm run check:design                                                # rendered design rules per view; needs `serve --port 4391` running
+npm run check:rows                                                  # one height per row of controls; same server
 node bin/atlas.mjs extract <https-url> [--pages N] [--name NAME]   # website
 node bin/atlas.mjs storybook <https-url> [--pages N] [--name NAME] # deployed Storybook
 node bin/atlas.mjs import <file|folder> [--name NAME] [--kind K]   # anything else; kind auto-detected (src/detect.mjs)
@@ -74,6 +76,8 @@ Pipeline: **adapter → `atlas.json` → viewer / export**. The `atlas.json` sch
 - Extraction uses a fresh, signed-out browser context and only measures pages; source files are only read. Keep it that way.
 - No agent co-author/session trailers in new commits; `.githooks/commit-msg` enforces it. Older commits keep theirs: never rewrite history to remove them (operator, 2026-11-10), so the CommonShared audit's `--public` FAIL on them is expected.
 - Done = `npm run lint`, `npm test` and `npm run smoke` all pass. The size baseline only goes down (`node scripts/check-code-size.mjs --update` after a split); raising a number is the operator's call. `collect()` can't be split into module helpers because it runs in the page.
+- Viewer changes also pass `npm run check:design` and `check:rows` against `serve --port 4391`. The viewer's API is answered from the invented atlas in `scripts/design-check.json`, so `data/` doesn't matter. `check-design-rules.mjs` and `check-control-rows.mjs` are verbatim CommonShared template copies: refresh them by copying, don't edit them; they're excluded from the size ratchet (`UPSTREAM` in `check-code-size.mjs`).
+- Tests never read the clock (`test/speed-rules.test.mjs`): inject `now`/`sleep` (see `createGate`) or compare growth.
 - Viewer UI work: read PRODUCT.md and DESIGN.md first. DESIGN.md's Named Rules One Focus Ring, Contrast Floors, Dynamic Viewport Heights and Hover Where It Exists are enforced by `test/viewer-css.test.mjs`.
 - Plans and open work: `tasks/todo.md`. Agent lessons: `tasks/lessons.md` (gitignored, machine-local; project decisions go here in AGENTS.md).
 

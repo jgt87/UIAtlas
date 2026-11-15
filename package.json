@@ -1,6 +1,6 @@
 {
   "name": "ui-atlas",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "description": "Extract any website's screens, UI elements and design tokens into an ordered, browsable atlas.",
@@ -13,10 +13,12 @@
     "test": "node --test \"test/**/*.test.mjs\"",
     "lint": "node scripts/check-code-size.mjs && node scripts/check-eol.mjs",
     "smoke": "node scripts/smoke.mjs",
+    "check:design": "node scripts/check-design-rules.mjs --config scripts/design-check.json",
+    "check:rows": "node scripts/check-control-rows.mjs http://127.0.0.1:4391/#/screens http://127.0.0.1:4391/#/tokens --widths 1440,390",
     "hooks": "git config core.hooksPath .githooks"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "pdfjs-dist": "6.4.299",

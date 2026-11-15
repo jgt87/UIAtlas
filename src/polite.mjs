@@ -65,7 +65,9 @@ export function isAllowed(robots, pathWithQuery = '/', agent = 'UIAtlas') {
   return !best || best.allow;
 }
 
-export function createGate({ ignoreRobots = false, delayMs = 1000, userAgent = 'UIAtlas', timeoutMs = 10000 } = {}) {
+// `now` and `sleep` are injectable so tests check the pacing by the waits it asks for, not by a clock.
+const realSleep = ms => new Promise(ok => setTimeout(ok, ms));
+export function createGate({ ignoreRobots = false, delayMs = 1000, userAgent = 'UIAtlas', timeoutMs = 10000, now: clock = Date.now, sleep = realSleep } = {}) {
   const ua = agentToken(userAgent) === 'uiatlas' ? userAgentSuffix : `${userAgent} ${userAgentSuffix}`;
   const robots = new Map(), done = new Map(), next = new Map(), blocked = new Map(), skipped = new Map();
   const parse = url => { try { const u = new URL(url); return /^https?:$/.test(u.protocol) ? u : null; } catch { return undefined; } };
@@ -105,10 +107,10 @@ export function createGate({ ignoreRobots = false, delayMs = 1000, userAgent = '
 
   async function wait(url) {
     const u = parse(url); if (!u) return;
-    const d = await crawlDelay(url), gap = Math.max(delayMs, (d || 0) * 1000), now = Date.now();
+    const d = await crawlDelay(url), gap = Math.max(delayMs, (d || 0) * 1000), now = clock();
     const at = next.has(u.origin) ? Math.max(now, next.get(u.origin)) : now;
     next.set(u.origin, at + gap); // reserve the slot before sleeping so concurrent callers queue up
-    if (at > now) await new Promise(ok => setTimeout(ok, at - now));
+    if (at > now) await sleep(at - now);
   }
 
   // Human-readable notes for project.notes (hosts only; no paths or page content).

@@ -26,7 +26,7 @@ UI Atlas captures **design, not content**:
 ```
 npm install          # installs Playwright and pdf.js (no browser download)
 ```
-Requires Node 20+ and a browser. `PLAYWRIGHT_CHANNEL` picks it:
+Requires Node 22+ and a browser. `PLAYWRIGHT_CHANNEL` picks it:
 - `msedge` (default) — Microsoft Edge, preinstalled on Windows.
 - `chrome` — an installed Google Chrome (e.g. on macOS/Linux without Edge).
 - `chromium` — Playwright's own Chromium, for machines with neither; download it once with `npx playwright install chromium`.

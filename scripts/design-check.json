@@ -1,0 +1,61 @@
+{
+  "base": "http://127.0.0.1:4391",
+  "primary": ".new-btn, button.primary",
+  "lintIgnore": ".flow svg, .shot, .variant-stage",
+  "views": [
+    { "name": "screens", "path": "/#/screens", "ready": ".card", "main": ".search" },
+    { "name": "tokens", "path": "/#/tokens", "ready": ".swatch", "main": ".search" },
+    { "name": "elements", "path": "/#/elements", "ready": ".tbl", "main": ".search" },
+    { "name": "components", "path": "/#/components", "ready": ".variant", "main": ".search" },
+    { "name": "map", "path": "/#/map", "ready": ".flow-node", "main": ".search" },
+    { "name": "screen details", "path": "/#/screens", "ready": ".card", "steps": [{ "clickSelector": ".card.clickable" }, { "wait": 300 }] },
+    { "name": "new item", "path": "/#/screens", "ready": ".card", "steps": [{ "click": "+ New" }, { "wait": 300 }] },
+    { "name": "export", "path": "/#/screens", "ready": ".card", "steps": [{ "click": "Export" }, { "wait": 300 }] }
+  ],
+  "api": {
+    "/api/atlases": ["example-shop"],
+    "/api/jobs": [],
+    "/data/example-shop/atlas.json": {
+      "project": { "name": "shop.example", "kind": "web", "source": "https://shop.example/", "created": "2026-11-01T10:00:00.000Z", "pages": 2, "viewport": { "width": 1280, "height": 800 }, "screenshots": false },
+      "tokens": {
+        "colors": [
+          { "value": "#1f2a44", "count": 40, "usage": { "text": 30, "background": 2, "border": 4, "fill": 4 } },
+          { "value": "#ffffff", "count": 32, "usage": { "text": 4, "background": 28, "border": 0, "fill": 0 } },
+          { "value": "#e4572e", "count": 12, "usage": { "text": 2, "background": 8, "border": 2, "fill": 0 } },
+          { "value": "#6b7280", "count": 9, "usage": { "text": 9, "background": 0, "border": 0, "fill": 0 } }
+        ],
+        "fonts": [{ "value": "Georgia", "count": 30 }, { "value": "Arial", "count": 12 }],
+        "fontSizes": [{ "value": "14px", "count": 20 }, { "value": "16px", "count": 12 }, { "value": "32px", "count": 3 }],
+        "fontWeights": [{ "value": "400", "count": 25 }, { "value": "700", "count": 10 }],
+        "lineHeights": [{ "value": "1.5", "count": 22 }],
+        "letterSpacings": [{ "value": "normal", "count": 30 }],
+        "spacing": [{ "value": "8px", "count": 18 }, { "value": "16px", "count": 14 }, { "value": "24px", "count": 6 }],
+        "radii": [{ "value": "4px", "count": 10 }, { "value": "999px", "count": 3 }],
+        "shadows": [{ "value": "0 2px 6px rgba(0, 0, 0, 0.15)", "count": 4 }],
+        "cssVars": [{ "name": "--brand", "value": "#e4572e" }]
+      },
+      "contrast": [
+        { "fg": "#1f2a44", "bg": "#ffffff", "large": false, "count": 30, "ratio": 14.2, "level": "AAA" },
+        { "fg": "#ffffff", "bg": "#e4572e", "large": false, "count": 8, "ratio": 3.4, "level": "fail" }
+      ],
+      "components": {
+        "button": [{ "name": "filled", "kind": "filled", "count": 6, "share": 0.75, "screens": 2, "style": { "bg": "#e4572e", "color": "#ffffff", "radius": "4px", "fontSize": "14px", "weight": "700", "font": "Arial", "padding": "8px 16px" } }],
+        "link": [{ "name": "plain", "kind": "plain", "count": 10, "share": 1, "screens": 2, "style": { "color": "#1f2a44", "fontSize": "14px", "weight": "400", "font": "Georgia" } }]
+      },
+      "flow": { "start": "home", "edges": [{ "from": "home", "to": "products" }] },
+      "screens": [
+        { "id": "home", "url": "https://shop.example/", "title": "/", "screenshot": null, "width": 1280, "height": 1600, "inventory": { "button": 3, "link": 5, "heading": 2 },
+          "elements": [
+            { "role": "button", "tag": "button", "bbox": { "x": 40, "y": 300, "w": 140, "h": 40 }, "color": "#ffffff", "bg": "#e4572e", "fontSize": "14px", "weight": "700", "radius": "4px", "font": "Arial" },
+            { "role": "link", "tag": "a", "bbox": { "x": 40, "y": 20, "w": 80, "h": 20 }, "color": "#1f2a44", "bg": null, "fontSize": "14px", "weight": "400", "radius": "0px", "font": "Georgia" },
+            { "role": "heading", "tag": "h1", "bbox": { "x": 40, "y": 120, "w": 600, "h": 48 }, "color": "#1f2a44", "bg": null, "fontSize": "32px", "weight": "700", "radius": "0px", "font": "Georgia" }
+          ] },
+        { "id": "products", "url": "https://shop.example/products", "title": "/products", "screenshot": null, "width": 1280, "height": 2400, "inventory": { "button": 5, "link": 8 },
+          "elements": [
+            { "role": "button", "tag": "button", "bbox": { "x": 900, "y": 400, "w": 120, "h": 36 }, "color": "#ffffff", "bg": "#e4572e", "fontSize": "14px", "weight": "700", "radius": "4px", "font": "Arial" },
+            { "role": "link", "tag": "a", "bbox": { "x": 40, "y": 400, "w": 200, "h": 20 }, "color": "#1f2a44", "bg": null, "fontSize": "14px", "weight": "400", "radius": "0px", "font": "Georgia" }
+          ] }
+      ]
+    }
+  }
+}

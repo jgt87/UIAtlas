@@ -18,6 +18,9 @@ import { ESLint } from 'eslint';
 
 // Adjust per project. UI Atlas: the CLI, the adapters, the scripts and the viewer's browser modules.
 const GLOBS = ['bin/**/*.mjs', 'src/**/*.mjs', 'scripts/**/*.mjs', 'viewer/js/**/*.js'];
+// Rendered checkers copied verbatim from CommonShared templates/scripts: kept identical to the
+// template so a refresh is a plain copy, and their long functions are scans that run in the page.
+const UPSTREAM = ['scripts/check-design-rules.mjs', 'scripts/check-control-rows.mjs'];
 const IS_TEST = /\.(test|spec)\.[cm]?[jt]sx?$/;
 const MAX_LINES = 80;
 const MAX_COMPLEXITY = 10;
@@ -35,8 +38,23 @@ const eslint = new ESLint({
   overrideConfig: { rules: RULES },
   ruleFilter: ({ ruleId }) => ruleId in RULES,
   errorOnUnmatchedPattern: false,
+  ignorePatterns: UPSTREAM,
 });
 const results = await eslint.lintFiles(GLOBS);
+
+// A silent skip would report zero violations: a config that does not cover a file type drops
+// those files from the results without a message, and a file that fails to parse yields no
+// rule results. So every extension the globs find must be linted, and every file must parse.
+const extensionsOf = (files) => new Set(files.map((f) => path.extname(f).toLowerCase()));
+const found = extensionsOf(fs.globSync(GLOBS, { cwd: root, exclude: (f) => /node_modules/.test(f) || UPSTREAM.includes(f.split(path.sep).join('/')) }));
+const linted = extensionsOf(results.map((r) => r.filePath));
+const uncovered = [...found].filter((ext) => !linted.has(ext));
+const unparsed = results.filter((r) => r.messages.some((m) => m.fatal));
+if (!results.length || uncovered.length || unparsed.length) {
+  console.error(`code size: ${results.length} files linted; no file linted for ${uncovered.join(', ') || '-'}; ${unparsed.length} failed to parse. Fix the globs or the ESLint config.`);
+  unparsed.forEach((r) => console.error(`  ${path.relative(root, r.filePath)}: ${r.messages.find((m) => m.fatal).message}`));
+  process.exit(1);
+}
 
 /** Violations per file and rule, source files only. */
 const counts = {};

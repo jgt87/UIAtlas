@@ -112,9 +112,8 @@ test('gate: slow robots.txt times out → disallowed; network error → disallow
   const s = await robotsServer(200, 'User-agent: *\nAllow: /', 1000);
   try {
     const g = createGate({ delayMs: 0, timeoutMs: 100 });
-    const t = Date.now(), r = await g.allow(`${s.base}/page`);
-    assert.ok(Date.now() - t < 900, 'gave up at the timeout');
-    assert.equal(r.ok, false); assert.match(r.reason, /timed out/);
+    const r = await g.allow(`${s.base}/page`); // the server answers after 1 s; the reason proves it gave up first
+    assert.equal(r.ok, false); assert.match(r.reason, /timed out after 0\.1 s/);
     const dead = await serve(() => {}); const deadBase = dead.base; await dead.close();
     const n = await g.allow(`${deadBase}/page`);
     assert.equal(n.ok, false); assert.match(n.reason, /unreachable/);
@@ -136,14 +135,16 @@ test('gate: ignoreRobots and non-http URLs are always allowed without fetching',
 test('pacing: same origin waits ≥ delay, other origins do not, Crawl-delay is honoured and capped', async () => {
   const a = await robotsServer(404), b = await robotsServer(404), c = await robotsServer(200, 'User-agent: UIAtlas\nCrawl-delay: 0.3\n'), d = await robotsServer(200, 'User-agent: *\nCrawl-delay: 120');
   try {
-    const g = createGate({ delayMs: 150 });
-    let t = Date.now(); await g.wait(`${a.base}/1`); const t1 = Date.now(); assert.ok(t1 - t < 100, 'first request does not wait');
-    await g.wait(`${b.base}/1`); assert.ok(Date.now() - t1 < 100, 'other origin does not wait');
-    await g.wait(`${a.base}/2`); const t2 = Date.now(); assert.ok(t2 - t1 >= 140, 'same origin waits the delay');
-    await Promise.all([g.wait(`${a.base}/3`), g.wait(`${a.base}/4`)]); assert.ok(Date.now() - t2 >= 290, 'concurrent calls queue up');
+    // A frozen clock and a recording sleep: each wait's requested sleep is the pacing, with no timing in the test.
+    const slept = [], g = createGate({ delayMs: 150, now: () => 0, sleep: async ms => { slept.push(ms); } });
+    const sleeps = async (...urls) => { slept.length = 0; await Promise.all(urls.map(u => g.wait(u))); return [...slept].sort((x, y) => x - y); };
+    assert.deepEqual(await sleeps(`${a.base}/1`), [], 'first request does not wait');
+    assert.deepEqual(await sleeps(`${b.base}/1`), [], 'other origin does not wait');
+    assert.deepEqual(await sleeps(`${a.base}/2`), [150], 'same origin waits the delay');
+    assert.deepEqual(await sleeps(`${a.base}/3`, `${a.base}/4`), [300, 450], 'concurrent calls queue up');
 
-    await g.wait(`${c.base}/1`); t = Date.now(); await g.wait(`${c.base}/2`);
-    assert.ok(Date.now() - t >= 290, 'Crawl-delay above delayMs wins');
+    await g.wait(`${c.base}/1`);
+    assert.deepEqual(await sleeps(`${c.base}/2`), [300], 'Crawl-delay above delayMs wins');
     assert.equal(await g.crawlDelay(`${d.base}/x`), 30);
     const host = h => new URL(h).host, notes = g.notes();
     assert.ok(notes.includes(`Crawl-delay of 0.3 s honoured on ${host(c.base)}`));

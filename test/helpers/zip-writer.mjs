@@ -1,4 +1,4 @@
-// Tiny zip writer for test fixtures: STORE method only, crc32 in plain JS so it runs on Node 20.
+// Tiny zip writer for test fixtures: STORE method only, crc32 in plain JS (zlib.crc32 only arrived in Node 22.2).
 // writeZip(path, { name: Buffer|string|object }) — objects are written as JSON.
 import { writeFileSync } from 'node:fs';
 

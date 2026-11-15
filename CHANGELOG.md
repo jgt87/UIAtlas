@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-15
+### Changed
+- Requires Node 22 or later (Node 20 is out of support).
+
+### Fixed
+- Viewer on phones and tablets: fields are at least 16px so the page no longer zooms in when you tap one, the dialogs' fields and buttons are 44px tall to tap, small print is never below 11px, and the section links wrap onto a second row instead of being cut off at the edge.
+
 ## [0.7.1] - 2026-11-10
 ### Changed
 - Internal restructuring of the extractors, importers, comparison, viewer and CLI for maintainability. Nothing you see changes: every import, export, view and error message was checked to give identical output before and after.
