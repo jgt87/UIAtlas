@@ -1,5 +1,5 @@
 // "Export": run an export of the current atlas on the server and offer the files as downloads.
-import { h } from './dom.js';
+import { h, closeIcon } from './dom.js';
 
 const FORMATS = [['pdf', 'PDF token sheet', 'printable A4'], ['json', 'JSON', 'W3C design tokens'], ['css', 'CSS', 'custom properties'], ['html', 'HTML + CSS', 'token page with its stylesheet']];
 let dialog;
@@ -26,6 +26,6 @@ export function openExport(atlasName) {
     finally { busy = false; go.disabled = false; } } },
     h('p', { class: 'export-for' }, 'Atlas: ', h('b', {}, atlasName)), ...boxes.map(b => b.row), h('div', { class: 'form-actions' }, status, go), files);
   dialog.replaceChildren(h('div', { class: 'modal-panel' },
-    h('header', { class: 'modal-head' }, h('h2', { id: 'export-title' }, 'Export design tokens'), h('button', { class: 'modal-close', type: 'button', 'aria-label': 'Close', onclick: () => !busy && dialog.close() }, '×')), form));
+    h('header', { class: 'modal-head' }, h('h2', { id: 'export-title' }, 'Export design tokens'), h('button', { class: 'modal-close', type: 'button', 'aria-label': 'Close', onclick: () => !busy && dialog.close() }, closeIcon())), form));
   dialog.showModal(); go.focus();
 }

@@ -1,6 +1,6 @@
 // "+ New": start an extraction from the viewer. URLs are posted as a job; files are uploaded and imported. Progress is
 // polled from the server; when the job finishes, onDone(atlasName) selects the new atlas.
-import { h } from './dom.js';
+import { h, closeIcon } from './dom.js';
 
 const HEADERS = { 'X-UI-Atlas': '1' }; // the server only starts work for requests carrying this (see src/serve.mjs)
 const ACCEPT = '.pptx,.potx,.pptm,.ppsx,.pdf,.sketch,.json,.png,.jpg,.jpeg,.webp,.gif,.avif,.bmp,.svg,.html,.htm,.zip';
@@ -48,6 +48,6 @@ export function openNewItem(onDone) {
     h('label', { class: 'check' }, shots, ' Keep screenshots (text content is never stored either way)'),
     h('div', { class: 'form-actions' }, status, go), log);
   dialog.replaceChildren(h('div', { class: 'modal-panel' },
-    h('header', { class: 'modal-head' }, h('h2', { id: 'new-item-title' }, 'New atlas'), h('button', { class: 'modal-close', type: 'button', 'aria-label': 'Close', onclick: () => !busy && dialog.close() }, '×')), form));
+    h('header', { class: 'modal-head' }, h('h2', { id: 'new-item-title' }, 'New atlas'), h('button', { class: 'modal-close', type: 'button', 'aria-label': 'Close', onclick: () => !busy && dialog.close() }, closeIcon())), form));
   show(); dialog.showModal(); (kind === 'import' ? drop : url).focus();
 }

@@ -1,6 +1,6 @@
 // Screen detail modal: the screenshot (when stored) at full width plus the screen's text-free details. A native
 // <dialog>, so Esc, focus trapping and the backdrop come from the browser; a click outside the panel closes it too.
-import { h } from './dom.js';
+import { h, closeIcon } from './dom.js';
 import { fmtColor } from './color-format.js';
 
 let dialog;
@@ -20,7 +20,7 @@ export function openScreen(atlas, s) {
   d.replaceChildren(h('div', { class: 'modal-panel' },
     h('header', { class: 'modal-head' },
       h('div', {}, h('h2', { id: 'screen-modal-title' }, s.title || s.url), h('div', { class: 'card-url' }, s.purpose ? `${s.purpose} · ${s.url}` : s.url)),
-      h('button', { class: 'modal-close', type: 'button', 'aria-label': 'Close', onclick: () => d.close() }, '×')),
+      h('button', { class: 'modal-close', type: 'button', 'aria-label': 'Close', onclick: () => d.close() }, closeIcon())),
     h('div', { class: 'modal-body' },
       s.screenshot ? h('div', { class: 'modal-shot' }, h('img', { src: base + s.screenshot, alt: s.title || s.url }))
         : h('div', { class: 'empty' }, atlas.project.screenshots === false ? 'Screenshot not stored (extract with --screenshots to keep them).' : 'No preview for this screen.'),

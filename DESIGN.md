@@ -16,7 +16,7 @@ typography:
   ui: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
   mono: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
   body: 14
-  scale: [11, 12, 13, 14, 16, 22]   # 22 = the font-sample glyph in the Fonts view and the dialog close glyph
+  scale: [11, 12, 13, 14, 16, 22]   # 22 = the font-sample glyph in the Fonts view
 rounded: { control: 8, segment: 7, row: 10, card: 12, dialog: 14 }
 sizes:
   topbar: 58
@@ -58,7 +58,8 @@ Rules enforced by `test/viewer-css.test.mjs` use the same names there and in AGE
 
 Not test-enforced (yet):
 - **The Colour Is Data Rule** — the chrome uses ink and greys only; colour on screen is the source's.
-- **Flat-By-Default** — the only shadow is on dialogs.
+- **Flat-By-Default** — the only shadow is on dialogs. A shadow token sample is the source's shadow on a plain
+  white box, with no edge added. Dialog close buttons carry a drawn 16px cross (`closeIcon()` in `viewer/js/dom.js`).
 - **Invisible Touch Targets** — coarse pointers get a 44px `::after` hit area; nothing drawn changes size.
 - **Wide Tables Scroll Themselves** — tables scroll inside `.table-scroll`, long values wrap, the page never scrolls sideways.
 - **Paired-Signal** — contrast levels are written out (AA / AAA / Fails AA / Not measurable), never colour alone.

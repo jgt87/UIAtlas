@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-19
+### Changed
+- Viewer: the dialogs' close button shows a drawn cross instead of a "×" character, the element counts on a screen have a little more room around their text, and a shadow sample is shown without an added outline, so you see only the measured shadow.
+
 ## [0.8.0] - 2026-11-15
 ### Changed
 - Requires Node 22 or later (Node 20 is out of support).
