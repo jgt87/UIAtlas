@@ -2,7 +2,7 @@
 paths:
   - "**/*{Segmented,segmented,ButtonGroup,buttonGroup,button-group}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
 ---
-<!-- managed by __CommonShared/rules/elements/el-segmented.md; sha256:153c6ee5902241d8; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-segmented.md; sha256:9e5917b729d41a95; edit it there, put project rules in project-*.md -->
 # Segmented control rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -13,6 +13,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Track `--hover` or `--surface` with 1px `--border`, 2px inner padding, height `--control-h`. (docs/20 Segmented control)
 - Segment radius = track radius − padding; labels 13–14px, never wrap. (docs/19 §5, §6)
 - Selected: `--raised` or `--accent-soft` fill plus heavier weight, never colour alone. (docs/01 §1)
+- The bold width is reserved (a hidden bold copy in the same grid cell), so selecting never moves neighbours. (docs/01 §3)
 - Icon-only segments are square with `aria-label`; coarse pointer hit areas 44px. (docs/17 §2, §8)
 
 ## Behaviour

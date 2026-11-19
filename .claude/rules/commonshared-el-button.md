@@ -2,7 +2,7 @@
 paths:
   - "**/*{Button,button}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
 ---
-<!-- managed by __CommonShared/rules/elements/el-button.md; sha256:3e5b4b67379722d1; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-button.md; sha256:2574be69e9a6f568; edit it there, put project rules in project-*.md -->
 # Button rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -11,6 +11,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 ## Look
 - Native `<button>`; `--surface` fill, 1px `--border-strong` edge, radius `--radius`, padding 0 12px, height `--control-h`. (docs/20 Button, docs/01 §5)
 - Label 13–14px app, 16px brand; weight 500, primary 600; sentence case, one verb. (docs/19 §5, docs/20 Button)
+- If the project opts into `text-box-trim: trim-both` (cap / alphabetic): only on fixed-height controls, inside `@supports`, rendered heights checked after. (docs/01 §3)
 - Variants: primary (`--accent` + `--on-accent`), secondary, ghost, danger (`--danger-soft`), link. (docs/01 §5)
 - Solid danger fill only on the final confirm of an irreversible action. (docs/01 §5)
 - One primary per view, on the forward path; Save stays secondary, disabled until a change. (docs/01 §5, §6)

@@ -2,7 +2,7 @@
 paths:
   - "**/*.{css,scss,html,tsx,jsx,vue,svelte,astro}"
 ---
-<!-- managed by __CommonShared/rules/elements.md; sha256:9ef15b92e523a909; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements.md; sha256:a899855803bed9ab; edit it there, put project rules in project-*.md -->
 # UI element index
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -20,6 +20,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Button: `el-button`; uses Spinner, Tooltip, Icon. (docs/20)
 - Calendar: `el-calendar`; uses Button, Popover, Badge, Tooltip, List. (docs/22)
 - Card: `el-card`; uses Badge, Button, Menu, Avatar, Icon, Chart. (docs/22)
+- Carousel: `el-carousel`; uses Card, Icon button, Icon, Scrollbar, Skeleton, Empty state. (docs/22)
 - Chart: `el-chart`; uses Tooltip, Table, Button, Skeleton, Empty state. (docs/22)
 - Checkbox: `el-checkbox`; uses Label, Multi-select. (docs/20)
 - Command palette: `el-command-palette`; uses Dialog, Input, Kbd, Icon, Empty state, Spinner. (docs/21)
@@ -46,6 +47,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Select: `el-select`; uses Popover, Text field. (docs/20)
 - Slider: `el-slider`; uses Icon button, Text field. (docs/20)
 - Spinner and skeleton: `el-spinner`; uses Icon, `.motion-alt`, Empty state, error state. (docs/21)
+- Stepper: `el-stepper`; uses Button, Spinner, Icon, Badge, form fields, Dialog. (docs/22)
 - Switch: `el-switch`; uses Spinner, Toast. (docs/20)
 - Table: `el-table`; uses Checkbox, Button, Menu, Pagination, Skeleton, Empty state. (docs/22)
 - Tabs: `el-tabs`; uses Badge, Icon, Scrollbar. (docs/22)

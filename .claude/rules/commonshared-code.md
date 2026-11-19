@@ -7,7 +7,7 @@ paths:
   - "scripts/**"
   - "tools/**"
 ---
-<!-- managed by __CommonShared/rules/code.md; sha256:2b8ff95df3644d39; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/code.md; sha256:de2509f3436e6454; edit it there, put project rules in project-*.md -->
 # Code rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -27,6 +27,8 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Components read state, call pure functions and render; their tests check wiring, not every branch. (docs/08 §2)
 - A component that outgrows one file gets a folder of its name; the top file stays a thin composition with the same exports. (docs/08 §2)
 - Before refactoring code its tests don't pin, write characterization tests and run them green against the original. (docs/08 §9, L-TEST)
+- Split a long function by its jobs: state and effects into hooks, decisions into tested pure helpers, optional output into parts that render nothing themselves. (docs/07 §10)
+- A refactor keeps the order a sequence is consumed in (random draws, short-circuits included, iterators, float sums); prove it with a golden over seeds. (docs/07 §10)
 
 ## State
 - If the app has a central store: assemble it from slices; importers use only the store module, never a slice. (docs/08 §3)

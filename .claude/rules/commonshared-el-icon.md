@@ -2,14 +2,16 @@
 paths:
   - "**/*{Icon,Icons,icon,icons}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
 ---
-<!-- managed by __CommonShared/rules/elements/el-icon.md; sha256:5eff6d0bbf85502f; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-icon.md; sha256:e348d3e5a8ac298c; edit it there, put project rules in project-*.md -->
 # Icon rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
 DESIGN.md and PRODUCT.md win on conflict.
 
 ## Look
-- One icon set per project, chosen in DESIGN.md; one stroke weight; one size per view. (docs/19 §4, §10)
+- One icon set per project, chosen in DESIGN.md; one size per view. (docs/19 §4, §10)
+- Stroke follows the text beside it: ~1.5 next to 400, 1.75 next to 500, 2 next to 600. (docs/01 §10)
+- A rare icon swap may blur the outgoing icon (`blur(4px)` + fade, ≤ 150ms); a control used all day swaps at once. (docs/01 §10)
 - Inline SVG in `currentColor`, so it takes `--ink`, `--muted` or `--icon` from its parent. (docs/22 Icon, docs/01 §2)
 - 14–16px in controls, 20px in rails, 32–48px `--muted` in empty states. (docs/01 §4, §10)
 - Sized by one shared class from the viewBox, never `width`/`height` attributes per use. (docs/17 §2)

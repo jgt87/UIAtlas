@@ -1,4 +1,4 @@
-<!-- managed by __CommonShared/rules/core.md; sha256:4c876cc0f425a4d8; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/core.md; sha256:6d6f673deeaaa7ba; edit it there, put project rules in project-*.md -->
 # Core rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -27,12 +27,12 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Plan work of 3+ steps or with a design decision as a checklist (default `tasks/todo.md`); agree it before building. (docs/09 §2)
 - Hand off as "ready": what to look at, port, account, build; never "deployed" or "pushed" before a release. (docs/09 §2)
 - Keep one version source; a test fails when carriers (package, manifest, tag) differ; bump all together. (docs/05 §6, L-GIT)
-- Release: bump → `Unreleased` becomes `## [vX.Y.Z] - YYYY-MM-DD` → typecheck, test, build, smoke → commit, tag, push. (docs/05 §6)
+- Release: bump (propose the patch, x.y.z+1, unless the operator asks for more) → `Unreleased` becomes `## [vX.Y.Z] - YYYY-MM-DD` → typecheck, test, build, smoke → commit, tag, push only the refs the process names. (docs/05 §6, docs/07 §2, §5)
 - "Commit and push" means version bump + annotated tag + release package, as one step. (docs/14 §10, L-GIT)
 - Release assets carry `SHA256SUMS`; zip entries use `/` (`git archive`, `tar`); binaries never go in git. (docs/05 §6, L-GIT)
 
 ## Git
-- Stage by explicit path; never `git add -A` or `git add -u`; run `git status --short` first, another session may share it. (docs/07 §5, docs/09 §6)
+- Stage by explicit path, the files you changed, never a list built from `git status`; never `git add -A` or `git add -u`; another session may share the tree. (docs/07 §5, docs/09 §6)
 - Commit messages describe the change. On Windows: pass a message with quotes via `git commit -F <file>`, never `-m`. (L-GIT, L-WIN)
 - Never `git stash`, `git checkout -- .` or `git reset` in a shared tree; compare with `git show HEAD:<path>`. (docs/07 §7)
 - Comment each `.gitignore` block with its kind: regenerable, machine-local, secret, not ours, or reference-only. (docs/11 §1)
@@ -56,11 +56,11 @@ DESIGN.md and PRODUCT.md win on conflict.
 - After a runtime or CLI upgrade, run the full suite and build before any other work. (docs/07 §4, L-BUILD)
 - Stop and re-plan when something goes sideways; after two failed corrections, restart with one better prompt. (docs/09 §7, docs/14 §8)
 - A guideline missed twice gets a machine check (test, lint, hook) proven to fail on a broken example. (docs/07 §1, docs/14 §1)
-- An operator correction becomes a `tasks/lessons.md` entry in the same turn (rule, Why with date, check); if it holds in any project, it goes upstream in that turn too. (docs/07 §1)
+- An operator correction becomes a `tasks/lessons.md` entry in the same turn (rule, Why with date, check); if it holds in any project, it goes upstream in that turn too, worded for any project (no project's names, tools or paths). (docs/07 §1)
 
 ## Reporting
 - Answer code questions from the code, and check each point of a critique against today's build; counts come from a command, never mental arithmetic. (docs/07 §2, L-AGENT)
-- Number every option; letters under a number are alternatives of one decision. (docs/07 §2)
+- Number every option, and only options (one numbered list a reply); letters under a number are alternatives of one decision; times are local first, UTC beside. (docs/07 §2)
 - Commands to paste use absolute paths, never environment variables. (docs/07 §2)
 
 ## Edits and shell
@@ -71,7 +71,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Shell state and `/tmp` don't survive calls: use absolute paths, the session's scratch directory or gitignored `temp/`. (docs/07 §4)
 - Probe downloads and captures go to the session's scratch directory, never into the repo. (docs/07 §4, docs/11 §3)
 - Quote every path variable in a shell loop (`"$p"`) and check the first iteration's output. (docs/07 §4)
-- Never pipe a script that owns a browser or server into `head`: the closed pipe skips its cleanup. (docs/07 §4)
+- Clean up what your own work created once no longer needed (stop processes with their children, delete with retries, check for leftovers); never pipe a script that owns a browser or server into `head`, which skips its cleanup. (docs/07 §4)
 
 ## Subagents
 - Brief like a peer: goal, files, constraints, done, and the irreversible actions it must not take. (docs/14 §7, docs/07 §5)

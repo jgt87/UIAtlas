@@ -3,7 +3,7 @@ paths:
   - "**/*{AppShell,Layout,Sidebar,Toolbar,Header,TopBar,Topbar,StatusBar,NavBar,Navbar,SkipLink}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
   - "**/{app-shell,layout,sidebar,toolbar,header,topbar,navbar,status-bar,skip-link}.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
 ---
-<!-- managed by __CommonShared/rules/elements/el-app-shell.md; sha256:1126e1884ac39c28; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-app-shell.md; sha256:ab1833f0223cbb3e; edit it there, put project rules in project-*.md -->
 # App shell rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -21,6 +21,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 ## Behaviour
 - Below about 768px the sidebar becomes a drawer (≤ 300ms) or a bottom bar; bars wrap. (docs/22 App shell, docs/19 §7)
 - Primary controls never hide below a breakpoint. (docs/17 §9)
+- List → detail may use a shared element transition (`view-transition-name` on the item and its detail) where it is not frequent navigation; none under reduced motion. (docs/19 §7)
 - On route change focus moves to the view heading or `main`, and the title updates. (docs/22 App shell)
 - Toolbars are `role="toolbar"` with one tab stop and arrow keys; overflow goes into "More". (docs/22 App shell)
 - Splitters: `col-resize`/`row-resize`, a ≥ 6px bar with a bigger hit area, arrow keys, clamped and persisted. (docs/02 §1, docs/17 §2)

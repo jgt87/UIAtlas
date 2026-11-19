@@ -4,7 +4,7 @@ paths:
   - "DESIGN.md"
   - "PRODUCT.md"
 ---
-<!-- managed by __CommonShared/rules/ui.md; sha256:6da3237811fe2e8d; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/ui.md; sha256:bc4c14d1931442df; edit it there, put project rules in project-*.md -->
 # UI rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -33,9 +33,9 @@ DESIGN.md and PRODUCT.md win on conflict.
 
 ## Type, spacing, sizes
 - Font sizes 10/11/12/13/14/16/18/20px, no `clamp()` in app UI, rule-tested; mark exceptions `/* type-scale: glyph */`. (docs/01 §3, docs/10 §3)
-- Body 13px/1.4 dense or 14px/1.5; labels 11–12px; titles 14–16px/600; dialog titles 18–20px; code ≥ 13px. (docs/01 §3, docs/17 §2)
+- Body 13px/1.4 dense or 14px/1.5; labels 11–12px; titles 14–16px/600; dialog titles 18–20px; code ≥ 13px; headings `text-wrap: balance`, paragraphs `pretty` (no lone last word). (docs/01 §3, docs/17 §2)
 - One UI family + one mono; hierarchy from weight, not extra sizes; bundle webfonts, no runtime CDN. (docs/01 §3)
-- `tabular-nums` on every changing number; numeric columns and their headers right-aligned. (docs/01 §3, docs/17 §1)
+- Text details: `tabular-nums` on changing numbers (numeric columns and headers right-aligned); curly quotes in UI copy; link underline offset 0.2em; `sup` at `line-height: 0`. (docs/01 §3, docs/17 §1)
 - Spacing on 4px steps (2 4 8 12 16 24 32); radius 4–8 controls, 6–12 menus, 10–12 cards; pills for one-line text only. (docs/01 §4, docs/17 §3)
 - Control heights 24/28/32/36px (32 default); inputs match buttons; icon buttons square, ≥ 28px clickable. (docs/01 §5, §6, docs/17 §2)
 - One height per bar and per control kind (bordered controls `box-sizing: border-box`), checked over rendered heights at desktop and phone width (`check-control-rows.mjs`). (docs/17 §2)
@@ -69,7 +69,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Long lists and menus scroll inside themselves; table headers sticky; prose measure 60–75ch. (docs/17 §3)
 - `scrollbar-gutter: stable` on panels that can scroll; toggles and close buttons keep their place in every state. (docs/17 §4)
 - Images carry `width`/`height`; never save a layout measured before fonts and images settle. (docs/17 §4)
-- Shell `100dvh`, width `100%` not `100vw`; floating panels cap at `calc(100vw - 24px)`; bars wrap when narrow. (docs/17 §9)
+- Shell `100dvh`, width `100%` not `100vw`, PWAs pad `env(safe-area-inset-*)`; floating panels cap at `calc(100vw - 24px)`; bars wrap when narrow. (docs/17 §9)
 - Centre icon + label with `inline-flex; align-items:center`; arrows are SVG, not glyphs; one `ml-auto` per row. (docs/17 §1)
 - Content in a bordered box = outer − 2×border − 2×padding; neighbours take their size from one shared class. (docs/17 §1)
 

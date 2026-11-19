@@ -3,7 +3,7 @@ paths:
   - "**/*{List,ListRow,ListItem,Row}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
   - "**/{list,list-row,list-item,row}.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
 ---
-<!-- managed by __CommonShared/rules/elements/el-list.md; sha256:1c91ab932e2e7193; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-list.md; sha256:d6e910eb30d07be3; edit it there, put project rules in project-*.md -->
 # List rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -22,6 +22,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - The whole row is one button or link; secondary actions are separate and visible on focus and touch. (docs/22 List, docs/02 §7)
 - Selectable lists use arrows, Space/Enter, Home/End and type-ahead; Shift/Ctrl extend and add. (docs/02 §2)
 - Reorder by drag keeps the grab offset and opens slots in place, with an Alt+Up/Down path. (docs/19 §7, docs/22 List)
+- A row changed by a sync or another person highlights once (`--accent-soft`, ≤ 600ms); never for the person's own action. (docs/19 §7)
 - Long lists scroll inside themselves and virtualise past a few hundred rows. (docs/17 §3)
 - Live lists follow new items only while the user is within 80px of the bottom. (docs/17 §10a)
 - Every list has empty, loading (skeleton rows) and error states. (docs/01 §6)

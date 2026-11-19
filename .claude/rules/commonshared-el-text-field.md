@@ -2,7 +2,7 @@
 paths:
   - "**/*{Input,input,TextField,textField,text-field,Textarea,textarea,TextArea}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
 ---
-<!-- managed by __CommonShared/rules/elements/el-text-field.md; sha256:37a9a5ca95c59549; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-text-field.md; sha256:c0d645e5a14981a3; edit it there, put project rules in project-*.md -->
 # Text field rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -24,6 +24,8 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Validate on submit, then on blur/input once shown; focus the first failing field. (docs/19 §7)
 - Errors: `aria-invalid` + message linked by `aria-describedby`, saying what is wrong and the fix. (docs/19 §4, §7)
 - Keep what was typed; never block paste. (docs/19 §7)
+- Accept common forms (trimmed spaces, decimal comma or point, local dates, spaced digits, pasted lists) and show the normalised value on blur; refuse only what cannot be read, naming the expected form. (docs/20 Text field)
+- A failed sign-in may shake the field once (~360ms) on top of the red edge and message; never for ordinary validation; none under reduced motion. (docs/19 §7)
 - Set `type`, `inputmode` and `autocomplete` so mobile keyboards and autofill fit. (docs/20 Text field)
 - Composers: Enter sends, Shift+Enter adds a line, ignore Enter during IME composition. (docs/02 §5)
 - Read-only stays focusable and selectable; disabled leaves the focus walk. (docs/20 Text field, docs/19 §7)

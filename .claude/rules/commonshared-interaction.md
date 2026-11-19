@@ -2,7 +2,7 @@
 paths:
   - "**/*.{tsx,jsx,ts,js,vue,svelte}"
 ---
-<!-- managed by __CommonShared/rules/interaction.md; sha256:9a37dd09b349e72c; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/interaction.md; sha256:2e9cf65fe511d864; edit it there, put project rules in project-*.md -->
 # Interaction rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -27,6 +27,9 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Every drag action also has a keyboard or button path. (docs/02 §2, docs/03 §3)
 - Canvas hover read-outs pick the nearest point on `pointermove` and clear on `pointerleave`. (docs/02 §2)
 - Board focus rings and selection chrome show only for keyboard use or while the editor has focus, never mid-drag. (docs/17 §8)
+- On release, the settle continues the release velocity (a spring with no bounce), never a fixed transition from rest; resistance past an end grows with the pull. (docs/19 §7)
+- Every input shows a reaction within 100ms and a result or progress within 400ms; no spinner under ~300ms, kept ≥ 400ms once shown. (docs/19 §7)
+- Progressive disclosure: the common path is visible; rare and advanced options sit behind a named "More" or "Advanced" disclosure that remembers its state. (docs/19 §7)
 
 ## Snapping and modifiers
 - Snap within 6–12 screen px (not world units), so the feel does not change with zoom. (docs/02 §2)

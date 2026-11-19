@@ -9,7 +9,7 @@ paths:
   - "e2e/**"
   - ".github/workflows/**"
 ---
-<!-- managed by __CommonShared/rules/testing.md; sha256:3a9fe17decf21839; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/testing.md; sha256:2f03d69864a1038c; edit it there, put project rules in project-*.md -->
 # Testing rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -17,7 +17,9 @@ DESIGN.md and PRODUCT.md win on conflict.
 
 ## Runner and layout
 - Use the platform's standard runner (`node:test`, pytest, Pester); a project with a bundler-native runner (Vitest under Vite) uses that. (docs/04 §1)
+- If the project uses Vitest or Jest: setup and teardown hook bodies go in braces; a returned function runs as teardown. (docs/07 §6)
 - Tests over compiled output rebuild first: the test script runs the build. (docs/04 §1, L-BUILD)
+- Committed build output comes from the committed sources: with others' edits in the tree, build in a clean worktree of the commit. (docs/07 §5)
 - Vite apps co-locate `src/**/<name>.test.ts(x)`; Node, Python and PowerShell use a flat `tests/` or `test/`. (docs/04 §2)
 - Name tests by area: `<area>.test.mjs`, `<area>.integration.test.mjs`, `test_<area>.py`, `<Module>.Tests.ps1`. (docs/04 §2)
 - Browser specs live in `e2e/`; committed fixtures in `tests/fixtures/`, helpers in `tests/helpers/`. (docs/04 §2)
@@ -26,7 +28,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 ## Offline and deterministic
 - Unit tests run offline: inject `fetch`, `sleep`, clocks and CLIs; point app home at a temp dir. (docs/04 §3)
 - Put network tests behind a marker that the default run skips (`-m "not network"`). (docs/04 §3)
-- Fixtures are recorded or synthetic and fictional; never real user data, brands or people. (docs/04 §6, L-SEC)
+- Fixtures are recorded or synthetic and fictional; never real user data, brands or people; a real case is renamed before it becomes a test, and real names seen go in a gitignored list a test fails on. (docs/04 §6, docs/07 §5, L-SEC)
 - Pin randomness, time zone and locale (`hourCycle`); never fix a flake with a longer timer. (L-TEST)
 - Each test sets up its own state and passes when run alone. (L-TEST)
 - On Windows: resolve temp paths with `realpath`; CI runners hand out 8.3 short paths. (L-WIN)

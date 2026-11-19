@@ -3,7 +3,7 @@ paths:
   - "**/*{Table,DataGrid,DataTable,data-table,data-grid}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
   - "**/{table,tables}.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
 ---
-<!-- managed by __CommonShared/rules/elements/el-table.md; sha256:0524cc24fa03ef68; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-table.md; sha256:c4a9f086a7676655; edit it there, put project rules in project-*.md -->
 # Table rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -21,6 +21,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Sort by raw value (`data-sort`) with a numeric `Intl.Collator`; `tfoot` totals never sort. (docs/22 Table)
 - Above about 1000 rows page, virtualise or sort on the server; announce the pager politely. (docs/22 Table)
 - Format numbers and dates with one `Intl` helper from `<html lang>`; show "Data as of" when stale. (docs/22 Table, docs/17 §3)
+- A row or cell changed by a sync or another person highlights once (`--accent-soft`, ≤ 600ms); never for the person's own action. (docs/19 §7)
 - Loading keeps row height and column widths (skeleton rows); paging keeps them too. (docs/17 §4)
 - Empty = one spanning row with the cause and an action; errors are specific, with Retry. (docs/01 §6)
 - Selection shows an "N selected" bulk bar in reserved space; the header checkbox goes mixed. (docs/22 Table)

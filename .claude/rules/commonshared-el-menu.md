@@ -2,7 +2,7 @@
 paths:
   - "**/*{Menu,menu,Dropdown,dropdown}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
 ---
-<!-- managed by __CommonShared/rules/elements/el-menu.md; sha256:e51c1c6cd096fb60; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-menu.md; sha256:f31a053a53111858; edit it there, put project rules in project-*.md -->
 # Menu rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -12,6 +12,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - One shared menu component: `--raised`, 1px `--border`, `--shadow-menu`, radius 6–12px, layer `--z-dropdown`. (docs/01 §6, docs/21 §4)
 - Min width ~240px; rows 32–36px, 13–14px text, icon column ~36px; coarse pointer rows reach 44px. (docs/01 §4, §6, docs/19 §5)
 - Hover and focus fills `--hover`, inset and rounded; group labels 11–12px `--muted`, sentence case. (docs/19 §6, docs/21 §4)
+- Over about seven items: sections with labels, or rare items in a submenu; frequent items first. (docs/19 §7)
 - Shortcuts right-aligned in `--muted` with `tabular-nums`; destructive rows last, after a separator, `--danger` text. (docs/01 §6, docs/21 §4)
 - Disabled rows opacity .4–.5 and skipped by arrows; only the open submenu's parent row shows as active. (docs/17 §6, docs/19 §7)
 ## Behaviour
