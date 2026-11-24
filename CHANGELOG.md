@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased]
+
+## [0.8.2] - 2026-11-24
+
 ### Added
 - Viewer: a skip link, labelled navigation, and focus that moves to the view when you switch views. Below 760px the navigation is a drawer behind a Menu button; the sidebar is wider (240px).
 - Viewer: + New offers Dark and Mobile as checkboxes and other modes in a field, with Name, Pages and Modes under More options. Creating an atlas under a name that already exists asks before replacing it.
