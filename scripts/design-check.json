@@ -1,7 +1,21 @@
 {
   "base": "http://127.0.0.1:4391",
-  "primary": ".new-btn, button.primary",
+  "primary": ".primary",
   "lintIgnore": ".flow svg, .shot, .variant-stage",
+  "a11yExclude": [".contrast .sample", ".variant-sample"],
+  "a11yReason": "The contrast table's sample and the component samples draw the source's own measured colours, so a failing pair is shown under 4.5:1 on purpose (DESIGN.md, The Sample Is The Source's).",
+  "elements": {
+    "el-app-shell": "body",
+    "el-dialog": "#newItem",
+    "el-button": ".primary, .ghost-btn",
+    "el-select": "select",
+    "el-text-field": "input[type=search], input[type=text], input:not([type])",
+    "el-segmented": "#colorFmt"
+  },
+  "accept": {
+    "button-heights": "DESIGN.md known gap: controls are 34px (CommonShared steps 24/28/32/36), one height across the viewer.",
+    "nav-current": "DESIGN.md: accent = ink, so the current nav item is an ink fill with white text, not a soft accent."
+  },
   "views": [
     { "name": "screens", "path": "/#/screens", "ready": ".card", "main": ".search" },
     { "name": "tokens", "path": "/#/tokens", "ready": ".swatch", "main": ".search" },

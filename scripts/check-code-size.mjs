@@ -20,7 +20,7 @@ import { ESLint } from 'eslint';
 const GLOBS = ['bin/**/*.mjs', 'src/**/*.mjs', 'scripts/**/*.mjs', 'viewer/js/**/*.js'];
 // Rendered checkers copied verbatim from CommonShared templates/scripts: kept identical to the
 // template so a refresh is a plain copy, and their long functions are scans that run in the page.
-const UPSTREAM = ['scripts/check-design-rules.mjs', 'scripts/check-control-rows.mjs'];
+const UPSTREAM = ['scripts/check-design-rules.mjs', 'scripts/probe-scan.mjs', 'scripts/check-control-rows.mjs'];
 const IS_TEST = /\.(test|spec)\.[cm]?[jt]sx?$/;
 const MAX_LINES = 80;
 const MAX_COMPLEXITY = 10;

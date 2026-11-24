@@ -1,0 +1,687 @@
+{
+  "$description": "Design tokens extracted by UI Atlas",
+  "color": {
+    "$type": "color",
+    "brand": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.1216,
+          0.2275,
+          0.3725
+        ],
+        "hex": "#1f3a5f"
+      },
+      "$description": "brand",
+      "$extensions": {
+        "ui-atlas": {
+          "count": 14,
+          "usage": {
+            "text": 9,
+            "background": 3,
+            "border": 2
+          }
+        }
+      }
+    },
+    "ffffff": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          1,
+          1,
+          1
+        ],
+        "hex": "#ffffff"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 11,
+          "usage": {
+            "background": 10,
+            "text": 1
+          }
+        }
+      }
+    },
+    "f4f1ea": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.9569,
+          0.9451,
+          0.9176
+        ],
+        "hex": "#f4f1ea"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 6,
+          "usage": {
+            "background": 6
+          }
+        }
+      }
+    },
+    "c8553d": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.7843,
+          0.3333,
+          0.2392
+        ],
+        "hex": "#c8553d"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 3,
+          "usage": {
+            "fill": 2,
+            "border": 1
+          }
+        }
+      }
+    },
+    "2a2a2a": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.1647,
+          0.1647,
+          0.1647
+        ],
+        "alpha": 0.502,
+        "hex": "#2a2a2a"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 2,
+          "usage": {
+            "text": 2
+          }
+        }
+      }
+    },
+    "8a9a5b": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.5412,
+          0.6039,
+          0.3569
+        ],
+        "hex": "#8a9a5b"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 1,
+          "share": 0.04
+        }
+      }
+    }
+  },
+  "font": {
+    "family": {
+      "$type": "fontFamily",
+      "fictive-grotesk": {
+        "$value": "Fictive Grotesk",
+        "$extensions": {
+          "ui-atlas": {
+            "count": 12
+          }
+        }
+      },
+      "georgia": {
+        "$value": "Georgia",
+        "$extensions": {
+          "ui-atlas": {
+            "count": 3
+          }
+        }
+      }
+    },
+    "size": {
+      "$type": "dimension",
+      "2rem": {
+        "$value": {
+          "value": 2,
+          "unit": "rem"
+        },
+        "$extensions": {
+          "ui-atlas": {
+            "count": 2
+          }
+        }
+      },
+      "16px": {
+        "$value": {
+          "value": 16,
+          "unit": "px"
+        },
+        "$extensions": {
+          "ui-atlas": {
+            "count": 10
+          }
+        }
+      },
+      "12pt": {
+        "$value": {
+          "value": 16,
+          "unit": "px"
+        },
+        "$extensions": {
+          "ui-atlas": {
+            "count": 1,
+            "source": "12pt"
+          }
+        }
+      }
+    },
+    "weight": {
+      "$type": "fontWeight",
+      "regular": {
+        "$value": 400,
+        "$extensions": {
+          "ui-atlas": {
+            "count": 11
+          }
+        }
+      },
+      "semi-bold": {
+        "$value": 600,
+        "$extensions": {
+          "ui-atlas": {
+            "count": 1
+          }
+        }
+      },
+      "bold": {
+        "$value": 700,
+        "$extensions": {
+          "ui-atlas": {
+            "count": 4
+          }
+        }
+      }
+    },
+    "lineHeight": {
+      "$type": "number",
+      "1-2": {
+        "$value": 1.2,
+        "$extensions": {
+          "ui-atlas": {
+            "count": 3
+          }
+        }
+      },
+      "1-5": {
+        "$value": 1.5,
+        "$extensions": {
+          "ui-atlas": {
+            "count": 9
+          }
+        }
+      }
+    },
+    "letterSpacing": {
+      "$type": "dimension",
+      "1px": {
+        "$value": {
+          "value": 1,
+          "unit": "px"
+        },
+        "$extensions": {
+          "ui-atlas": {
+            "count": 1
+          }
+        }
+      }
+    }
+  },
+  "spacing": {
+    "$type": "dimension",
+    "1-5rem": {
+      "$value": {
+        "value": 1.5,
+        "unit": "rem"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 4
+        }
+      }
+    },
+    "4px": {
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 2
+        }
+      }
+    },
+    "8px": {
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 12
+        }
+      }
+    },
+    "16px": {
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 9
+        }
+      }
+    }
+  },
+  "radius": {
+    "$type": "dimension",
+    "6px": {
+      "$value": {
+        "value": 6,
+        "unit": "px"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 5
+        }
+      }
+    }
+  },
+  "shadow": {
+    "1": {
+      "$value": {
+        "color": {
+          "colorSpace": "srgb",
+          "components": [
+            0,
+            0,
+            0
+          ],
+          "alpha": 0.1216,
+          "hex": "#000000"
+        },
+        "offsetX": {
+          "value": 0,
+          "unit": "px"
+        },
+        "offsetY": {
+          "value": 1,
+          "unit": "px"
+        },
+        "blur": {
+          "value": 3,
+          "unit": "px"
+        },
+        "spread": {
+          "value": 0,
+          "unit": "px"
+        }
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 4,
+          "css": "0px 1px 3px #0000001f"
+        }
+      }
+    },
+    "2": {
+      "$value": {
+        "color": {
+          "colorSpace": "srgb",
+          "components": [
+            0.1216,
+            0.2275,
+            0.3725
+          ],
+          "hex": "#1f3a5f"
+        },
+        "offsetX": {
+          "value": 0,
+          "unit": "px"
+        },
+        "offsetY": {
+          "value": 0,
+          "unit": "px"
+        },
+        "blur": {
+          "value": 0,
+          "unit": "px"
+        },
+        "spread": {
+          "value": 1,
+          "unit": "px"
+        },
+        "inset": true
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "count": 1,
+          "css": "inset 0px 0px 0px 1px #1f3a5f"
+        }
+      }
+    },
+    "$type": "shadow"
+  },
+  "color-usage": {
+    "text": {
+      "$type": "color",
+      "primary": {
+        "$value": "{color.brand}",
+        "$extensions": {
+          "ui-atlas": {
+            "count": 9,
+            "share": 0.75
+          }
+        }
+      },
+      "secondary": {
+        "$value": "{color.2a2a2a}",
+        "$extensions": {
+          "ui-atlas": {
+            "count": 2,
+            "share": 0.1667
+          }
+        }
+      },
+      "tertiary": {
+        "$value": "{color.ffffff}",
+        "$extensions": {
+          "ui-atlas": {
+            "count": 1,
+            "share": 0.0833
+          }
+        }
+      }
+    },
+    "background": {
+      "$type": "color",
+      "primary": {
+        "$value": "{color.ffffff}",
+        "$extensions": {
+          "ui-atlas": {
+            "count": 10,
+            "share": 0.5263
+          }
+        }
+      },
+      "secondary": {
+        "$value": "{color.f4f1ea}",
+        "$extensions": {
+          "ui-atlas": {
+            "count": 6,
+            "share": 0.3158
+          }
+        }
+      },
+      "tertiary": {
+        "$value": "{color.brand}",
+        "$extensions": {
+          "ui-atlas": {
+            "count": 3,
+            "share": 0.1579
+          }
+        }
+      }
+    },
+    "border": {
+      "$type": "color",
+      "primary": {
+        "$value": "{color.brand}",
+        "$extensions": {
+          "ui-atlas": {
+            "count": 2,
+            "share": 0.6667
+          }
+        }
+      },
+      "secondary": {
+        "$value": "{color.c8553d}",
+        "$extensions": {
+          "ui-atlas": {
+            "count": 1,
+            "share": 0.3333
+          }
+        }
+      }
+    },
+    "fill": {
+      "$type": "color",
+      "primary": {
+        "$value": "{color.c8553d}",
+        "$extensions": {
+          "ui-atlas": {
+            "count": 2,
+            "share": 1
+          }
+        }
+      }
+    }
+  },
+  "typography": {
+    "$type": "typography",
+    "heading": {
+      "$value": {
+        "fontFamily": "{font.family.georgia}",
+        "fontSize": "{font.size.2rem}",
+        "fontWeight": "{font.weight.bold}",
+        "lineHeight": "{font.lineHeight.1-2}"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "role": "heading",
+          "samples": 1,
+          "share": 1
+        }
+      }
+    },
+    "text": {
+      "$value": {
+        "fontFamily": "{font.family.fictive-grotesk}",
+        "fontSize": "{font.size.16px}",
+        "fontWeight": "{font.weight.regular}",
+        "lineHeight": "{font.lineHeight.1-5}"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "role": "text",
+          "samples": 1,
+          "share": 1
+        }
+      }
+    },
+    "button": {
+      "$value": {
+        "fontFamily": "{font.family.fictive-grotesk}",
+        "fontSize": "{font.size.16px}",
+        "fontWeight": "{font.weight.semi-bold}"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "role": "button",
+          "samples": 1,
+          "share": 1
+        }
+      }
+    },
+    "link": {
+      "$value": {
+        "fontFamily": "{font.family.fictive-grotesk}",
+        "fontSize": "{font.size.16px}",
+        "fontWeight": "{font.weight.regular}"
+      },
+      "$extensions": {
+        "ui-atlas": {
+          "role": "link",
+          "samples": 1,
+          "share": 1
+        }
+      }
+    }
+  },
+  "component": {
+    "button": {
+      "filled": {
+        "background": {
+          "$type": "color",
+          "$value": "{color.brand}"
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{color.ffffff}"
+        },
+        "radius": {
+          "$type": "dimension",
+          "$value": "{radius.6px}"
+        },
+        "font-size": {
+          "$type": "dimension",
+          "$value": "{font.size.16px}"
+        },
+        "font-weight": {
+          "$type": "fontWeight",
+          "$value": "{font.weight.semi-bold}"
+        },
+        "padding-block": {
+          "$type": "dimension",
+          "$value": {
+            "value": 8,
+            "unit": "px"
+          }
+        },
+        "padding-inline": {
+          "$type": "dimension",
+          "$value": {
+            "value": 16,
+            "unit": "px"
+          }
+        },
+        "$extensions": {
+          "ui-atlas": {
+            "count": 4,
+            "share": 0.8,
+            "screens": 1
+          }
+        }
+      },
+      "outline": {
+        "text": {
+          "$type": "color",
+          "$value": "{color.brand}"
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{color.brand}"
+        },
+        "radius": {
+          "$type": "dimension",
+          "$value": "{radius.6px}"
+        },
+        "font-size": {
+          "$type": "dimension",
+          "$value": "{font.size.16px}"
+        },
+        "font-weight": {
+          "$type": "fontWeight",
+          "$value": "{font.weight.regular}"
+        },
+        "padding-block": {
+          "$type": "dimension",
+          "$value": {
+            "value": 8,
+            "unit": "px"
+          }
+        },
+        "padding-inline": {
+          "$type": "dimension",
+          "$value": {
+            "value": 16,
+            "unit": "px"
+          }
+        },
+        "$extensions": {
+          "ui-atlas": {
+            "count": 1,
+            "share": 0.2,
+            "screens": 1
+          }
+        }
+      }
+    },
+    "link": {
+      "plain": {
+        "text": {
+          "$type": "color",
+          "$value": "{color.c8553d}"
+        },
+        "font-size": {
+          "$type": "dimension",
+          "$value": "{font.size.16px}"
+        },
+        "font-weight": {
+          "$type": "fontWeight",
+          "$value": "{font.weight.regular}"
+        },
+        "$extensions": {
+          "ui-atlas": {
+            "count": 3,
+            "share": 1,
+            "screens": 1
+          }
+        }
+      }
+    }
+  },
+  "source": {
+    "brand": {
+      "$type": "color",
+      "$value": "{color.brand}"
+    },
+    "gap": {
+      "$type": "dimension",
+      "$value": {
+        "value": 1.5,
+        "unit": "rem"
+      }
+    },
+    "heading-weight": {
+      "$type": "fontWeight",
+      "$value": 700
+    },
+    "leading": {
+      "$type": "number",
+      "$value": 1.5
+    },
+    "$extensions": {
+      "ui-atlas": {
+        "untyped": {
+          "--scheme": "light"
+        }
+      }
+    }
+  },
+  "$extensions": {
+    "ui-atlas": {
+      "format": "https://www.designtokens.org/tr/2025.10/format/",
+      "exported": "2026-02-01T00:00:00.000Z",
+      "unrepresentable": [
+        "0.875em",
+        "0.02em",
+        "50%",
+        "8px 8px 0px 0px"
+      ]
+    }
+  }
+}

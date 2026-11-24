@@ -8,15 +8,17 @@
   <link rel="stylesheet" href="css/atlas.css">
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <header class="topbar">
+    <button id="menuBtn" type="button" class="ghost-btn menu-btn" aria-expanded="false" aria-controls="side">Menu</button>
     <div class="brand"><img class="logo" src="favicon.svg" alt="" width="24" height="24"> UI Atlas</div>
-    <select id="atlasPick" class="pick" aria-label="Atlas"></select>
-    <button id="newItem" type="button" class="new-btn">+ New</button>
-    <button id="exportBtn" type="button" class="ghost-btn" disabled>Export</button>
-    <div id="colorFmt" class="seg" role="group" aria-label="Colour notation"><button type="button" data-f="hex">HEX</button><button type="button" data-f="rgb">RGB</button></div>
+    <span class="pick-wrap"><select id="atlasPick" class="pick" aria-label="Atlas"></select><svg class="chevron" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></span>
+    <button id="newItem" type="button" class="primary" aria-haspopup="dialog" aria-controls="new-item-dialog">+ New</button>
+    <button id="exportBtn" type="button" class="ghost-btn" aria-haspopup="dialog" aria-controls="export-dialog" aria-disabled="true" title="Export opens once an atlas has loaded">Export</button>
+    <div id="colorFmt" class="seg" role="radiogroup" aria-label="Colour notation"></div><!-- filled by segmented() in js/app.js -->
   </header>
   <div class="layout">
-    <nav class="side">
+    <nav class="side" id="side" aria-label="Views">
       <a href="#/screens" data-nav="screens" class="navitem">Screens</a>
       <a href="#/tokens" data-nav="tokens" class="navitem">Design tokens</a>
       <a href="#/elements" data-nav="elements" class="navitem">Elements</a>
@@ -24,9 +26,13 @@
       <a href="#/map" data-nav="map" class="navitem">Map</a>
       <div class="meta" id="meta"></div>
     </nav>
+    <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
     <div class="content">
       <div class="toolbar"><input id="search" class="search" type="search" placeholder="Search screens, elements, tokens…" aria-label="Search"></div>
-      <main id="main" class="main"><div class="empty">Loading…</div></main>
+      <main id="main" class="main" tabindex="-1"></main>
+      <!-- the view's live regions: mounted once, only their text changes (viewer/js/states.js announce) -->
+      <p id="viewStatus" class="sr-only" role="status"></p>
+      <p id="viewAlert" class="sr-only" role="alert"></p>
     </div>
   </div>
   <script type="module" src="js/app.js"></script>

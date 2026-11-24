@@ -1,6 +1,40 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- Viewer: a skip link, labelled navigation, and focus that moves to the view when you switch views. Below 760px the navigation is a drawer behind a Menu button; the sidebar is wider (240px).
+- Viewer: + New offers Dark and Mobile as checkboxes and other modes in a field, with Name, Pages and Modes under More options. Creating an atlas under a name that already exists asks before replacing it.
+- Viewer: error states with Retry, a loading state when you switch atlases, and "No matches" with Clear search.
+- The command line says when it replaces an existing atlas; the previous version stays in its history.
+- Atlases now carry a format number. Atlases made by older versions still open as before.
+- When a page, stylesheet or screenshot can't be read, the atlas notes it, so you can see the atlas is partial.
+- Clear error messages for wrong options in the viewer and on the command line, naming the option, what it expects and an example.
+- `npm run release` makes a release in one step: it waits for green CI, then moves this changelog section, bumps the version, runs every check, tags, packages the source with `SHA256SUMS` and publishes the release.
+
+### Changed
+- Viewer: dialogs keep Tab inside, can't be closed while a job runs, and reopening + New shows the running job with what you typed; busy buttons show a spinner and the seconds waited, and errors say what happened and how to fix it.
+- Viewer: the atlas picker fits its names, spacing bars line up, the map view is called "Map" everywhere, and tables say "Font size" and "Dimensions" instead of "Size".
+- The token sheet titles the variables section the same way the viewer does (for example "CSS variables" for websites).
+- The list of export formats, the upload file types and the request header are defined in one place shared by the viewer, the server and the command line.
+- Viewer: dialogs are 680px wide with a thin edge, 16px padding and a larger title, placed near the top and scrolling inside (screen details stay wide for the screenshot).
+- Viewer: the loading spinner appears only after 300 ms and then stays at least 400 ms, so a fast load doesn't flash it; loading and error messages are announced by screen readers without being repeated.
+- Viewer: Export and busy buttons stay focusable when unavailable and say why, instead of being switched off; the page declares its light colour scheme, so native controls match.
+- An atlas made by a newer UI Atlas is refused with a clear message instead of being half-read.
+- Viewer: taps on buttons and links act at once on touch screens (no double-tap zoom delay).
+- Viewer: the HEX/RGB toggle, the measurement-pass switch and the New dialog's source picker are real segmented controls: one tab stop, arrow keys move and select, Home and End jump to the ends.
+- Viewer: the atlas picker is drawn like a field, with a drawn chevron; the search field is 34px high like the other top-bar controls; fields keep room for their focus ring, so focusing one moves nothing.
+
+### Fixed
+- Starting an atlas under a name already in use no longer silently deletes the existing atlas and its screenshots.
+- `atlas.json` is written in one step, so an interrupted run or a reader at the wrong moment never sees a half-written file. The same goes for history snapshots, mode passes, compare reports and the JSON export.
+- A malformed web address no longer crashes the viewer server, and a job whose program can't start fails with a message instead of stopping it.
+- The server no longer serves files from a folder next to `data/` whose name starts the same way (such as `data-old`).
+- Atlas names made only of dots are refused instead of writing outside `data/`.
+- A screenshot that could not be taken is no longer listed in the atlas.
+- A job checked a different folder than the command line writes for a very long name (the job cut names at 80 characters); there is one folder-name rule now.
+- A robots.txt line starting with "constructor:" is no longer read as a rule.
+- Kept JSON files are read back and checked before they replace the old file.
+- Every function is within the size limits (80 lines, complexity 10); the size baseline is empty, so any new violation fails the lint.
 
 ## [0.8.1] - 2026-11-19
 ### Changed

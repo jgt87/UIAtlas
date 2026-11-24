@@ -1,0 +1,39 @@
+{
+  "template_name": "Fictive Corporate",
+  "source_file": "Fictive Corporate.potx",
+  "preview_mode": "rendered",
+  "extraction_notes": ["Rendered with LibreOffice."],
+  "slide_geometry": { "width_in": 13.333, "height_in": 7.5 },
+  "grid": { "slide_width_in": 13.333, "margin_left_in": 0.5, "margin_top_in": 1.25, "columns": 12, "gutter_in": null },
+  "fonts": { "heading": "Fictive Display", "body": "Fictive Text" },
+  "colors": [
+    { "hex": "111111", "theme_slot": "dk1", "role": "text", "usage": { "text": 12 } },
+    { "hex": "#FFFFFF", "theme_slot": "lt1", "role": "background", "usage": { "background": 9, "bg": 1 } },
+    { "hex": "2E6BFF", "theme_slot": "accent1", "role": "primary", "usage": { "fill": 4, "line": 2, "accent": 1, "glow": 3 } },
+    { "hex": "2e6bff", "theme_slot": "hlink", "role": "hyperlink" },
+    { "hex": "EEF0F3", "theme_slot": "lt2" },
+    { "hex": null, "theme_slot": "dk2" }
+  ],
+  "assets": [
+    { "asset_id": "logo", "type": "logo", "source_format": "svg", "owning_layout": "all", "position": { "x_in": 12, "y_in": 6.8 }, "size": { "width_in": 1, "height_in": 0.5 } },
+    { "asset_id": "band", "type": "decorative_shape", "owning_layouts": ["Section Header"], "position": { "x_in": 0, "y_in": 0 }, "size": { "width_in": 13.333, "height_in": 0.25 } },
+    { "asset_id": "photo", "type": "pic", "position": { "x_in": 7, "y_in": 1 }, "size": { "width_in": 5, "height_in": 4 } }
+  ],
+  "layouts": [
+    {
+      "name": "Title Slide", "purpose": "Title Slide", "background": { "type": "solid", "hex": "FFFFFF" },
+      "placeholders": [
+        { "type": "ctrTitle", "position": { "x_in": 1, "y_in": 2 }, "size": { "width_in": 11, "height_in": 1.5 }, "format_levels": { "1": { "font": "Fictive Display", "size_pt": 40, "bold": true, "color": "111111", "align": "left" } } },
+        { "type": "subTitle", "position": { "x_in": 1, "y_in": 4 }, "size": { "width_in": 11, "height_in": 1 }, "format_levels": { "1": { "font": "Fictive Text", "size_pt": 14, "color": "2E6BFF" }, "2": { "font": "Fictive Text", "size_pt": 12 } } },
+        { "type": "dt", "position": { "x_in": 1, "y_in": 7 }, "size": { "width_in": 2, "height_in": 0.3 } }
+      ],
+      "static_texts": [{ "text": "Confidential draft wording", "position": { "x_in": 10, "y_in": 7 }, "size": { "width_in": 2, "height_in": 0.3 }, "format": { "font": "Fictive Text", "size_pt": 8, "color": "#111111", "align": "right" } }],
+      "static_assets": ["photo", "missing-asset"]
+    },
+    {
+      "name": "Section Header", "background": { "type": "gradient", "stops": [{ "hex": "2E6BFF" }, { "hex": "111111" }] },
+      "placeholders": [{ "type": "title", "position": { "x_in": 1, "y_in": 3 }, "size": { "width_in": 11, "height_in": 1 }, "format_levels": { "1": { "font": "Fictive Display", "size_pt": 32, "bold": true, "color": "FFFFFF" } } }]
+    },
+    { "name": "Blank!!" }
+  ]
+}

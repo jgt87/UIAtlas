@@ -98,7 +98,9 @@ test('token sheet: component samples, contrast, modes and font faces each get th
   assert.match(html, /<td>—<\/td><td class="">Not measurable/);
   assert.match(html, /Colour palette — dark <span>1<\/span>/);
   assert.match(html, /@font-face \{ font-family: 'Fictive Sans'; src: url\("https:\/\/cdn.fictive.test\/f.woff2"\); font-weight: 400; font-style: normal; unicode-range: U\+0000-00FF; \}/);
-  assert.match(html, /<h2>Variables <span>2<\/span><\/h2>/);
+  assert.match(html, /<h2>CSS variables <span>2<\/span><\/h2>/, 'titled as the viewer titles a website\'s variables (viewer/js/kinds.js)');
+  assert.match(sheetHtml({ ...rich, project: { ...rich.project, kind: 'pdf' } }), /<h2>Variables <span>2<\/span><\/h2>/);
+  assert.match(sheetHtml({ ...rich, project: { ...rich.project, kind: 'unknown-kind' } }), /<h2>Variables <span>2<\/span><\/h2>/, 'an unknown kind falls back to Variables');
   assert.ok(!sheetHtml(rich, { webFonts: false }).includes('@font-face'));
 });
 

@@ -25,6 +25,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      # data/ is captured third-party design data and is never committed (.gitignore); fail if any of it is tracked.
+      - name: Nothing under data/ is tracked
+        shell: bash
+        run: |
+          tracked="$(git ls-files -- data/)"
+          if [ -n "$tracked" ]; then echo "::error::data/ holds captured third-party design data and must not be committed:"; echo "$tracked"; exit 1; fi
       - run: npm ci
       - run: npm run lint
       - run: npm test

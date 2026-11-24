@@ -144,11 +144,17 @@ async function settle(page, { waitFor, htmlAttrs, waitMs }) {
   if (htmlAttrs) await page.evaluate(a => { for (const [k, v] of Object.entries(a)) document.documentElement.setAttribute(k, v); }, htmlAttrs).catch(() => {});
   await page.waitForTimeout(waitMs);
 }
-// @font-face rules of the loaded stylesheets (an unreadable one is skipped) and of inline <style>
+// A problem that only costs part of the output: logged now and kept as an atlas note, so the atlas says it is partial.
+const partial = (notes, text) => { const n = `Partial output: ${text}`; console.log(`  ${n}`); notes?.push(n); };
+// what a note calls a page: its path (a local file by its name only, never its full local path)
+const noteLabel = url => { try { const u = new URL(url); return u.protocol === 'file:' ? path.posix.basename(u.pathname) : u.pathname + u.search; } catch { return 'a page'; } };
+
+// @font-face rules of the loaded stylesheets and of inline <style>; unread counts the stylesheets that couldn't be read
 async function pageFontFaces(page, sheets, url) {
-  const linked = (await Promise.all(sheets.map(r => r.text().then(t => ({ t, base: r.url() })).catch(() => null)))).filter(Boolean);
+  const read = await Promise.all(sheets.map(r => r.text().then(t => ({ t, base: r.url() })).catch(() => null)));
+  const linked = read.filter(Boolean);
   const inline = { t: await page.evaluate(() => [...document.querySelectorAll('style')].map(s => s.textContent).join('\n')).catch(() => ''), base: url };
-  return [...linked, inline].flatMap(c => parseFontFaces(c.t, c.base));
+  return { faces: [...linked, inline].flatMap(c => parseFontFaces(c.t, c.base)), unread: read.length - linked.length };
 }
 const hasArea = box => box && box.width > 1 && box.height > 1;
 // a story root can be 0-high when the component renders in a portal; fall back to the viewport then.
@@ -167,14 +173,17 @@ async function shootDrawing(page, file, box, viewport) {
   await page.setViewportSize({ width: Math.ceil(box.width), height: Math.ceil(box.height) }); await page.screenshot({ path: file });
   if (viewport) await page.setViewportSize(viewport);
 }
-// only when opted in; if the shot fails, the visible viewport; if that fails too, the screen just has no screenshot
+// only when opted in; if the shot fails, the visible viewport; if that fails too, the screen just has no screenshot.
+// Returns 'full', 'viewport' or 'none' (null when no screenshot was asked for).
 async function shoot(page, file, { svgDoc, box, boxed, clip }, { rootSel, viewport, screenshots }) {
-  if (!screenshots) return;
+  if (!screenshots) return null;
   try {
     if (svgDoc && boxed) await shootDrawing(page, file, box, viewport);
     else if (clip) await page.screenshot({ path: file, fullPage: true, clip }); else await page.screenshot({ path: file, fullPage: !rootSel });
-  } catch { await page.screenshot({ path: file }).catch(() => {}); }
+    return 'full';
+  } catch { return page.screenshot({ path: file }).then(() => 'viewport', () => 'none'); }
 }
+const SHOT_NOTE = { viewport: what => `the screenshot of ${what} shows only the visible part (the full shot failed).`, none: what => `${what} has no screenshot (it could not be taken).` };
 // the screen's size: the clip, the root's or drawing's box, else the document's scroll size
 async function screenDims(page, { clip, box, boxed }, viewport) {
   if (clip) return { w: clip.width, h: clip.height };
@@ -189,20 +198,37 @@ const relativeTo = (elements, clip) => { if (clip) for (const e of elements) { e
 // screenshot (full page, or just rootSel's box) only when screenshots are opted into.
 // htmlAttrs: attributes set on <html> in our own browser before measuring (how many sites switch theme, e.g.
 // data-bs-theme=dark); only ever for an explicitly requested mode, never on the site itself.
-export async function capturePage(page, url, shotsDir, { waitMs = 1200, rootSel = null, waitFor = null, viewport, screenshots = false, htmlAttrs = null } = {}) {
+// notes: an array that collects what went wrong on the way (see partial()); label: what those notes call the page.
+// An option passed as undefined keeps its default, as with destructuring defaults.
+const CAPTURE_DEFAULTS = { waitMs: 1200, rootSel: null, waitFor: null, viewport: undefined, screenshots: false, htmlAttrs: null, notes: null, label: null };
+const captureOptions = options => ({ ...CAPTURE_DEFAULTS, ...Object.fromEntries(Object.entries(options).filter(([, v]) => v !== undefined)) });
+export async function capturePage(page, url, shotsDir, options = {}) {
+  const o = captureOptions(options), what = o.label || noteLabel(url);
+  const got = await loadAndCollect(page, url, { ...o, what }); if (!got) return null;
+  const { data, sheets } = got, { faces: fontFaces, unread } = await pageFontFaces(page, sheets, url);
+  if (unread) partial(o.notes, `${unread} stylesheet(s) of ${what} could not be read, so web fonts declared there are missing.`);
+  const id = sha8(url), { frame, shot } = await screenshot(page, path.join(shotsDir, `${id}.png`), o, what);
+  const dims = await screenDims(page, frame, o.viewport);
+  relativeTo(data.elements, frame.clip);
+  return { tokens: data.tokens, contrast: data.contrast, fontFaces, links: data.links, screen: { id, url, title: screenTitle(url), screenshot: shot === 'full' || shot === 'viewport' ? `screens/${id}.png` : null, width: dims.w, height: dims.h, inventory: data.inventory, elements: data.elements } };
+}
+// Load and measure; null (with a note) when the page doesn't load or can't be measured — it is left out, not fatal.
+async function loadAndCollect(page, url, { rootSel, waitFor, htmlAttrs, waitMs, notes, what }) {
   const sheets = [], onSheet = r => { if (r.request().resourceType() === 'stylesheet') sheets.push(r); };
   page.on('response', onSheet);
-  if (!await load(page, url)) { page.off('response', onSheet); return null; }
-  await settle(page, { waitFor, htmlAttrs, waitMs });
+  const loaded = await load(page, url);
+  if (loaded) await settle(page, { waitFor, htmlAttrs, waitMs });
   page.off('response', onSheet);
-  let data; try { data = await page.evaluate(collect, rootSel); } catch { return null; } // a page that can't be measured is skipped
-  const fontFaces = await pageFontFaces(page, sheets, url);
-  const id = sha8(url), file = path.join(shotsDir, `${id}.png`);
+  if (!loaded) { partial(notes, `${what} could not be loaded and is left out.`); return null; }
+  try { return { data: await page.evaluate(collect, rootSel), sheets }; }
+  catch { partial(notes, `${what} could not be measured and is left out.`); return null; }
+}
+// the frame the screen is measured in, and the screenshot (when opted in), with a note when it is partial or missing
+async function screenshot(page, file, { rootSel, viewport, screenshots, notes }, what) {
   const frame = await shotFrame(page, rootSel);
-  await shoot(page, file, frame, { rootSel, viewport, screenshots });
-  const dims = await screenDims(page, frame, viewport);
-  relativeTo(data.elements, frame.clip);
-  return { tokens: data.tokens, contrast: data.contrast, fontFaces, links: data.links, screen: { id, url, title: screenTitle(url), screenshot: screenshots ? `screens/${id}.png` : null, width: dims.w, height: dims.h, inventory: data.inventory, elements: data.elements } };
+  const shot = await shoot(page, file, frame, { rootSel, viewport, screenshots });
+  if (SHOT_NOTE[shot]) partial(notes, SHOT_NOTE[shot](what));
+  return { frame, shot };
 }
 
 // A fresh context = signed out. When crawling the web the browser's own user agent gets a UI Atlas suffix, so site
@@ -236,15 +262,18 @@ async function crawlPages(page, crawl, { web, gate, shotsDir, scope, maxPages, c
   while (crawl.queue.length && crawl.screens.length < maxPages) {
     const url = normalizeUrl(crawl.queue.shift()); if (crawl.seen.has(url)) continue; crawl.seen.add(url);
     if (web && !await politeAllow(gate, url)) continue;
-    const got = await capturePage(page, url, shotsDir, capture); if (!got) continue;
+    // a page that fails is left out with a note (capturePage); local files are named relative to the start folder
+    const label = scope ? decodeURIComponent(url.slice(scope.length)) : null;
+    const got = await capturePage(page, url, shotsDir, { ...capture, notes: crawl.notes, label }); if (!got) continue;
     addScreen(crawl, got, url, { scope, maxPages });
     if (crawl.screens.length < maxPages) enqueue(crawl, got.links, scope);
   }
 }
 // flow: which captured pages link to which (links to pages outside the crawl are left out)
 const flowEdges = (linksOf, idOf) => [...linksOf].flatMap(([from, ls]) => [...new Set(ls.map(l => idOf.get(l)).filter(to => to && to !== from))].map(to => ({ from, to })));
-const siteAtlas = ({ screens, tokenAcc, linksOf, idOf }, { startUrl, name, kind, source, viewport, web, gate }) => ({
-  project: { name: name || new URL(startUrl).hostname, kind, source: source || startUrl, viewport, ...(web ? { notes: gate.notes() } : {}) },
+const siteNotes = (crawl, web, gate) => { const n = [...crawl.notes, ...(web ? gate.notes() : [])]; return web || n.length ? { notes: n } : {}; };
+const siteAtlas = ({ screens, tokenAcc, linksOf, idOf, ...crawl }, { startUrl, name, kind, source, viewport, web, gate }) => ({
+  project: { name: name || new URL(startUrl).hostname, kind, source: source || startUrl, viewport, ...siteNotes(crawl, web, gate) },
   flow: screens.length > 1 ? { start: screens[0].id, edges: flowEdges(linksOf, idOf) } : undefined, tokens: finalizeTokens(tokenAcc), contrast: finalizeContrast(tokenAcc), fontFaces: finalizeFontFaces(tokenAcc, finalizeTokens(tokenAcc)), screens });
 
 // Crawl from startUrl (http(s) or file://). For file URLs only files under `scope` (the start folder's URL) are followed.
@@ -256,7 +285,7 @@ export async function extractSite({ startUrl, maxPages = 1, outDir, viewport = {
   const shotsDir = prepareOut(outDir, { screenshots });
   const browser = await launchBrowser();
   const page = await newMeasuringPage(browser, viewport, { colorScheme, identify: web });
-  const queue = [normalizeUrl(startUrl)], crawl = { queue, queued: new Set(queue), seen: new Set(), screens: [], tokenAcc: {}, linksOf: new Map(), idOf: new Map() };
+  const queue = [normalizeUrl(startUrl)], crawl = { queue, queued: new Set(queue), seen: new Set(), screens: [], tokenAcc: {}, linksOf: new Map(), idOf: new Map(), notes: [] };
   try { await crawlPages(page, crawl, { web, gate, shotsDir, scope, maxPages, capture: { waitMs, viewport, screenshots, htmlAttrs } }); } finally { await browser.close(); }
   return writeAtlas(outDir, siteAtlas(crawl, { startUrl, name, kind, source, viewport, web, gate }), { screenshots });
 }

@@ -1,7 +1,7 @@
 // Local HTML/SVG via the web extractor (file:// crawl limited to the start folder) and Storybook (fake static build).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, realpathSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -12,6 +12,22 @@ import { assertNoContent } from './helpers/no-content.mjs';
 
 const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'atlas-test-'));
 const values = list => list.map(x => x.value);
+// the folder as given and as the OS resolves it (Windows may hand out 8.3 short names), in both slash styles
+const assertNoLocalPath = (atlas, dir) => {
+  const json = JSON.stringify(atlas);
+  for (const form of new Set([dir, realpathSync.native(dir)].flatMap(d => [d, d.replace(/\\/g, '/'), d.replace(/\\/g, '\\\\')]))) assert.ok(!json.includes(form), `no absolute local path in the atlas (${form})`);
+};
+
+test('local HTML: a linked page that fails to load is left out with a note, so the atlas says it is partial', async () => {
+  const dir = tmp(), site = path.join(dir, 'site'), out = path.join(dir, 'out');
+  mkdirSync(site); mkdirSync(out);
+  writeFileSync(path.join(site, 'index.html'), '<style>body{color:#123456}</style><a href="missing.html">Gone</a>');
+  const atlas = await extractSite({ startUrl: pathToFileURL(path.join(site, 'index.html')).href, scope: pathToFileURL(site + path.sep).href, maxPages: 5, outDir: out, name: 'site', kind: 'file', source: 'site' });
+  assert.deepEqual(atlas.screens.map(s => s.url), ['index.html']);
+  assert.deepEqual(atlas.project.notes, ['Partial output: missing.html could not be loaded and is left out.']);
+  assert.deepEqual(JSON.parse(readFileSync(path.join(out, 'atlas.json'), 'utf8')).project.notes, atlas.project.notes, 'kept in atlas.json');
+  assertNoLocalPath(atlas, dir);
+});
 
 test('local HTML folder: crawls linked pages inside the folder only, records relative urls', async () => {
   const dir = tmp(), site = path.join(dir, 'site'), out = path.join(dir, 'out');
@@ -24,7 +40,7 @@ test('local HTML folder: crawls linked pages inside the folder only, records rel
   const atlas = await extractSite({ startUrl: pathToFileURL(path.join(site, 'index.html')).href, scope: pathToFileURL(site + path.sep).href, maxPages: 10, outDir: out, name: 'site', kind: 'file', source: 'site' });
   assert.deepEqual(atlas.screens.map(s => s.url).sort(), ['about.html', 'index.html']);
   assert.equal(atlas.project.kind, 'file');
-  assert.ok(!JSON.stringify(atlas).includes(dir.replace(/\\/g, '/')) && !JSON.stringify(atlas).includes(dir), 'no absolute local paths in the atlas');
+  assertNoLocalPath(atlas, dir);
   for (const c of ['#123456', '#654321', '#c0ffee']) assert.ok(values(atlas.tokens.colors).includes(c), c);
   assert.ok(values(atlas.tokens.fonts).includes('Georgia'));
   for (const r of ['6px', '50%', '8px 8px 0px 0px']) assert.ok(values(atlas.tokens.radii).includes(r), r); // all corners; % kept as %

@@ -7,9 +7,10 @@
 // threshold finds near-duplicates within the target: #e0e0e0/#e2e2e2 is ~0.5, #e0e0e0/#e8e8e8 ~1.8, #e0e0e0/#f0f0f0 ~3.5
 // (ΔE00 is less sensitive in light greys than CIE76). Pass `dupDeltaE` to tune that separately.
 // Dimensions are normalised to px (rem = 16px, pt = 4/3px, in = 96px); unparseable values (50%, shorthands) compare as strings.
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { colorValue, dimensionValue } from './tokens-json.mjs';
+import { readAtlasFile } from './atlas-file.mjs';
 
 const r2 = v => Math.round(v * 100) / 100;
 const cnt = x => Number(x.count) || 1;
@@ -165,6 +166,6 @@ export function formatReport(r, { top = 5 } = {}) {
 export function latestSnapshot(atlasDir) {
   let files; try { files = readdirSync(path.join(atlasDir, 'history')).filter(f => f.endsWith('.json')).sort().reverse(); } catch { return null; } // no history/ yet: no snapshot
   // Newest first and stops at the first that parses: older files are read only when a newer one is unreadable.
-  for (const f of files) { try { return JSON.parse(readFileSync(path.join(atlasDir, 'history', f), 'utf8')); } catch { /* unreadable: try older */ } }
+  for (const f of files) { try { return readAtlasFile(path.join(atlasDir, 'history', f)); } catch { /* unreadable or newer: try older */ } }
   return null;
 }

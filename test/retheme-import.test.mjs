@@ -2,58 +2,27 @@
 // formatting as tokens, assets as elements, inches -> preview pixels, contrast — and no source text.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, cpSync, readdirSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { writeZip } from './helpers/zip-writer.mjs';
 import { assertNoContent } from './helpers/no-content.mjs';
 import { importRetheme } from '../src/retheme-import.mjs';
 import { detectKind } from '../src/detect.mjs';
 
-// A PNG header is all the importer reads (IHDR width); 1920px over a 13.333in slide = 144 preview pixels per inch.
-const png = (w, h) => { const b = Buffer.alloc(33); b.write('\x89PNG\r\n\x1a\n', 0, 'latin1'); b.writeUInt32BE(13, 8); b.write('IHDR', 12, 'latin1'); b.writeUInt32BE(w, 16); b.writeUInt32BE(h, 20); return b; };
-const at = (x, y, w, h) => ({ position: { x_in: x, y_in: y }, size: { width_in: w, height_in: h } });
-
-const manifest = {
-  template_name: 'Fictive Corporate', source_file: 'Fictive Corporate.potx', preview_mode: 'rendered', extraction_notes: ['Rendered with LibreOffice.'],
-  slide_geometry: { width_in: 13.333, height_in: 7.5 },
-  grid: { slide_width_in: 13.333, margin_left_in: 0.5, margin_top_in: 1.25, columns: 12, gutter_in: null },
-  fonts: { heading: 'Fictive Display', body: 'Fictive Text' },
-  colors: [
-    { hex: '111111', theme_slot: 'dk1', role: 'text', usage: { text: 12 } },
-    { hex: '#FFFFFF', theme_slot: 'lt1', role: 'background', usage: { background: 9, bg: 1 } },
-    { hex: '2E6BFF', theme_slot: 'accent1', role: 'primary', usage: { fill: 4, line: 2, accent: 1, glow: 3 } },
-    { hex: '2e6bff', theme_slot: 'hlink', role: 'hyperlink' }, // shares a hex with accent1: labels join
-    { hex: 'EEF0F3', theme_slot: 'lt2' },
-    { hex: null, theme_slot: 'dk2' }, // no value: skipped
-  ],
-  assets: [
-    { asset_id: 'logo', type: 'logo', source_format: 'svg', owning_layout: 'all', ...at(12, 6.8, 1, 0.5) },
-    { asset_id: 'band', type: 'decorative_shape', owning_layouts: ['Section Header'], ...at(0, 0, 13.333, 0.25) },
-    { asset_id: 'photo', type: 'pic', ...at(7, 1, 5, 4) },
-  ],
-  layouts: [
-    { name: 'Title Slide', purpose: 'Title Slide', background: { type: 'solid', hex: 'FFFFFF' },
-      placeholders: [
-        { type: 'ctrTitle', ...at(1, 2, 11, 1.5), format_levels: { 1: { font: 'Fictive Display', size_pt: 40, bold: true, color: '111111', align: 'left' } } },
-        { type: 'subTitle', ...at(1, 4, 11, 1), format_levels: { 1: { font: 'Fictive Text', size_pt: 14, color: '2E6BFF' }, 2: { font: 'Fictive Text', size_pt: 12 } } },
-        { type: 'dt', ...at(1, 7, 2, 0.3) }, // no format levels
-      ],
-      static_texts: [{ text: 'Confidential draft wording', ...at(10, 7, 2, 0.3), format: { font: 'Fictive Text', size_pt: 8, color: '#111111', align: 'right' } }],
-      static_assets: ['photo', 'missing-asset'] },
-    { name: 'Section Header', background: { type: 'gradient', stops: [{ hex: '2E6BFF' }, { hex: '111111' }] },
-      placeholders: [{ type: 'title', ...at(1, 3, 11, 1), format_levels: { 1: { font: 'Fictive Display', size_pt: 32, bold: true, color: 'FFFFFF' } } }] },
-    { name: 'Blank!!' },
-  ],
-};
-
+// One committed package (invented values; see its README.md): template.json, previews/layout-<slug>.png as the
+// template tool names them, and an other/ folder the importer must ignore. Its previews are 1920px PNG headers
+// (all the importer reads): 1920px over a 13.333in slide = 144 preview pixels per inch.
+const FIXTURE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'retheme', 'fictive-corporate');
+const fixtureFile = rel => readFileSync(path.join(FIXTURE, rel));
+// a copy of the fixture, with or without its previews
 function writeFolder(dir, withPreviews) {
-  mkdirSync(path.join(dir, 'previews'), { recursive: true });
-  mkdirSync(path.join(dir, 'other'), { recursive: true });
-  writeFileSync(path.join(dir, 'template.json'), JSON.stringify(manifest));
-  writeFileSync(path.join(dir, 'other', 'ignored.txt'), 'not part of the package');
-  if (withPreviews) for (const n of ['title-slide', 'section-header']) writeFileSync(path.join(dir, 'previews', `layout-${n}.png`), png(1920, 1080));
+  cpSync(FIXTURE, dir, { recursive: true });
+  if (!withPreviews) rmSync(path.join(dir, 'previews'), { recursive: true, force: true });
 }
+// the fixture's package files (README and other/ left out, as a template tool would) for a zip, under one top folder
+const zipEntries = top => Object.fromEntries(['template.json', ...readdirSync(path.join(FIXTURE, 'previews')).map(f => `previews/${f}`)].map(rel => [`${top}/${rel}`, fixtureFile(rel)]));
 
 test('Retheme folder: tokens with slot labels and usage, elements from placeholders/texts/assets, contrast — and no text', async t => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'atlas-retheme-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -109,7 +78,7 @@ test('Retheme folder: tokens with slot labels and usage, elements from placehold
 test('Retheme zip nested in a top folder: previews set the pixel scale and are copied only with screenshots', async t => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'atlas-retheme-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
   const zip = path.join(dir, 'Fictive.zip'), out = path.join(dir, 'out'), out2 = path.join(dir, 'out2');
-  writeZip(zip, { 'Fictive/template.json': manifest, 'Fictive/previews/layout-title-slide.png': png(1920, 1080), 'Fictive/previews/layout-section-header.png': png(1920, 1080) });
+  writeZip(zip, zipEntries('Fictive'));
   assert.equal(detectKind(zip), 'retheme');
 
   const atlas = importRetheme({ source: zip, outDir: out });
@@ -121,7 +90,17 @@ test('Retheme zip nested in a top folder: previews set the pixel scale and are c
 
   const shot = importRetheme({ source: zip, outDir: out2, screenshots: true });
   assert.deepEqual(shot.screens.map(s => s.screenshot), ['screens/title-slide.png', 'screens/section-header.png', null]);
-  assert.deepEqual(readFileSync(path.join(out2, 'screens', 'title-slide.png')), png(1920, 1080));
+  assert.deepEqual(readFileSync(path.join(out2, 'screens', 'title-slide.png')), fixtureFile('previews/layout-title-slide.png'));
+});
+
+test('Retheme: the committed fixture folder itself imports, previews found by the template tool\'s slug', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'atlas-retheme-'));
+  try {
+    const atlas = importRetheme({ source: FIXTURE, outDir: path.join(dir, 'out') });
+    assert.equal(atlas.project.units.ppi, 144, 'every layout with a preview file was matched by its slug');
+    assert.deepEqual(atlas.screens.map(s => s.id), ['title-slide', 'section-header', 'blank']);
+    assertNoContent(atlas, path.join(dir, 'out'), ['Confidential draft wording', 'not part of the package', 'Invented values']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('Retheme: a folder or zip without template.json is refused', async t => {

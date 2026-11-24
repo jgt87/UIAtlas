@@ -1,4 +1,5 @@
 // Commit-message check: agent trailers are refused; ordinary messages and human co-authors pass.
+// check_project: assistant names allowed (the cases spell the trailers the guard must refuse)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';

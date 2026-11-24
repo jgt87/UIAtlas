@@ -42,15 +42,19 @@ async function analyse(url) {
   ctx.imageSmoothingEnabled = false; ctx.drawImage(img, 0, 0, w, h);
   const d = ctx.getImageData(0, 0, w, h).data, counts = new Map(), T = 2; // T = per-channel tolerance (JPEG noise)
   let opaque = 0, flat = 0;
+  // the helpers stay nested: this function is sent to the page on its own
   const like = (i, j) => d[j + 3] > 0 && Math.abs(d[i] - d[j]) <= T && Math.abs(d[i + 1] - d[j + 1]) <= T && Math.abs(d[i + 2] - d[j + 2]) <= T;
+  const inside = (X, Y) => X >= 0 && Y >= 0 && X < w && Y < h;
+  const flatAt = (x, y, i) => { // all 8 neighbours alike; at the image borders only the neighbours that exist
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if ((dx || dy) && inside(x + dx, y + dy) && !like(i, ((y + dy) * w + x + dx) * 4)) return false;
+    }
+    return true;
+  };
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const i = (y * w + x) * 4; if (d[i + 3] === 0) continue; // fully transparent pixels don't count
     opaque++;
-    let ok = true; // image borders: only the neighbours that exist
-    for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1 && ok; dx++) {
-      const X = x + dx, Y = y + dy; if ((dx || dy) && X >= 0 && Y >= 0 && X < w && Y < h) ok = like(i, (Y * w + X) * 4);
-    }
-    if (!ok) continue;
+    if (!flatAt(x, y, i)) continue;
     flat++; const n = d[i] << 16 | d[i + 1] << 8 | d[i + 2]; counts.set(n, (counts.get(n) || 0) + 1);
   }
   const scale = (W * H) / (w * h); // sampled pixel -> real pixel count
@@ -62,42 +66,65 @@ async function analyse(url) {
 const palette = (r, name) => cluster(r.colors.map(c => ({ ...c, lab: lab(c.rgb), names: [name] })))
   .filter(c => c.top >= c.n * 0.3 && c.n >= r.flat * MIN_SHARE).slice(0, PER_IMAGE);
 
-export async function importImages({ source, outDir, screenshots = false }) {
-  const isDir = statSync(source).isDirectory();
+// The image files of a folder (sorted by name), or the one file given.
+function imageFiles(source, isDir) {
   const files = isDir
     ? readdirSync(source).filter(f => isImage(f) && statSync(path.join(source, f)).isFile()).sort((a, b) => a.localeCompare(b)).map(f => path.join(source, f))
     : [source];
   if (!files.length || !files.every(isImage)) throw new Error(`No supported images (${Object.keys(TYPES).join(' ')}) in ${source}`);
-  const shots = prepareOut(outDir, { screenshots }), tally = tokenTally(), screens = [], ids = new Set(), all = [], notes = [];
+  return files;
+}
+
+// The files are served to the page under ORIGIN by base name, so no server and no network are involved.
+const serveFiles = (page, files) => page.route(`${ORIGIN}**`, route => {
+  const name = decodeURIComponent(new URL(route.request().url()).pathname.slice(1));
+  const f = files.find(x => path.basename(x) === name);
+  return f ? route.fulfill({ body: readFileSync(f), contentType: TYPES[path.extname(f).toLowerCase()] }) : route.fulfill({ body: '<!doctype html>', contentType: 'text/html' });
+});
+
+const uniqueId = (ids, base) => { let id = base; for (let i = 2; ids.has(id); i++) id = `${base}-${i}`; ids.add(id); return id; };
+
+// One analysed image -> its screen (and its palette clusters into run.all, a photo note into run.notes).
+function imageScreen(run, file, id, r) {
+  const name = path.basename(file), ext = path.extname(name).toLowerCase();
+  const pal = palette(r, name), flatShare = r.flat / (r.opaque || 1);
+  run.all.push(...pal);
+  const purpose = flatShare < PHOTO_FLAT ? `photo-heavy: only ${pct(flatShare)} flat pixels; palette from flat regions only` : null;
+  if (purpose) run.notes.push(`${name}: ${purpose}`);
+  if (run.screenshots) copyFileSync(file, path.join(run.shots, id + ext)); // the image itself is content: only kept when opted in
+  run.screens.push({ id, url: name, title: name, purpose, screenshot: run.screenshots ? `screens/${id}${ext}` : null, width: r.width, height: r.height, inventory: {}, elements: [],
+    flatShare: +flatShare.toFixed(3), palette: pal.slice(0, 6).map(c => ({ value: hex(c.rgb), share: +(c.n / (r.flat || 1)).toFixed(4) })) });
+  console.log(`  [${run.screens.length}/${run.files.length}] ${name}  (${r.width}x${r.height}, ${pct(flatShare)} flat, ${pal.length} colours)`);
+}
+
+async function analyseAll(run) {
   const browser = await launchBrowser(), page = await browser.newPage();
   try {
-    await page.route(`${ORIGIN}**`, route => {
-      const name = decodeURIComponent(new URL(route.request().url()).pathname.slice(1));
-      const f = files.find(x => path.basename(x) === name);
-      return f ? route.fulfill({ body: readFileSync(f), contentType: TYPES[path.extname(f).toLowerCase()] }) : route.fulfill({ body: '<!doctype html>', contentType: 'text/html' });
-    });
+    await serveFiles(page, run.files);
     await page.goto(ORIGIN);
-    for (const file of files) {
-      const name = path.basename(file), ext = path.extname(name).toLowerCase(), base = slug(path.basename(name, path.extname(name)));
-      let id = base; for (let i = 2; ids.has(id); i++) id = `${base}-${i}`; ids.add(id);
+    for (const file of run.files) {
+      const name = path.basename(file), id = uniqueId(run.ids, slug(path.basename(name, path.extname(name)))); // reserved even when skipped
       let r;
       try { r = await page.evaluate(analyse, ORIGIN + encodeURIComponent(name)); } catch (e) { console.warn(`  skipped ${name}: ${e.message.split('\n')[0]}`); continue; }
-      const pal = palette(r, name), flatShare = r.flat / (r.opaque || 1);
-      all.push(...pal);
-      const purpose = flatShare < PHOTO_FLAT ? `photo-heavy: only ${pct(flatShare)} flat pixels; palette from flat regions only` : null;
-      if (purpose) notes.push(`${name}: ${purpose}`);
-      if (screenshots) copyFileSync(file, path.join(shots, id + ext)); // the image itself is content: only kept when opted in
-      screens.push({ id, url: name, title: name, purpose, screenshot: screenshots ? `screens/${id}${ext}` : null, width: r.width, height: r.height, inventory: {}, elements: [],
-        flatShare: +flatShare.toFixed(3), palette: pal.slice(0, 6).map(c => ({ value: hex(c.rgb), share: +(c.n / (r.flat || 1)).toFixed(4) })) });
-      console.log(`  [${screens.length}/${files.length}] ${name}  (${r.width}x${r.height}, ${pct(flatShare)} flat, ${pal.length} colours)`);
+      imageScreen(run, file, id, r);
     }
   } finally { await page.close().catch(() => {}); await browser.close(); } // closing the page first avoids a ~6 s Edge shutdown stall
-  // Aggregate across images by pixel count; shares are of all counted (palette) pixels in the atlas.
-  const merged = cluster(all), counted = merged.reduce((a, c) => a + c.n, 0) || 1;
+}
+
+// Aggregate across images by pixel count; shares are of all counted (palette) pixels in the atlas.
+function observedTokens(all) {
+  const tally = tokenTally(), merged = cluster(all), counted = merged.reduce((a, c) => a + c.n, 0) || 1;
   for (const c of merged) tally.add('colors', hex(c.rgb), Math.round(c.n), 'observed'); // no file names in labels: they travel into exports
   const tokens = tally.finalize();
   tokens.colors = tokens.colors.map(c => ({ ...c, share: +(c.count / counted).toFixed(4) }));
-  const first = screens[0] || { width: 0, height: 0 };
+  return tokens;
+}
+
+export async function importImages({ source, outDir, screenshots = false }) {
+  const isDir = statSync(source).isDirectory(), files = imageFiles(source, isDir);
+  const run = { files, screenshots, shots: prepareOut(outDir, { screenshots }), screens: [], ids: new Set(), all: [], notes: [] };
+  await analyseAll(run);
+  const tokens = observedTokens(run.all), first = run.screens[0] || { width: 0, height: 0 };
   return writeAtlas(outDir, { project: { name: isDir ? path.basename(path.resolve(source)) : path.basename(source, path.extname(source)), kind: 'image', source: path.basename(path.resolve(source)),
-    viewport: { width: first.width, height: first.height }, notes }, tokens, screens }, { screenshots });
+    viewport: { width: first.width, height: first.height }, notes: run.notes }, tokens, screens: run.screens }, { screenshots });
 }

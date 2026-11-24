@@ -1,31 +1,62 @@
-// "Export": run an export of the current atlas on the server and offer the files as downloads.
-import { h, closeIcon } from './dom.js';
+// "Export": run an export of the current atlas on the server and offer the files as downloads. While an export runs,
+// reopening the dialog shows that export instead of a new form. The dialog is built once and kept, so its status line
+// and error banner (live regions) stay mounted: opening it for an atlas only resets their text and the form.
+import { h } from './dom.js';
+import { EXPORT_FORMATS } from './shared.js';
+import { modal, busyButton, errorBanner, statusLine } from './dialog.js';
+import { runJob, describe, waited, Problem, clean } from './job-model.js';
+import { pause, postJson, pollJob } from './requests.js';
 
-const FORMATS = [['pdf', 'PDF token sheet', 'printable A4'], ['json', 'JSON', 'W3C design tokens'], ['css', 'CSS', 'custom properties'], ['html', 'HTML + CSS', 'token page with its stylesheet']];
-let dialog;
+export const EXPORT_DIALOG = 'export-dialog'; // the id the Export button's aria-controls names
+let ui = null;
+
+const downloads = files => [
+  ...files.map(f => h('a', { class: 'download', href: `${f}?download`, download: '' }, h('span', { 'aria-hidden': 'true' }, '↓'), f.split('/').pop())),
+  ...files.filter(f => f.endsWith('.html')).map(f => h('a', { class: 'download open', href: f, target: '_blank', rel: 'noopener' }, h('span', { 'aria-hidden': 'true' }, '↗'), 'Open the HTML page'))];
+
+const setBusy = (self, on) => { self.st.busy = on; self.go.setBusy(on); self.m.lock(on); if (!on) self.status.stop(); };
+
+async function submit(self) {
+  if (self.st.busy) return;
+  const formats = self.boxes.filter(b => b.box.checked).map(b => b.k);
+  if (!formats.length) return self.error.show({ what: 'No format chosen.', fix: 'Tick at least one format above.' });
+  self.error.show(null); self.files.replaceChildren(); setBusy(self, true);
+  self.status.set('Exporting…', true);
+  try {
+    const { job } = await runJob({ send: () => postJson('/api/jobs', { type: 'export', atlas: self.atlasName, formats }), poll: pollJob, sleep: () => pause(700) });
+    if (job?.status !== 'done') throw new Problem(clean(job?.error) || 'The export failed.', 'Try again; if it fails again, run `atlas export` in a terminal to see the full message.');
+    self.status.set('Ready.');
+    self.files.replaceChildren(...downloads(job.files));
+  } catch (err) { self.status.set(''); self.error.show(describe(err, 'Try again.')); }
+  finally { setBusy(self, false); }
+}
+
+function build() {
+  const st = { busy: false };
+  const m = modal({ id: EXPORT_DIALOG, cls: 'screen-modal new-item', titleId: 'export-title', descId: 'export-desc', isBusy: () => st.busy });
+  const boxes = EXPORT_FORMATS.map(([k, label, hint]) => { const box = h('input', { type: 'checkbox', value: k });
+    return { k, box, row: h('label', { class: 'check format' }, box, h('span', {}, h('b', {}, label), h('small', {}, ` ${hint}`))) }; });
+  const self = { st, m, atlasName: '', nameEl: h('b'), boxes, go: busyButton('Export', 'Exporting…'), error: errorBanner(), status: statusLine(waited), files: h('div', { class: 'downloads' }) };
+  const form = h('form', { class: 'modal-body new-form', onsubmit: e => { e.preventDefault(); submit(self); } },
+    h('p', { class: 'modal-desc', id: 'export-desc' }, 'Atlas ', self.nameEl, '. Exports hold design tokens only: no source name, screenshots or text.'),
+    h('fieldset', { class: 'fieldset formats' }, h('legend', {}, 'Formats'), boxes.map(b => b.row)),
+    self.error, h('div', { class: 'form-actions' }, self.status, self.go), self.files);
+  m.dialog.append(h('div', { class: 'modal-panel' }, m.head(h('h2', { id: 'export-title' }, 'Export design tokens')), form));
+  return self;
+}
+
+// A fresh form for this atlas: every format ticked, no message, no earlier downloads.
+function reset(self, atlasName) {
+  self.atlasName = atlasName; self.nameEl.textContent = atlasName;
+  for (const b of self.boxes) b.box.checked = true;
+  self.error.show(null); self.status.set(''); self.files.replaceChildren();
+}
+
+// Built at start-up, closed, so the dialog the Export button's aria-controls names always exists.
+export const mountExport = () => { ui ||= build(); };
 
 export function openExport(atlasName) {
-  dialog ||= document.body.appendChild(h('dialog', { class: 'screen-modal new-item', 'aria-labelledby': 'export-title' }));
-  let busy = false;
-  dialog.onclick = e => { if (e.target === dialog && !busy) dialog.close(); };
-  const boxes = FORMATS.map(([k, label, hint]) => { const box = h('input', { type: 'checkbox', value: k, checked: '' });
-    return { k, box, row: h('label', { class: 'check format' }, box, h('span', {}, h('b', {}, label), h('small', {}, ` ${hint}`))) }; });
-  const status = h('div', { class: 'job-status', role: 'status' }), files = h('div', { class: 'downloads' }), go = h('button', { type: 'submit', class: 'primary' }, 'Export');
-  const form = h('form', { class: 'modal-body new-form', onsubmit: async e => { e.preventDefault(); if (busy) return;
-    const formats = boxes.filter(b => b.box.checked).map(b => b.k); if (!formats.length) return (status.textContent = 'Choose at least one format.');
-    busy = true; go.disabled = true; files.replaceChildren(); status.textContent = 'Exporting…';
-    try {
-      const res = await fetch('/api/jobs', { method: 'POST', headers: { 'X-UI-Atlas': '1', 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'export', atlas: atlasName, formats }) });
-      let job = await res.json(); if (!res.ok) throw new Error(job.error || 'Could not start.');
-      while (job.status === 'queued' || job.status === 'running') { await new Promise(r => setTimeout(r, 700)); job = await (await fetch(`/api/jobs/${job.id}`)).json(); }
-      if (job.status !== 'done') throw new Error(job.error || 'The export failed.');
-      status.textContent = 'Ready — exports contain design tokens only.';
-      files.replaceChildren(...job.files.map(f => h('a', { class: 'download', href: `${f}?download`, download: '' }, h('span', {}, '↓'), f.split('/').pop())),
-        ...job.files.filter(f => f.endsWith('.html')).map(f => h('a', { class: 'download open', href: f, target: '_blank', rel: 'noopener' }, h('span', {}, '↗'), 'Open the HTML page')));
-    } catch (err) { status.textContent = err.message.replace(/^Error:\s*/, ''); }
-    finally { busy = false; go.disabled = false; } } },
-    h('p', { class: 'export-for' }, 'Atlas: ', h('b', {}, atlasName)), ...boxes.map(b => b.row), h('div', { class: 'form-actions' }, status, go), files);
-  dialog.replaceChildren(h('div', { class: 'modal-panel' },
-    h('header', { class: 'modal-head' }, h('h2', { id: 'export-title' }, 'Export design tokens'), h('button', { class: 'modal-close', type: 'button', 'aria-label': 'Close', onclick: () => !busy && dialog.close() }, closeIcon())), form));
-  dialog.showModal(); go.focus();
+  mountExport();
+  if (!ui.st.busy) reset(ui, atlasName);
+  ui.m.open(ui.st.busy ? null : ui.boxes[0].box);
 }

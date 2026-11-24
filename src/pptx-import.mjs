@@ -68,10 +68,12 @@ const themeFont = (face, theme) => face === '+mj-lt' ? theme.major : face === '+
 function textProps(pPr, rPr, ctx, theme) {
   const r = rPr || kid(pPr, 'a:defRPr'); if (!pPr && !r) return {};
   const a = r?.attrs || {}, face = kid(r, 'a:latin')?.attrs.typeface, fill = kid(r, 'a:solidFill'), ln = at(pPr, 'a:lnSpc', 'a:spcPct');
-  return { ...(a.sz ? { size: +a.sz / 100 } : {}), ...(a.b != null ? { bold: a.b === '1' || a.b === 'true' } : {}),
-    ...(fill ? { color: color(fill, ctx) } : {}), ...(face ? { font: themeFont(face, theme) } : {}),
-    ...(a.spc != null ? { spc: +a.spc / 100 } : {}), ...(ln ? { lineHeight: +ln.attrs.val / 100000 } : {}) };
+  return { ...sizeBold(a), ...(fill ? { color: color(fill, ctx) } : {}), ...(face ? { font: themeFont(face, theme) } : {}), ...spacing(a, ln) };
 }
+// run attributes: sz in hundredths of a point, b as '1'/'true'
+const sizeBold = a => ({ ...(a.sz ? { size: +a.sz / 100 } : {}), ...(a.b != null ? { bold: a.b === '1' || a.b === 'true' } : {}) });
+// letter spacing (spc, hundredths of a point) and line height (lnSpc percentage, thousandths of a percent)
+const spacing = (a, ln) => ({ ...(a.spc != null ? { spc: +a.spc / 100 } : {}), ...(ln ? { lineHeight: +ln.attrs.val / 100000 } : {}) });
 function styleOf(sp, ctx, theme) {
   const tx = kid(sp, 'p:txBody'), lvl1 = at(tx, 'a:lstStyle', 'a:lvl1pPr'), p = kid(tx, 'a:p');
   return merge(textProps(at(p, 'a:pPr'), at(p, 'a:r', 'a:rPr'), ctx, theme), textProps(lvl1, null, ctx, theme));
@@ -121,23 +123,28 @@ function masterPlaceholder(master, ph) {
 }
 const baseStyle = (master, type) => TITLE_TYPES.has(type) ? master.styles.title : BODY_TYPES.has(type) ? master.styles.body : master.styles.other;
 function addElement(scr, el) { scr.inventory[el.role] = (scr.inventory[el.role] || 0) + 1; scr.elements.push(el); }
-function addPlaceholder(deck, scr, { sp, ph }) {
-  const { master } = scr, { ctx, theme } = master, type = ph.attrs.type, mph = masterPlaceholder(master, ph);
+// a placeholder's own style, then its master placeholder's, then the master text style for its kind; font from the theme
+function placeholderStyle(master, sp, type, mph) {
+  const { ctx, theme } = master;
   const st = merge(styleOf(sp, ctx, theme), mph ? styleOf(mph.sp, ctx, theme) : {}, textProps(kid(baseStyle(master, type), 'a:lvl1pPr'), null, ctx, theme));
   if (!st.font) st.font = TITLE_TYPES.has(type) ? theme.major : theme.minor;
-  textTokens(deck.tally, st); shapeTokens(deck.tally, sp, ctx);
-  if (st.color && scr.behind && st.size) deck.pairs.push({ fg: st.color.hex.slice(0, 7), bg: scr.behind, large: isLarge(st.size, st.bold), count: 1 });
-  addElement(scr, { role: type || 'obj', tag: 'placeholder', bbox: box(sp, mph?.sp), color: st.color?.hex || null, bg: null,
-    fontSize: st.size ? `${st.size}pt` : null, weight: st.size ? (st.bold ? '700' : '400') : null, radius: null, font: st.font || null,
-    ...(st.lineHeight ? { lineHeight: ratio(st.lineHeight) } : {}) });
+  return st;
 }
+const textSample = st => ({ color: st.color?.hex || null, bg: null, fontSize: st.size ? `${st.size}pt` : null, weight: st.size ? (st.bold ? '700' : '400') : null,
+  radius: null, font: st.font || null, ...(st.lineHeight ? { lineHeight: ratio(st.lineHeight) } : {}) });
+function addPlaceholder(deck, scr, { sp, ph }) {
+  const { master } = scr, type = ph.attrs.type, mph = masterPlaceholder(master, ph), st = placeholderStyle(master, sp, type, mph);
+  textTokens(deck.tally, st); shapeTokens(deck.tally, sp, master.ctx);
+  if (st.color && scr.behind && st.size) deck.pairs.push({ fg: st.color.hex.slice(0, 7), bg: scr.behind, large: isLarge(st.size, st.bold), count: 1 });
+  addElement(scr, { role: type || 'obj', tag: 'placeholder', bbox: box(sp, mph?.sp), ...textSample(st) });
+}
+const shapeSample = (sp, s) => ({ role: 'shape', tag: at(sp, 'p:spPr', 'a:prstGeom')?.attrs.prst || 'shape', bbox: box(sp),
+  color: s.border?.hex || null, bg: s.fill?.hex || null, fontSize: null, weight: null, radius: s.radius ? `${s.radius}px` : null });
 function addShape(deck, scr, sp) {
   if (isPlaceholder(sp)) return;
   const { ctx, theme } = scr.master, s = shapeTokens(deck.tally, sp, ctx), st = styleOf(sp, ctx, theme);
   if (st.size || st.color) textTokens(deck.tally, st);
-  if (!s.fill && !s.border) return;
-  addElement(scr, { role: 'shape', tag: at(sp, 'p:spPr', 'a:prstGeom')?.attrs.prst || 'shape', bbox: box(sp),
-    color: s.border?.hex || null, bg: s.fill?.hex || null, fontSize: null, weight: null, radius: s.radius ? `${s.radius}px` : null });
+  if (s.fill || s.border) addElement(scr, shapeSample(sp, s));
 }
 function uniqueId(ids, title) {
   let id = slug(title), n = 2; while (ids.has(id)) id = `${slug(title)}-${n++}`;
@@ -146,16 +153,19 @@ function uniqueId(ids, title) {
 function layoutScreen(deck, part, ids, { W, H }) {
   const tree = deck.xml(part), master = masterOf(deck, rels(deck.files, part).byType('slideMaster')[0] || 'ppt/slideMasters/slideMaster1.xml');
   const lay = kid(tree, 'p:sldLayout'), title = desc(tree, 'p:cSld')?.attrs.name || `Layout ${num(part)}`;
-  const bg = background(tree, master.ctx) || master.bg;
-  if (bg?.type === 'solid') useColor(deck.tally, 'background', bg.color);
-  for (const s of bg?.stops || []) useColor(deck.tally, 'background', s);
-  // gradients and pictures: no single backdrop to rate
-  const scr = { master, behind: bg?.type === 'solid' ? bg.color.hex.slice(0, 7) : null, elements: [], inventory: {} };
+  const scr = { master, behind: layoutBackdrop(deck, background(tree, master.ctx) || master.bg), elements: [], inventory: {} };
   for (const p of placeholders(tree)) addPlaceholder(deck, scr, p);
   for (const sp of descs(at(tree, 'p:sldLayout', 'p:cSld', 'p:spTree'), 'p:sp')) addShape(deck, scr, sp);
   for (const pic of descs(tree, 'p:pic')) addElement(scr, { role: 'image', tag: 'picture', bbox: box(pic), color: null, bg: null, fontSize: null, weight: null, radius: null });
   const id = uniqueId(ids, title);
-  return { id, url: title, title, purpose: LAYOUT_NAME[lay?.attrs.type] || lay?.attrs.type || null, screenshot: null, width: W, height: H, inventory: scr.inventory, elements: scr.elements };
+  return { id, url: title, title, purpose: layoutPurpose(lay), screenshot: null, width: W, height: H, inventory: scr.inventory, elements: scr.elements };
+}
+const layoutPurpose = lay => { const type = lay?.attrs.type; return LAYOUT_NAME[type] || type || null; };
+// counts a layout's background colours; -> the solid backdrop text is rated against (gradients and pictures: none)
+function layoutBackdrop(deck, bg) {
+  if (bg?.type === 'solid') useColor(deck.tally, 'background', bg.color);
+  for (const s of bg?.stops || []) useColor(deck.tally, 'background', s);
+  return bg?.type === 'solid' ? bg.color.hex.slice(0, 7) : null;
 }
 // layouts, in their own numeric order
 const layoutParts = files => [...files.keys()].filter(k => /^ppt\/slideLayouts\/slideLayout\d+\.xml$/.test(k)).sort((a, b) => num(a) - num(b));

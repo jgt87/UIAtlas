@@ -19,24 +19,33 @@ const agentToken = v => (v.match(/^[A-Za-z_*-]+/)?.[0] || '').toLowerCase();
 
 // → { groups: [{ agents: [lowercase tokens], rules: [{ allow, pattern }], crawlDelay? }] }
 export function parseRobots(text = '') {
-  const groups = []; let cur = null, inRules = false;
+  const st = { groups: [], cur: null, inRules: false };
   for (const raw of String(text).slice(0, MAX_BYTES).replace(/^﻿/, '').split(/\r\n|\r|\n/)) {
-    const line = raw.replace(/#.*/, '').trim(); if (!line) continue;
-    const i = line.indexOf(':'); if (i < 1) continue;
-    const key = line.slice(0, i).trim().toLowerCase(), val = line.slice(i + 1).trim();
-    if (key === 'user-agent') {
-      if (!cur || inRules) { cur = { agents: [], rules: [] }; groups.push(cur); inRules = false; }
-      const t = agentToken(val); if (t) cur.agents.push(t);
-    } else if (key === 'allow' || key === 'disallow') {
-      if (!cur) continue; inRules = true;
-      if (val) cur.rules.push({ allow: key === 'allow', pattern: norm(val) });
-    } else if (key === 'crawl-delay') {
-      if (!cur) continue; inRules = true;
-      const n = parseFloat(val); if (n >= 0 && isFinite(n)) cur.crawlDelay = n;
-    }
+    const d = directive(raw);
+    if (d && Object.hasOwn(DIRECTIVES, d.key)) DIRECTIVES[d.key](st, d.val, d.key); // hasOwn: a line "constructor: x" is no directive
   }
-  return { groups };
+  return { groups: st.groups };
 }
+// 'Key: value # comment' -> { key (lowercase), val }, or null for a blank, comment-only or malformed line
+function directive(raw) {
+  const line = raw.replace(/#.*/, '').trim(); if (!line) return null;
+  const i = line.indexOf(':'); if (i < 1) return null;
+  return { key: line.slice(0, i).trim().toLowerCase(), val: line.slice(i + 1).trim() };
+}
+// A user-agent line after rules starts a new group; rules before any user-agent line belong to no group.
+const rule = (st, val, key) => { if (!st.cur) return; st.inRules = true; if (val) st.cur.rules.push({ allow: key === 'allow', pattern: norm(val) }); };
+const DIRECTIVES = {
+  'user-agent': (st, val) => {
+    if (!st.cur || st.inRules) { st.cur = { agents: [], rules: [] }; st.groups.push(st.cur); st.inRules = false; }
+    const t = agentToken(val); if (t) st.cur.agents.push(t);
+  },
+  allow: rule,
+  disallow: rule,
+  'crawl-delay': (st, val) => {
+    if (!st.cur) return; st.inRules = true;
+    const n = parseFloat(val); if (n >= 0 && isFinite(n)) st.cur.crawlDelay = n;
+  },
+};
 
 // Rules for an agent: all groups naming it (combined), else all '*' groups, else none.
 function groupFor(robots, agent = 'UIAtlas') {
@@ -61,8 +70,28 @@ export function isAllowed(robots, pathWithQuery = '/', agent = 'UIAtlas') {
   if (path === '/robots.txt') return true;
   const g = groupFor(robots, agent); if (!g) return true;
   let best = null;
-  for (const r of g.rules) if (toRegex(r.pattern).test(path) && (!best || r.pattern.length > best.pattern.length || (r.pattern.length === best.pattern.length && r.allow))) best = r;
+  for (const r of g.rules) if (toRegex(r.pattern).test(path) && beats(r, best)) best = r;
   return !best || best.allow;
+}
+// a matching rule wins over the best so far when its pattern is longer, or as long and an Allow
+const beats = (r, best) => !best || r.pattern.length > best.pattern.length || (r.pattern.length === best.pattern.length && r.allow);
+
+// One origin's robots.txt -> { status: 'ok'|'none'|'unreachable', rules?, reason?, crawlDelay?, capped? }. Never throws.
+async function fetchRobots(origin, { ua, userAgent, timeoutMs }) {
+  try {
+    const res = await fetch(origin + '/robots.txt', { headers: { 'User-Agent': ua }, signal: AbortSignal.timeout(timeoutMs), redirect: 'follow' });
+    if (!res.ok) res.body?.cancel().catch(() => {});
+    if (res.status >= 500) return { status: 'unreachable', reason: `HTTP ${res.status}` };
+    if (!res.ok) return { status: 'none' };
+    return robotsFound(parseRobots(await res.text()), userAgent);
+  } catch (e) {
+    return { status: 'unreachable', reason: e?.name === 'TimeoutError' || e?.name === 'AbortError' ? `timed out after ${Math.round(timeoutMs / 100) / 10} s` : 'network error' };
+  }
+}
+// a parsed robots.txt with its Crawl-delay for this agent, capped at DELAY_CAP_S (capped: the asked value)
+function robotsFound(rules, userAgent) {
+  const d = groupFor(rules, userAgent)?.crawlDelay;
+  return { status: 'ok', rules, crawlDelay: d != null ? Math.min(d, DELAY_CAP_S) : undefined, capped: d > DELAY_CAP_S ? d : undefined };
 }
 
 // `now` and `sleep` are injectable so tests check the pacing by the waits it asks for, not by a clock.
@@ -74,17 +103,7 @@ export function createGate({ ignoreRobots = false, delayMs = 1000, userAgent = '
 
   // Per origin: { status: 'ok'|'none'|'unreachable', rules?, reason?, crawlDelay?, capped? } (promise, fetched once)
   const load = u => {
-    if (!robots.has(u.origin)) robots.set(u.origin, (async () => {
-      try {
-        const res = await fetch(u.origin + '/robots.txt', { headers: { 'User-Agent': ua }, signal: AbortSignal.timeout(timeoutMs), redirect: 'follow' });
-        if (res.status >= 500) { res.body?.cancel().catch(() => {}); return { status: 'unreachable', reason: `HTTP ${res.status}` }; }
-        if (!res.ok) { res.body?.cancel().catch(() => {}); return { status: 'none' }; }
-        const rules = parseRobots(await res.text()), d = groupFor(rules, userAgent)?.crawlDelay;
-        return { status: 'ok', rules, crawlDelay: d != null ? Math.min(d, DELAY_CAP_S) : undefined, capped: d > DELAY_CAP_S ? d : undefined };
-      } catch (e) {
-        return { status: 'unreachable', reason: e?.name === 'TimeoutError' || e?.name === 'AbortError' ? `timed out after ${Math.round(timeoutMs / 100) / 10} s` : 'network error' };
-      }
-    })().then(r => (done.set(u.host, r), r)));
+    if (!robots.has(u.origin)) robots.set(u.origin, fetchRobots(u.origin, { ua, userAgent, timeoutMs }).then(r => (done.set(u.host, r), r)));
     return robots.get(u.origin);
   };
 

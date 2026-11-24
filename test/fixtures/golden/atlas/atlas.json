@@ -1,0 +1,60 @@
+{
+  "format": 1,
+  "project": { "name": "Golden Fixture", "kind": "web", "source": "https://golden.example.test/", "created": "2026-01-15T12:00:00.000Z", "pages": 1, "viewport": { "width": 1280, "height": 900 }, "screenshots": false, "notes": ["Invented values for the export golden test."] },
+  "tokens": {
+    "colors": [
+      { "value": "#1f3a5f", "count": 14, "label": "brand", "usage": { "text": 9, "background": 3, "border": 2 } },
+      { "value": "#ffffff", "count": 11, "usage": { "background": 10, "text": 1 } },
+      { "value": "#f4f1ea", "count": 6, "usage": { "background": 6 } },
+      { "value": "#c8553d", "count": 3, "usage": { "fill": 2, "border": 1 } },
+      { "value": "#2a2a2a80", "count": 2, "usage": { "text": 2 } },
+      { "value": "#8a9a5b", "count": 1, "share": 0.04 }
+    ],
+    "fonts": [{ "value": "Fictive Grotesk", "count": 12 }, { "value": "Georgia", "count": 3 }],
+    "fontSizes": [{ "value": "16px", "count": 10 }, { "value": "2rem", "count": 2 }, { "value": "12pt", "count": 1 }, { "value": "0.875em", "count": 1 }],
+    "fontWeights": [{ "value": "400", "count": 11 }, { "value": "700", "count": 4 }, { "value": "600", "count": 1 }],
+    "lineHeights": [{ "value": "1.5", "count": 9 }, { "value": "1.2", "count": 3 }],
+    "letterSpacings": [{ "value": "0.02em", "count": 2 }, { "value": "1px", "count": 1 }],
+    "spacing": [{ "value": "8px", "count": 12 }, { "value": "16px", "count": 9 }, { "value": "1.5rem", "count": 4 }, { "value": "4px", "count": 2 }],
+    "radii": [{ "value": "6px", "count": 5 }, { "value": "50%", "count": 2 }, { "value": "8px 8px 0px 0px", "count": 1 }],
+    "shadows": [{ "value": "0px 1px 3px #0000001f", "count": 4 }, { "value": "inset 0px 0px 0px 1px #1f3a5f", "count": 1 }],
+    "cssVars": [
+      { "name": "--brand", "value": "#1F3A5F" },
+      { "name": "--gap", "value": "1.5rem" },
+      { "name": "--heading-weight", "value": "700" },
+      { "name": "--leading", "value": "1.5" },
+      { "name": "--scheme", "value": "light" },
+      { "name": "--promo", "value": "\"Invented sale copy\"" }
+    ]
+  },
+  "contrast": [
+    { "fg": "#1f3a5f", "bg": "#ffffff", "large": false, "count": 9, "ratio": 11.68, "level": "AAA" },
+    { "fg": "#c8553d", "bg": "#f4f1ea", "large": true, "count": 2, "ratio": 3.86, "level": "AA" },
+    { "fg": "#8a9a5b", "bg": "#ffffff", "large": false, "count": 1, "ratio": 2.96, "level": "fail" },
+    { "fg": "#ffffff", "bg": "#1f3a5f", "large": false, "count": 1, "ratio": 1, "level": "unknown", "overImage": true }
+  ],
+  "fontFaces": [{ "family": "Fictive Grotesk", "url": "https://fonts.golden.example.test/grotesk.woff2", "weight": "400", "style": "normal", "unicodeRange": "U+0000-00FF" }],
+  "components": {
+    "button": [
+      { "name": "filled", "kind": "filled", "count": 4, "share": 0.8, "screens": 1, "style": { "bg": "#1f3a5f", "color": "#ffffff", "radius": "6px", "fontSize": "16px", "weight": "600", "font": "Fictive Grotesk", "padding": "8px 16px" } },
+      { "name": "outline", "kind": "outline", "count": 1, "share": 0.2, "screens": 1, "style": { "color": "#1f3a5f", "border": "#1f3a5f", "radius": "6px", "fontSize": "16px", "weight": "400", "padding": "8px 16px" } }
+    ],
+    "link": [{ "name": "plain", "kind": "plain", "count": 3, "share": 1, "screens": 1, "style": { "color": "#c8553d", "fontSize": "16px", "weight": "400" } }]
+  },
+  "modes": {
+    "dark": { "options": { "colorScheme": "dark" }, "tokens": { "colors": [{ "value": "#0e1621", "count": 8, "usage": { "background": 8 } }, { "value": "#e8e4da", "count": 6, "usage": { "text": 6 } }] }, "contrast": [] }
+  },
+  "screens": [
+    {
+      "id": "a1b2c3d4", "url": "https://golden.example.test/", "title": "/", "screenshot": null, "width": 1280, "height": 2400,
+      "inventory": { "heading": 2, "text": 5, "button": 5, "link": 3 },
+      "elements": [
+        { "role": "heading", "tag": "h1", "bbox": { "x": 40, "y": 40, "w": 600, "h": 48 }, "color": "#1f3a5f", "bg": null, "fontSize": "2rem", "weight": "700", "radius": null, "font": "Georgia", "lineHeight": "1.2" },
+        { "role": "text", "tag": "p", "bbox": { "x": 40, "y": 120, "w": 600, "h": 72 }, "color": "#2a2a2a80", "bg": null, "fontSize": "16px", "weight": "400", "radius": null, "font": "Fictive Grotesk", "lineHeight": "1.5" },
+        { "role": "button", "tag": "button", "bbox": { "x": 40, "y": 220, "w": 120, "h": 40 }, "color": "#ffffff", "bg": "#1f3a5f", "fontSize": "16px", "weight": "600", "radius": "6px", "font": "Fictive Grotesk", "padding": "8px 16px" },
+        { "role": "link", "tag": "a", "bbox": { "x": 180, "y": 230, "w": 80, "h": 20 }, "color": "#c8553d", "bg": null, "fontSize": "16px", "weight": "400", "radius": null, "font": "Fictive Grotesk" }
+      ]
+    }
+  ],
+  "laterField": { "kept": "fields this version doesn't know are ignored by the export" }
+}

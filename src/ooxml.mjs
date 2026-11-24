@@ -48,21 +48,40 @@ const toHex = (rgb, a = 1) => '#' + rgb.map(v => Math.max(0, Math.min(255, Math.
 
 // ctx: { theme: { dk1: 'rrggbb', ... }, clrMap: { bg1: 'lt1', tx1: 'dk1', ... }, phClr? }. Returns { hex, slot } or null.
 // Accepts a colour element or any element that has one as a direct child (a:solidFill, a:fontRef, p:bgRef, ...).
+const colorEl = node => node && (COLOR_TAGS.has(node.name) ? node : node.children.find(k => COLOR_TAGS.has(k.name)));
 export function color(node, ctx) {
-  const c = node && (COLOR_TAGS.has(node.name) ? node : node.children.find(k => COLOR_TAGS.has(k.name))); if (!c) return null;
-  let rgb, slot = null;
-  if (c.name === 'a:srgbClr') rgb = c.attrs.val;
-  else if (c.name === 'a:sysClr') rgb = c.attrs.lastClr || (c.attrs.val === 'window' ? 'ffffff' : '000000');
-  else if (c.name === 'a:prstClr') rgb = PRESET[c.attrs.val];
-  else if (c.name === 'a:scrgbClr') rgb = toHex(['r', 'g', 'b'].map(k => Math.round(255 * Math.min(1, (+c.attrs[k] || 0) / 100000) ** (1 / 2.2)))).slice(1);
-  else if (c.name === 'a:hslClr') rgb = toHex(hslToRgb([(+c.attrs.hue || 0) / 21600000, (+c.attrs.sat || 0) / 100000, (+c.attrs.lum || 0) / 100000])).slice(1);
-  else if (c.name === 'a:schemeClr') { if (c.attrs.val === 'phClr') return ctx.phClr || null; slot = ctx.clrMap?.[c.attrs.val] || c.attrs.val; rgb = ctx.theme?.[slot]; }
+  const c = colorEl(node); if (!c) return null;
+  if (c.name === 'a:schemeClr' && c.attrs.val === 'phClr') return ctx.phClr || null; // the placeholder colour, as it was resolved
+  const { rgb, slot = null } = BASE[c.name](c.attrs, ctx);
   if (!/^[0-9a-f]{6}$/i.test(rgb || '')) return null;
-  let v = [0, 2, 4].map(i => parseInt(rgb.slice(i, i + 2), 16)), a = 1, mods = false;
-  for (const m of c.children) { const x = (+m.attrs.val || 0) / 100000;
-    if (m.name === 'a:lumMod' || m.name === 'a:lumOff') { const hsl = rgbToHsl(v); hsl[2] = m.name === 'a:lumMod' ? hsl[2] * x : Math.min(1, hsl[2] + x); v = hslToRgb(hsl); mods = true; }
-    else if (m.name === 'a:tint') { v = v.map(ch => ch + (255 - ch) * (1 - x)); mods = true; }
-    else if (m.name === 'a:shade') { v = v.map(ch => ch * x); mods = true; }
-    else if (m.name === 'a:alpha') a = x; }
+  const { v, a, mods } = applyMods([0, 2, 4].map(i => parseInt(rgb.slice(i, i + 2), 16)), c.children);
   return { hex: toHex(v, a).toLowerCase(), slot: mods ? null : slot }; // a modified theme colour is a tint/shade, not the slot itself
+}
+
+// The base colour of each colour element: { rgb: 'rrggbb', slot? } (slot: the theme slot a scheme colour names)
+const pct = v => (+v || 0) / 100000;
+const BASE = {
+  'a:srgbClr': at => ({ rgb: at.val }),
+  'a:sysClr': at => ({ rgb: at.lastClr || (at.val === 'window' ? 'ffffff' : '000000') }),
+  'a:prstClr': at => ({ rgb: PRESET[at.val] }),
+  'a:scrgbClr': at => ({ rgb: toHex(['r', 'g', 'b'].map(k => Math.round(255 * Math.min(1, pct(at[k])) ** (1 / 2.2)))).slice(1) }),
+  'a:hslClr': at => ({ rgb: toHex(hslToRgb([(+at.hue || 0) / 21600000, pct(at.sat), pct(at.lum)])).slice(1) }),
+  'a:schemeClr': (at, ctx) => { const slot = ctx.clrMap?.[at.val] || at.val; return { rgb: ctx.theme?.[slot], slot }; },
+};
+
+// Colour modifiers in document order; alpha only sets the opacity and doesn't count as a change of colour.
+const withLum = (v, f) => { const hsl = rgbToHsl(v); hsl[2] = f(hsl[2]); return hslToRgb(hsl); };
+const MODS = {
+  'a:lumMod': (v, x) => withLum(v, l => l * x),
+  'a:lumOff': (v, x) => withLum(v, l => Math.min(1, l + x)),
+  'a:tint': (v, x) => v.map(ch => ch + (255 - ch) * (1 - x)),
+  'a:shade': (v, x) => v.map(ch => ch * x),
+};
+function applyMods(v, children) {
+  let a = 1, mods = false;
+  for (const m of children) {
+    const x = pct(m.attrs.val);
+    if (MODS[m.name]) { v = MODS[m.name](v, x); mods = true; } else if (m.name === 'a:alpha') a = x;
+  }
+  return { v, a, mods };
 }

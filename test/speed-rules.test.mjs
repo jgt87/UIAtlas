@@ -74,9 +74,24 @@ test('growth tells linear work from work that compares every item with every oth
   assert.ok(sink > 0);
 });
 
+/** Comments blanked, line breaks kept: a comment that names the clock is not a read, and a match keeps
+ *  its line number so a failure names file:line (docs/10 §6). A `//` after a colon is a URL, not a comment. */
+export const blankComments = (text) => text.replace(/\/\*[\s\S]*?\*\/|(^|[^:])\/\/[^\n]*/g,
+  (m, pre = '') => pre + m.slice(pre.length).replace(/[^\n]/g, ' '));
+
+/** Each clock read in a file as "<file>:<line>". */
+export function clockReads(text, file) {
+  return blankComments(text).split('\n').flatMap((l, i) => (CONFIG.clockRead.test(l) ? [`${file}:${i + 1}`] : []));
+}
+
+test('the clock check reads code, not comments, and names the line', () => {
+  const text = '// performance.now() would be wrong here\nconst a = 1;\nconst t = Date.now() - start;\n/* Date.now() - x */';
+  assert.deepEqual(clockReads(text, 'x.test.mjs'), ['x.test.mjs:3']);
+});
+
 test('no test file reads the clock itself (compare growth instead)', () => {
   const files = testFiles(CONFIG.srcDir).filter((p) => !CONFIG.allow.some((a) => a.test(p)));
   assert.ok(files.length > 0, `no test files found under ${CONFIG.srcDir}: an empty run is not a pass`);
-  const found = files.filter((p) => CONFIG.clockRead.test(readFileSync(p, 'utf8'))).map((p) => relative(CONFIG.srcDir, p));
-  assert.deepEqual(found, [], 'these test files read the clock: bound growth() instead of milliseconds');
+  const found = files.flatMap((p) => clockReads(readFileSync(p, 'utf8'), relative(CONFIG.srcDir, p)));
+  assert.deepEqual(found, [], 'these test lines read the clock: bound growth() instead of milliseconds');
 });

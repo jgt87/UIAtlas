@@ -1,10 +1,12 @@
 // Exports an atlas's design tokens: a printable PDF token sheet (rendered by the browser from generated HTML),
 // a W3C design-tokens JSON file, and a CSS custom-properties file. Written to data/<name>/exports/ unless outDir is given.
 // Exports hold design tokens only: no source name, file name, URL, screenshots or text from the source.
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { launchBrowser, slug } from './atlas-util.mjs';
+import { readAtlasFile, writeJsonFile } from './atlas-file.mjs';
 import { buildTokens, toCssVars } from './tokens-json.mjs';
+import { KINDS } from '../viewer/js/kinds.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ink = hex => { const n = parseInt(String(hex).slice(1, 7), 16) || 0; return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 150 ? '#14161a' : '#ffffff'; };
@@ -14,7 +16,7 @@ const tokenVars = atlas => (atlas.tokens.cssVars || []).filter(v => !/^\s*["']/.
 
 // JSON and CSS share one structure (src/tokens-json.mjs): primitives, typography and component layers, source variables.
 export const toDtcg = (atlas, opts) => buildTokens(atlas, opts);
-export const toCss = atlas => toCssVars(buildTokens(atlas));
+export const toCss = (atlas, opts) => toCssVars(buildTokens(atlas, opts));
 
 // Marks every font sample whose font isn't really there (it measures like a generic fallback). Runs in the page:
 // before printing the PDF, and inside the HTML export when it is opened.
@@ -22,7 +24,8 @@ const MARK_FALLBACKS = `(async () => {
   await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 8000))]);
   const ctx = document.createElement('canvas').getContext('2d'), w = f => { ctx.font = '48px ' + f; return ctx.measureText('mmmmmmmmmlliWWQ@#0').width; };
   const missing = fam => !['monospace', 'serif'].some(g => w('"' + fam + '", ' + g) !== w(g));
-  for (const el of document.querySelectorAll('[data-font]')) if (missing(el.dataset.font)) el.insertAdjacentHTML(el.parentElement.classList.contains('pills') ? 'beforeend' : 'afterend', '<span class="fb">FALLBACK</span>');
+  const tag = () => Object.assign(document.createElement('span'), { className: 'fb', textContent: 'FALLBACK' });
+  for (const el of document.querySelectorAll('[data-font]')) if (missing(el.dataset.font)) el.parentElement.classList.contains('pills') ? el.append(tag()) : el.after(tag());
 })()`;
 
 // --- Token sheet building blocks. Each returns an HTML fragment, or '' when there is nothing to show. ---
@@ -73,7 +76,8 @@ const radiusPill = r => `<span><i style="border-radius:${esc(r.value)}"></i>${es
 const shadowBox = s => `<div><div class="box" style="box-shadow:${esc(s.value)}"></div><code>${esc(s.value)}</code></div>`;
 const varRow = v => `<tr><td>${esc(v.name)}</td><td>${/^#[0-9a-f]{3,8}$/i.test(v.value) ? `<i style="background:${esc(v.value)}"></i>` : ''}${esc(v.value)}</td></tr>`;
 const varsTable = list => list.length ? `<table>${list.map(varRow).join('')}</table>` : '';
-const VARS_TITLE = { pptx: 'Theme slots & grid', sketch: 'Swatches & text styles', tokens: 'All tokens' };
+// the variables section is titled the way the viewer titles it for the kind (viewer/js/kinds.js)
+const varsTitle = kind => KINDS[kind]?.vars || 'Variables';
 
 // Printable token sheet. Kept in this file (not the viewer) so the PDF doesn't depend on the dev server.
 // For the HTML export: webFonts false (the source's font URLs would name the source), cssHref links the CSS export,
@@ -103,31 +107,33 @@ export function sheetHtml(atlas, { webFonts = true, cssHref = null, markFallback
   </style></head><body>
   <header><h1>Design tokens</h1><p>Extracted ${esc(new Date(p.created).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }))}</p></header>
   ${section('Colour palette', palette(t.colors), t.colors.length)}${section('Type scale', sizes, t.fontSizes.length)}${section('Font families', fonts, t.fonts.length)}${section('Font weights', weights)}${section('Line heights (× font size)', wrapped('pills', t.lineHeights, countPill))}${section('Letter spacing', wrapped('pills', t.letterSpacings, countPill))}
-  ${section('Spacing scale', spacingRows(t.spacing), t.spacing.length)}${section('Radii', wrapped('pills', t.radii, radiusPill))}${section('Shadows', wrapped('sh', t.shadows, shadowBox), t.shadows.length)}${modeSections(atlas.modes)}${section('Components', componentTables(atlas.components))}${section(contrastTitle(atlas.contrast), contrastTable(atlas.contrast))}${section(VARS_TITLE[p.kind] || 'Variables', varsTable(vars), vars.length)}
+  ${section('Spacing scale', spacingRows(t.spacing), t.spacing.length)}${section('Radii', wrapped('pills', t.radii, radiusPill))}${section('Shadows', wrapped('sh', t.shadows, shadowBox), t.shadows.length)}${modeSections(atlas.modes)}${section('Components', componentTables(atlas.components))}${section(contrastTitle(atlas.contrast), contrastTable(atlas.contrast))}${section(varsTitle(p.kind), varsTable(vars), vars.length)}
   ${markFallbacks ? `<script>${MARK_FALLBACKS}</script>` : ''}</body></html>`;
 }
 
-// formats: pdf, json, css, html (a token page + the CSS file it links, written together)
-export async function exportAtlas({ atlasDir, outDir = path.join(atlasDir, 'exports'), formats = ['pdf', 'json', 'css'] }) {
-  const atlas = JSON.parse(readFileSync(path.join(atlasDir, 'atlas.json'), 'utf8'));
+// the PDF: the token sheet printed by the browser, once web fonts have loaded and fallbacks are marked
+async function printPdf(atlas, file) {
+  const browser = await launchBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(sheetHtml(atlas), { waitUntil: 'load' });
+    // wait for web fonts, then mark every sample whose font isn't really there (measures like a generic fallback)
+    await page.evaluate(MARK_FALLBACKS);
+    await page.pdf({ path: file, format: 'A4', printBackground: true, displayHeaderFooter: true, headerTemplate: '<span></span>',
+      footerTemplate: `<div style="font:8px system-ui;color:#8a93a0;width:100%;padding:0 14mm;display:flex;justify-content:space-between"><span>Design tokens</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`,
+      margin: { top: '16mm', bottom: '18mm', left: '14mm', right: '14mm' } });
+  } finally { await browser.close(); }
+}
+
+// formats: pdf, json, css, html (a token page + the CSS file it links, written together).
+// exported: the export time recorded in the JSON and CSS (a fixed one makes the output reproducible, as the golden test needs).
+export async function exportAtlas({ atlasDir, outDir = path.join(atlasDir, 'exports'), formats = ['pdf', 'json', 'css'], exported }) {
+  const atlas = readAtlasFile(path.join(atlasDir, 'atlas.json')), opts = exported ? { exported } : undefined;
   mkdirSync(outDir, { recursive: true });
-  const base = slug(atlas.project.name), written = [];
-  if (formats.includes('json')) { const f = path.join(outDir, `${base}.tokens.json`); writeFileSync(f, JSON.stringify(toDtcg(atlas), null, 2)); written.push(f); }
-  if (formats.includes('css') || formats.includes('html')) { const f = path.join(outDir, `${base}-tokens.css`); writeFileSync(f, toCss(atlas)); written.push(f); }
-  if (formats.includes('html')) { const f = path.join(outDir, `${base}-tokens.html`); writeFileSync(f, sheetHtml(atlas, { webFonts: false, cssHref: `${base}-tokens.css`, markFallbacks: true })); written.push(f); }
-  if (formats.includes('pdf')) {
-    const browser = await launchBrowser();
-    try {
-      const page = await browser.newPage();
-      await page.setContent(sheetHtml(atlas), { waitUntil: 'load' });
-      // wait for web fonts, then mark every sample whose font isn't really there (measures like a generic fallback)
-      await page.evaluate(MARK_FALLBACKS);
-      const f = path.join(outDir, `${base}-tokens.pdf`);
-      await page.pdf({ path: f, format: 'A4', printBackground: true, displayHeaderFooter: true, headerTemplate: '<span></span>',
-        footerTemplate: `<div style="font:8px system-ui;color:#8a93a0;width:100%;padding:0 14mm;display:flex;justify-content:space-between"><span>Design tokens</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`,
-        margin: { top: '16mm', bottom: '18mm', left: '14mm', right: '14mm' } });
-      written.push(f);
-    } finally { await browser.close(); }
-  }
+  const base = slug(atlas.project.name), written = [], out = name => { const f = path.join(outDir, name); written.push(f); return f; };
+  if (formats.includes('json')) writeJsonFile(out(`${base}.tokens.json`), toDtcg(atlas, opts), 2);
+  if (formats.includes('css') || formats.includes('html')) writeFileSync(out(`${base}-tokens.css`), toCss(atlas, opts));
+  if (formats.includes('html')) writeFileSync(out(`${base}-tokens.html`), sheetHtml(atlas, { webFonts: false, cssHref: `${base}-tokens.css`, markFallbacks: true }));
+  if (formats.includes('pdf')) await printPdf(atlas, out(`${base}-tokens.pdf`));
   return written;
 }

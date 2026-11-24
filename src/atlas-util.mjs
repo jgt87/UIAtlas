@@ -1,10 +1,11 @@
 // Shared helpers for adapters: every adapter turns some source into the same atlas.json schema
 // (see AGENTS.md) under data/<name>/; screenshots (opt-in) go to data/<name>/screens/.
 import { chromium } from 'playwright';
-import { mkdirSync, rmSync, writeFileSync, existsSync, copyFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { clusterComponents } from './components.mjs';
+import { withFormat, writeJsonFile } from './atlas-file.mjs';
 
 // Browser to drive: an installed one ('msedge', 'chrome', ...) or 'chromium' for Playwright's own download.
 export const CHANNEL = process.env.PLAYWRIGHT_CHANNEL || 'msedge';
@@ -16,19 +17,25 @@ export const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').rep
 // Any colour notation an adapter meets -> '#rrggbb' (or '#rrggbbaa' when translucent); null when unreadable/transparent.
 export function toHex(c) {
   if (c == null) return null;
-  if (typeof c === 'object') { // {r,g,b[,a]} in 0-1 or 0-255
-    const big = [c.r, c.g, c.b].some(v => v > 1), k = big ? 1 : 255;
-    return rgbaHex(c.r * k, c.g * k, c.b * k, c.a ?? 1);
-  }
+  if (typeof c === 'object') return objectHex(c);
   const s = String(c).trim().toLowerCase();
   let m;
   if ((m = /^#?([0-9a-f]{3,4})$/.exec(s))) return toHex('#' + [...m[1]].map(x => x + x).join(''));
-  if ((m = /^#?([0-9a-f]{6})([0-9a-f]{2})?$/.exec(s))) return m[2] === '00' ? null : '#' + m[1] + (m[2] && m[2] !== 'ff' ? m[2] : '');
-  if ((m = /^rgba?\(([^)]+)\)$/.exec(s))) {
-    const p = m[1].split(/[\s,/]+/).filter(Boolean).map(x => x.endsWith('%') ? parseFloat(x) * 2.55 : Number(x));
-    return rgbaHex(p[0], p[1], p[2], m[1].includes('%') && p[3] > 1 ? p[3] / 255 : (p[3] ?? 1));
-  }
+  if ((m = /^#?([0-9a-f]{6})([0-9a-f]{2})?$/.exec(s))) return longHex(m[1], m[2]);
+  if ((m = /^rgba?\(([^)]+)\)$/.exec(s))) return rgbFnHex(m[1]);
   return null;
+}
+// {r,g,b[,a]} in 0-1 or 0-255
+function objectHex(c) {
+  const big = [c.r, c.g, c.b].some(v => v > 1), k = big ? 1 : 255;
+  return rgbaHex(c.r * k, c.g * k, c.b * k, c.a ?? 1);
+}
+// '#rrggbb' + optional alpha: fully transparent is no colour, opaque drops the alpha
+const longHex = (rgb, a) => a === '00' ? null : '#' + rgb + (a && a !== 'ff' ? a : '');
+// the inside of rgb()/rgba(): channels as numbers or percentages
+function rgbFnHex(args) {
+  const p = args.split(/[\s,/]+/).filter(Boolean).map(x => x.endsWith('%') ? parseFloat(x) * 2.55 : Number(x));
+  return rgbaHex(p[0], p[1], p[2], args.includes('%') && p[3] > 1 ? p[3] / 255 : (p[3] ?? 1));
 }
 function rgbaHex(r, g, b, a = 1) {
   if (!(a > 0)) return null;
@@ -81,9 +88,9 @@ export function sanitize(atlas, { screenshots = false } = {}) {
 // (History holds the same token-only data as atlas.json; screenshots are never archived.)
 export function archivePrevious(outDir) {
   const file = path.join(outDir, 'atlas.json'); if (!existsSync(file)) return null;
-  let created; try { created = JSON.parse(readFileSync(file, 'utf8')).project?.created; } catch { return null; }
-  const dir = path.join(outDir, 'history'), to = path.join(dir, `${String(created || Date.now()).replace(/:/g, '-')}.json`);
-  mkdirSync(dir, { recursive: true }); copyFileSync(file, to); return to;
+  let previous; try { previous = JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
+  const dir = path.join(outDir, 'history'), to = path.join(dir, `${String(previous.project?.created || Date.now()).replace(/:/g, '-')}.json`);
+  mkdirSync(dir, { recursive: true }); return writeJsonFile(to, previous); // kept as it was, format marker or not
 }
 
 // Extra top-level fields an adapter may add: contrast (from contrastReport), fontFaces, flow ({ start, edges }), modes.
@@ -91,10 +98,10 @@ export function archivePrevious(outDir) {
 export function writeAtlas(outDir, { project, tokens, screens = [], ...extra }, { screenshots = false } = {}) {
   const pageBg = [...(tokens?.colors || [])].filter(c => c.usage?.background).sort((a, b) => b.usage.background - a.usage.background)[0]?.value || null;
   const components = clusterComponents(screens, { pageBg }); // style variants per role, for every source
-  const atlas = sanitize({ project: { created: new Date().toISOString(), pages: screens.length, ...project }, tokens, ...extra, ...(Object.keys(components).length ? { components } : {}), screens }, { screenshots });
+  const atlas = sanitize(withFormat({ project: { created: new Date().toISOString(), pages: screens.length, ...project }, tokens, ...extra, ...(Object.keys(components).length ? { components } : {}), screens }), { screenshots });
   if (!screenshots) rmSync(path.join(outDir, 'screens'), { recursive: true, force: true });
   archivePrevious(outDir);
-  writeFileSync(path.join(outDir, 'atlas.json'), JSON.stringify(atlas, null, 0));
+  writeJsonFile(path.join(outDir, 'atlas.json'), atlas); // format marker first; replaced atomically (src/atlas-file.mjs)
   return atlas;
 }
 

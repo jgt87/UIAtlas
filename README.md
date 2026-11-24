@@ -55,7 +55,7 @@ Websites, Storybooks and local HTML/SVG take `--modes` with comma-separated extr
 ### Polite crawling
 Website and Storybook crawls honour `robots.txt` (RFC 9309; a `UIAtlas` group overrides `*`), wait `--delay` ms between requests to a site (default 1000, Storybook 500; a longer `Crawl-delay` wins, capped at 30 s) and identify themselves by appending `UIAtlas/<version> (+repository URL)` to the browser's user agent. Skipped URLs and honoured delays are listed in the atlas notes. `--ignore-robots` exists for sites you run yourself.
 
-`atlas import` picks the adapter from the file type or folder contents; override with `--kind pptx|storybook|html|image|tokens|sketch|pdf`. Every command takes `--name <name>` for the output folder (default: the host or file name) and `--screenshots` to also keep screenshots. Atlases land in `data/<name>/` (git-ignored); importing again into the same name replaces it.
+`atlas import` picks the adapter from the file type or folder contents; override with `--kind pptx|storybook|html|image|tokens|sketch|pdf`. Every command takes `--name <name>` for the output folder (default: the host or file name) and `--screenshots` to also keep screenshots. Atlases land in `data/<name>/` (git-ignored); importing again into the same name replaces it (the command line says so, and the previous `atlas.json` is kept in the atlas's `history/`). A page, stylesheet or screenshot that can't be read is noted in the atlas as partial output.
 
 ```
 node bin/atlas.mjs extract https://example.com --pages 5
@@ -76,7 +76,7 @@ Reports how much of the atlas's token usage matches the reference (colours by CI
 ## Viewer
 In the viewer, **Export** next to **+ New** does the same for the selected atlas: tick PDF, JSON, CSS and/or HTML + CSS and download the files.
 
-`atlas serve` also lets you add atlases without the command line: **+ New** next to the atlas picker measures a website or Storybook by URL (with pages, modes and screenshots options) or imports a dropped file, shows progress, and opens the result. Only the UI Atlas page itself can start jobs (the server checks the Host, Origin and a request header), uploads are imported from a temporary copy that is deleted afterwards, and jobs run one at a time.
+`atlas serve` also lets you add atlases without the command line: **+ New** next to the atlas picker measures a website or Storybook by URL (Dark and Mobile modes as checkboxes; name, pages and other modes under More options; screenshots optional) or imports a dropped file, shows progress, and opens the result. A name that already exists is only replaced after you confirm. Only the UI Atlas page itself can start jobs (the server checks the Host, Origin and a request header), uploads are imported from a temporary copy that is deleted afterwards, and jobs run one at a time.
 
 It shows screens (click one for details in a modal), tokens (with a mode switcher when the atlas has modes), elements, **Components** (a styled sample of each variant with its colours, radius, type and padding) and **Map** (the crawled pages as a flow graph, laid out by link depth from the start page). Fonts are shown in themselves: web fonts load from the URLs in the source's own `@font-face` rules (recorded, never copied), other fonts only if installed. Wherever a font can't be shown in itself a **FALLBACK** tag says so, and weights a web font doesn't include are marked *synthesized*. A HEX / RGB toggle in the top bar switches how colours are written.
 

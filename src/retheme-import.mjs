@@ -7,7 +7,8 @@ import path from 'node:path';
 import { readZip } from './zip.mjs';
 import { prepareOut, writeAtlas, contrastReport } from './atlas-util.mjs';
 
-// Same slug Retheme uses for preview file names (preview.py _slug).
+// Same slug Retheme uses for preview file names (preview.py _slug). The committed package in
+// test/fixtures/retheme/fictive-corporate has files named by it, and the test reads that package.
 const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'layout';
 const hex = h => (h ? '#' + String(h).replace(/^#/, '').toLowerCase() : null);
 const pngWidth = b => (b && b.length > 24 && b.readUInt32BE(12) === 0x49484452 ? b.readUInt32BE(16) : null);

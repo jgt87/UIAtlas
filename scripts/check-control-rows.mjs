@@ -18,7 +18,8 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const DEFAULT_SELECTOR = 'button, select, input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]), a[class*="btn"], a[class*="button"], [role="button"], .field';
 const BROWSERS = [
@@ -30,7 +31,7 @@ const BROWSERS = [
   '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/microsoft-edge',
 ].filter(Boolean);
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const o = { urls: [], widths: [1440, 390], port: 9558, wait: 1500, selector: DEFAULT_SELECTOR, ignore: '', browser: '', selfTest: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -116,6 +117,9 @@ async function withBrowser(o, fn) {
   if (!existsSync(exe)) { console.error(`No browser at ${exe}: pass --browser <path> or set CHROME_PATH.`); process.exit(2); }
   const profile = mkdtempSync(join(tmpdir(), 'control-rows-'));
   const proc = spawn(exe, ['--headless=new', `--remote-debugging-port=${o.port}`, `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' });
+  // A browser that cannot start is reported, never thrown at the process: an unhandled 'error' on a
+  // child kills the caller (L-WIN). The connection wait below then fails with its own message.
+  proc.on('error', (e) => console.error('could not start the browser: ' + e.message));
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   let ws = null;
   try {
@@ -145,10 +149,23 @@ async function withBrowser(o, fn) {
   }
 }
 
+// The page is measured once it has loaded, then after the settle time: a fixed wait alone measured
+// an unloaded page on a busy CI runner, and the self-test found no rows (24 Nov 2026).
+// The old document is marked before navigating, so its own "complete" is not taken for the new one's.
+async function loaded(page, ms = 10_000) {
+  for (let t = 0; t < ms; t += 100) {
+    const r = await page.send('Runtime.evaluate', { expression: '!window.__leaving && document.readyState', returnByValue: true }).catch(() => null);
+    if (r?.result?.value === 'complete') return;
+    await page.wait(100);
+  }
+}
+
 async function visit(page, url, width, o) {
   await page.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
   await page.send('Page.enable');
+  await page.send('Runtime.evaluate', { expression: 'window.__leaving = true' });
   await page.send('Page.navigate', { url });
+  await loaded(page);
   await page.wait(o.wait);
   const r = await page.send('Runtime.evaluate', { expression: scanSource(o.selector, o.ignore), returnByValue: true });
   if (r.exceptionDetails) throw new Error(`the scan failed on ${url}: ${r.exceptionDetails.text}`);
@@ -174,4 +191,7 @@ async function main() {
   process.exit(0); // the browser's debug socket would keep the process alive after a pass
 }
 
-main().catch((e) => { console.error(`check-control-rows: ${e.message}`); process.exit(2); });
+// Runs only as a program: the test imports parseArgs.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => { console.error(`check-control-rows: ${e.message}`); process.exit(2); });
+}
