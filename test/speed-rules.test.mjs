@@ -69,8 +69,10 @@ test('growth tells linear work from work that compares every item with every oth
   const items = (n) => Array.from({ length: n }, (_, i) => (i * 7919) % n);
   const linear = (xs) => () => { for (const x of xs) sink += x; };
   const allPairs = (xs) => () => { for (const a of xs) for (const b of xs) if (a === b) sink++; };
-  assert.ok(growth(linear(items(20000)), linear(items(200000))) < 30, 'linear work read as slow');
-  assert.ok(growth(allPairs(items(150)), allPairs(items(1500)), 2) > 30, 'all-pairs work read as fast');
+  // Best of 5 rounds: a loaded machine (other test files running beside this one, memory pressure)
+  // inflated one timing of 2 rounds and read all-pairs work as fast, failing a release gate (24 Nov 2026).
+  assert.ok(growth(linear(items(20000)), linear(items(200000)), 5) < 30, 'linear work read as slow');
+  assert.ok(growth(allPairs(items(150)), allPairs(items(1500)), 5) > 30, 'all-pairs work read as fast');
   assert.ok(sink > 0);
 });
 

@@ -83,15 +83,16 @@ export function unwrap(section) {
  *  only the Node tests of a run that also ran two Python suites. */
 export function testCount(output) {
   const pats = [/Tests\s+(\d+) passed/, /ℹ pass (\d+)/, /# pass (\d+)/, /Tests:\s+(\d+) passed/, /Ran (\d+) tests? in [\d.]+s\s+OK/, /\b(\d+) passed(?:, [^\n]*)? in [\d.]+s/];
-  const hits = pats.map((re) => [...output.matchAll(new RegExp(re, 'g'))].map((m) => Number(m[1])));
+  const hits = pats.map((re) => [...output.matchAll(new RegExp(re, 'g'))].map((m) => Number(m[1]))); // injection: the patterns are this file's own constants
   const all = hits.flat();
   return all.length ? all.reduce((a, b) => a + b, 0) : null;
 }
 
 /** Release notes (docs/05 §6): the CHANGELOG section, the gates and their test count, what was not verified live, the asset. */
-export function releaseNotes(section, { tests, gates, notVerified, asset }) {
+export function releaseNotes(section, { tests, gates, notVerified, asset, retried = [] }) {
   const ran = gates.length ? `Checked before release: ${gates.join(', ')}${tests ? ` (${tests} tests passed)` : ''}.` : 'No gates ran.';
-  return [unwrap(section), '', ran, `Not verified live: ${notVerified}`, '',
+  const again = retried.length ? [`Passed on a second run: ${retried.join('; ')}.`] : [];
+  return [unwrap(section), '', ran, ...again, `Not verified live: ${notVerified}`, '',
     `\`${asset}\` is the release package; check it against \`SHA256SUMS\`.`, ''].join('\n');
 }
 
@@ -180,28 +181,40 @@ function ciProblems(root) {
   return runs.filter((r) => r.status !== 'completed' || r.conclusion !== 'success').map((r) => `CI ${r.workflowName}: ${r.status}/${r.conclusion || '-'}`);
 }
 
-/** One gate: its output, or an error with the end of it. */
-function gate(label, fn) {
+const failText = (e) => `${String(e.stdout || '').slice(-2000)}${String(e.stderr || '').slice(-2000)}`;
+export const firstProblem = (text) => (String(text).split('\n').find((l) => /Error|✖|not ok|FAIL/.test(l)) || 'it failed').trim().slice(0, 200);
+
+/** One gate, run once more when it fails: a timing test on a loaded machine failed a release gate that
+ *  passed alone (two releases, 24 Nov 2026). A second failure stops the release; a pass on the second
+ *  run is recorded in `retried` and named in the notes, never hidden. */
+function gate(label, fn, retried) {
   console.log(`gate: ${label}`);
-  try { return fn(); } catch (e) { throw new Error(`${label} failed:\n${String(e.stdout || '').slice(-2000)}${String(e.stderr || '').slice(-2000)}`, { cause: e }); }
+  try { return fn(); } catch (first) {
+    console.log(`gate: ${label} failed (${firstProblem(failText(first))}); running it once more`);
+    try {
+      const out = fn();
+      retried.push(`${label} (first run: ${firstProblem(failText(first))})`);
+      return out;
+    } catch (e) { throw new Error(`${label} failed twice:\n${failText(e)}`, { cause: e }); }
+  }
 }
 
-/** Runs the project's npm gates, then each --gate command; returns { gates, tests }. Throws on the first red one. */
+/** Runs the project's npm gates, then each --gate command; returns { gates, tests, retried }. Throws on a gate that fails twice. */
 function gates(root, pkg, extra) {
   const scripts = pkg?.scripts || {};
-  const ran = []; const counts = [];
+  const ran = []; const counts = []; const retried = [];
   for (const g of GATES.filter((x) => scripts[x])) {
-    const out = gate(`npm run ${g}`, () => run('npm', ['run', g], { cwd: root, maxBuffer: 64 << 20 }));
+    const out = gate(`npm run ${g}`, () => run('npm', ['run', g], { cwd: root, maxBuffer: 64 << 20 }), retried);
     if (g === 'test') counts.push(testCount(out));
     ran.push(g);
   }
   for (const cmd of extra) {
-    const out = gate(cmd, () => execSync(`${cmd} 2>&1`, { cwd: root, encoding: 'utf8', maxBuffer: 64 << 20 })); // injection: the operator's own --gate command line, never input from elsewhere
+    const out = gate(cmd, () => execSync(`${cmd} 2>&1`, { cwd: root, encoding: 'utf8', maxBuffer: 64 << 20 }), retried); // injection: the operator's own --gate command line, never input from elsewhere
     counts.push(testCount(out));
     ran.push(cmd);
   }
   const known = counts.filter((c) => c !== null);
-  return { gates: ran, tests: known.length ? known.reduce((a, b) => a + b, 0) : null };
+  return { gates: ran, tests: known.length ? known.reduce((a, b) => a + b, 0) : null, retried };
 }
 
 /** The version and name: package.json when the project has one, else the CHANGELOG's last release and --name. */

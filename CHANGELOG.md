@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+### Fixed
+- Releases: a check that fails once on a busy machine is run again, and the release notes say when one passed only on its second run; the speed test's own self-check measures over more rounds so load can't fool it.
 
 ## [0.8.2] - 2026-11-24
 
