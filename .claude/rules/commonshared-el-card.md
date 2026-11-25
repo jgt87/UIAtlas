@@ -2,8 +2,11 @@
 paths:
   - "**/*{Card,-card,_card}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
   - "**/card*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-card"
 ---
-<!-- managed by __CommonShared/rules/elements/el-card.md; sha256:3429f687195b5158; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-card.md; sha256:9422dfd56164718a; edit it there, put project rules in project-*.md -->
 # Card rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -12,7 +15,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 ## Look
 - One container level: no card inside a card. (docs/19 §4)
 - Border or shadow, never both; flat with a 1px `--border` by default, shadow only when it floats. (docs/19 §4, docs/01 §1)
-- `--surface` on `--bg`, radius `--radius-lg`, equal padding of 16px (12px compact). (docs/01 §4, docs/19 §6)
+- `--surface` on `--bg`, radius `--radius-container`, equal padding of 16px (12px compact). (docs/01 §4, docs/19 §6)
 - Nested shapes: outer radius = inner radius + padding. (docs/19 §6)
 - Full-bleed media pads the text rows and clips with `overflow:hidden` for the radius. (docs/17 §3)
 - Title 14–16px / 600, body 13–14px, meta 12px `--muted`; brand body ≥ 16px. (docs/19 §5)

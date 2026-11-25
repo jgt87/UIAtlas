@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{Avatar,avatar}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-avatar"
 ---
-<!-- managed by __CommonShared/rules/elements/el-avatar.md; sha256:a39b6b93242a1f20; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-avatar.md; sha256:3c9c7680b1a3a597; edit it there, put project rules in project-*.md -->
 # Avatar rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

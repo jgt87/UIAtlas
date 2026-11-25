@@ -4,7 +4,7 @@ paths:
   - "DESIGN.md"
   - "PRODUCT.md"
 ---
-<!-- managed by __CommonShared/rules/design.md; sha256:47b8001b8cb0eaa2; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/design.md; sha256:b2775a4edc5000e7; edit it there, put project rules in project-*.md -->
 # Design quality rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -12,12 +12,10 @@ DESIGN.md and PRODUCT.md win on conflict.
 
 ## Register and process
 - DESIGN.md names the register per surface: app (dense tools) or brand (marketing); rules below say which. (docs/19 §2)
-- Plan before code: surface, job, focal element, what's left out, states, each motion with its purpose. (docs/19 §3)
-- Ask whether a similar brief would give the same plan; revise the generic parts and say what changed. (docs/19 §3)
+- Plan before code: surface, job, focal element, what's left out, states, each motion with its purpose; ask whether a similar brief would give the same plan; revise the generic parts and say what changed. (docs/19 §3)
 - Use the project's component for every standard element; never a lookalike, never reshaped from outside. (docs/19 §3)
 - Mark an intentional deviation in place (`/* design: <why> */`) so it isn't reverted. (docs/19 §3)
-- Fix in order: layout, hierarchy, states, motion, polish; the largest visible fault first. (docs/19 §3)
-- Hand over with what was checked, what was assumed and what was not checked. (docs/19 §3)
+- Fix in order: layout, hierarchy, states, motion, polish; the largest visible fault first; hand over with what was checked, what was assumed and what was not checked. (docs/19 §3)
 
 ## Anti-slop (each ban has its replacement)
 - No decorative gradients, gradient text, glows or glass; flat surfaces, shadow only on what floats. (docs/19 §4)
@@ -25,13 +23,14 @@ DESIGN.md and PRODUCT.md win on conflict.
 - No emoji or mixed icon styles: one set, one stroke, one size per view. (docs/19 §4)
 - Sentence case; no eyebrow kickers above headings; uppercase labels only if DESIGN.md opts in; italics only for a title or a defined term; mono only for code, IDs, keys and aligned values. (docs/19 §4, §10)
 - No invented metrics, testimonials or logos; a missing fact shows as a visible placeholder. (docs/19 §4)
-- Numbered markers only for real sequences; borders and dividers must encode structure. (docs/19 §4)
-- One container level: no card in a card; border or shadow, never both. (docs/19 §4)
+- Numbered markers only for real sequences; lines, frames and dividers join only what belongs together. (docs/19 §4)
+- One container level: no card in a card; border or shadow, never both, in the page (what floats, a menu, popover, dialog or toast, has both). (docs/19 §4)
 - No status pills or dots that only say "fine"; surface status when it needs attention. (docs/19 §4)
 - One name per action through the flow ("Publish" → "Published"); errors say what happened and the fix. (docs/19 §4)
 - A state the interface infers is worded as likely ("may", "seems") with what comes next; only what it observed is stated as fact. (docs/19 §4)
 - A button named for an action performs it and says what came of it; one that only re-reads an unchanged state is not a button. (docs/19 §4)
 - One name per thing: a label never reuses a word the interface uses for something else. (docs/19 §4)
+- Offer what to pick, never what to remember: recent values, pickers and suggestions instead of typed ids, names or paths. (docs/19 §4)
 - One way per question: a second way to see or do the same thing replaces the first or is not built. (docs/19 §4)
 - A bar holds actions and navigation; options for what a view draws live in its filter or view panel. (docs/19 §4)
 - A state is explained once, in one banner above what it concerns; a disabled control keeps its own short reason; a label never repeats what its value already shows. (docs/19 §4)
@@ -56,6 +55,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Every text field is its own visible area: an edge (or fill) of 3:1 against what is behind it, at rest; never borderless text in a card. (docs/17 §2)
 - A view that fills the window grows by flex in a `min-height` container; no counted `calc(100dvh - Npx)`. (docs/17 §9)
 - Twice the space above a heading as below; `overflow-x: clip`; reflow narrow, never scale down. (docs/19 §6)
+- Space inside a group is smaller than the space between groups; a title sits 4–6px above its subtitle. (docs/19 §6)
 
 ## Motion and states
 - Decide by frequency: nothing seen 100+ times a day or started from the keyboard animates. (docs/19 §7)
@@ -68,14 +68,14 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Design all 8 states: default, hover, focus, active, disabled, loading, error, success. (docs/19 §7)
 - Progress shows only steps the interface observes; an unobservable wait is a spinner with the time waited. (docs/19 §7)
 - Known toggling labels reserve the widest; a spinner is already turning when shown. (docs/19 §7)
+- Unfinished work stays visible and resumable: drafts are marked, and a flow left halfway reopens where it stopped. (docs/19 §7)
 
 ## Verification
 - Check rendered pages at 1440, 1024, 768, 720 (a half-snapped window), 390 and a 320 walk, light and dark, keyboard only; a reported visual fault also at 100/125/150% scale, enlarged. (docs/19 §8, docs/07 §5)
 - The view's main control starts on the first screen at every width; run `check-design-rules.mjs` for it. (docs/19 §8)
-- Before a release, review the whole interface rendered in a fresh context: every view and state. (docs/19 §8)
+- Before a release, review the whole interface rendered in a fresh context, every view and state, with screenshots and the checklist only; findings as Before / After / Why. (docs/19 §3, §8, §9)
 - A rule counts as checked only for the states its check visits; the check lists them. (docs/19 §8)
 - Load once with scripts off and once with reduced motion: no content may stay hidden. (docs/19 §8)
 - Run the rendered-DOM layout lint; "never intentional" findings fail, candidates get a judgement. (docs/19 §8)
 - Hiding or marking an element to clear a finding is a bug; waivers carry a reason, max 5. (docs/19 §8)
 - Gates cap rounds (~3) and never trap; an empty capture is inconclusive, not a pass. (docs/19 §8)
-- Review in a fresh context with screenshots and the checklist only; findings as Before / After / Why. (docs/19 §3, §9)

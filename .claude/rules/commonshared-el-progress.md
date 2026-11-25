@@ -1,15 +1,18 @@
 ---
 paths:
   - "**/*{Progress,progress}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-progress"
 ---
-<!-- managed by __CommonShared/rules/elements/el-progress.md; sha256:dab1c4e3a7f7db46; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-progress.md; sha256:6fb38b6bf7968bf2; edit it there, put project rules in project-*.md -->
 # Progress rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
 DESIGN.md and PRODUCT.md win on conflict.
 
 ## Look
-- Track 4–6px (8px brand), `--hover` or `--active` tint, `--radius-pill`; fill `--accent`, a status role only when the value is a status. (docs/21 §11)
+- Track 4–6px (8px brand), `--hover` or `--active` tint, `--radius-full`; fill `--accent`, a status role only when the value is a status. (docs/21 §11)
 - A label saying what is happening and a value ("21 of 50 files"), 12px app, 14px brand, `tabular-nums`. (docs/01 §3, docs/19 §5)
 - Number and unit never break apart. (docs/19 §5)
 ## Behaviour

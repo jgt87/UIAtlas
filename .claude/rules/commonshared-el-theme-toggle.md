@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{ThemeToggle,ThemeSwitch,ThemePicker,themeToggle,theme-toggle,theme-switch}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-theme-toggle"
 ---
-<!-- managed by __CommonShared/rules/elements/el-theme-toggle.md; sha256:22b3e3fa70c41e1f; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-theme-toggle.md; sha256:21dfa946d70f24cb; edit it there, put project rules in project-*.md -->
 # Theme toggle rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

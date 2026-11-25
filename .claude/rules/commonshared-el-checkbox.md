@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{Checkbox,checkbox,CheckBox}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-checkbox"
 ---
-<!-- managed by __CommonShared/rules/elements/el-checkbox.md; sha256:0991105fbbdbf7e2; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-checkbox.md; sha256:6f4280cfcd6d140a; edit it there, put project rules in project-*.md -->
 # Checkbox rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

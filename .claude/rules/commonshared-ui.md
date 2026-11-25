@@ -4,7 +4,7 @@ paths:
   - "DESIGN.md"
   - "PRODUCT.md"
 ---
-<!-- managed by __CommonShared/rules/ui.md; sha256:bc4c14d1931442df; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/ui.md; sha256:f8b8f922d877eb11; edit it there, put project rules in project-*.md -->
 # UI rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -14,7 +14,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Read PRODUCT.md and DESIGN.md before UI work; a UI project without them writes them first. (docs/03 §4)
 - DESIGN.md holds YAML tokens plus short Named Rules; token files derived from it are regenerated, never hand-edited. (docs/03 §2)
 - Critique primary surfaces before release, fix P0/P1, and log accepted deviations with their reasons. (docs/03 §4)
-- If the project has `.impeccable/`: `detect` ignores linked stylesheets, so confirm its colour and type findings in the browser. (docs/03 §4)
+- If the project uses a design detector (`.impeccable/`): its `detect` ignores linked stylesheets, so confirm colour and type findings in the browser. (docs/03 §4)
 
 ## Tokens, colour, theme
 - No shared palette: colours, accent, status hues and dark values are the project's, set in DESIGN.md; until then use system colours. (docs/01 §2)
@@ -36,7 +36,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Body 13px/1.4 dense or 14px/1.5; labels 11–12px; titles 14–16px/600; dialog titles 18–20px; code ≥ 13px; headings `text-wrap: balance`, paragraphs `pretty` (no lone last word). (docs/01 §3, docs/17 §2)
 - One UI family + one mono; hierarchy from weight, not extra sizes; bundle webfonts, no runtime CDN. (docs/01 §3)
 - Text details: `tabular-nums` on changing numbers (numeric columns and headers right-aligned); curly quotes in UI copy; link underline offset 0.2em; `sup` at `line-height: 0`. (docs/01 §3, docs/17 §1)
-- Spacing on 4px steps (2 4 8 12 16 24 32); radius 4–8 controls, 6–12 menus, 10–12 cards; pills for one-line text only. (docs/01 §4, docs/17 §3)
+- Spacing on 4px steps (2 4 8 12 16 24 32), as rem tokens so it follows the reader's root size; radius 4–8 controls, 6–12 menus, 10–12 cards; pills for one-line text only. (docs/01 §4, docs/17 §3)
 - Control heights 24/28/32/36px (32 default); inputs match buttons; icon buttons square, ≥ 28px clickable. (docs/01 §5, §6, docs/17 §2)
 - One height per bar and per control kind (bordered controls `box-sizing: border-box`), checked over rendered heights at desktop and phone width (`check-control-rows.mjs`). (docs/17 §2)
 - Coarse pointer: reach 44px via padding or an invisible `::after` in `:where()`, never a bigger visible box. (docs/10 §4, docs/17 §2)
@@ -48,7 +48,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Composite inputs ring the wrapper with `:focus-within`; canvases use an inset ring, keyboard modality only. (docs/01 §7, docs/17 §8)
 - Clickable things are `button`s (`aria-pressed` for toggles); icon-only buttons get `aria-label`, not just `title`. (docs/17 §8)
 - Generated controls get names with row context; status lines `role="status"`, error boxes `role="alert"`. (docs/01 §6)
-- Disabled = opacity .4–.5 + `not-allowed`, out of the focus walk (focusable `aria-disabled` if it must explain why). (docs/01 §5, docs/19 §7)
+- Disabled = opacity .4–.5 + `not-allowed`, still focusable: `aria-disabled="true"`, never native `disabled`; the handler blocks every change; focus stays if it turns disabled while focused. (docs/19 §7, §10 #24)
 - One primary button per view, on the forward path; Save-style actions stay secondary and disabled until a change. (docs/01 §5, §6)
 
 ## States and overlays

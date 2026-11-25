@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*print*.{css,scss}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-print"
 ---
-<!-- managed by __CommonShared/rules/elements/el-print.md; sha256:f7013b17d9fe9400; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-print.md; sha256:1008466304d7a5e2; edit it there, put project rules in project-*.md -->
 # Print rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{Switch,switch,Toggle,toggle}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-switch"
 ---
-<!-- managed by __CommonShared/rules/elements/el-switch.md; sha256:edfa71d6e8e2c7e9; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-switch.md; sha256:ce6f78aeacc502e7; edit it there, put project rules in project-*.md -->
 # Switch rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -17,6 +20,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - For settings that apply immediately; form values use a checkbox. (docs/01 §6)
 - Two named states that both matter use a segmented control. (docs/20 Switch)
 - The whole row is clickable; Space toggles; the knob moves by `transform` at 150ms. (docs/01 §6, docs/19 §7)
+- A whole-row switch is a `<label>` row around the switch button; the row itself is never the `role="switch"`. (docs/20 Switch, docs/17 §2)
 - Remote saves: show loading until confirmed, or revert and announce on failure. (docs/03 §3)
 - Never present an optimistic state as confirmed. (docs/03 §3)
 

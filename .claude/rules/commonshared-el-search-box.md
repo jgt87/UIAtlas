@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{SearchBox,searchBox,search-box,SearchInput,searchInput,search-input,Combobox,combobox,ComboBox,Autocomplete,autocomplete,AutoComplete}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-search-box"
 ---
-<!-- managed by __CommonShared/rules/elements/el-search-box.md; sha256:a49bc36ebed910d4; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-search-box.md; sha256:c8a83cdef2a152e8; edit it there, put project rules in project-*.md -->
 # Search box rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -16,6 +19,8 @@ DESIGN.md and PRODUCT.md win on conflict.
 
 ## Behaviour
 - Debounce remote queries; keep the last results visible while the next load. (docs/20 Search box)
+- The newest query wins: drop responses for an older query; parts for the current one only append, keeping the active row and scroll. (docs/20 Search box, docs/19 §7)
+- A failed request keeps the last list with an error row below it; one count announcement per settled query. (docs/20 Search box)
 - Down opens and moves, Enter picks, Esc closes, a second Esc clears. (docs/20 Search box)
 - Option rows `mousedown` `preventDefault`; close on blur after a short delay. (docs/20 Search box)
 - Never auto-select the first suggestion unless completing inline. (docs/20 Search box)

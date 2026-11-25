@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{Radio,radio}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-radio"
 ---
-<!-- managed by __CommonShared/rules/elements/el-radio.md; sha256:6f97bcc3ec78fc00; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-radio.md; sha256:a15826aeb2068080; edit it there, put project rules in project-*.md -->
 # Radio rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

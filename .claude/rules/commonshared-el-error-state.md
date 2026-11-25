@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{ErrorState,errorState,error-state,ErrorBoundary,errorBoundary,error-boundary,Banner,banner}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-error-state"
 ---
-<!-- managed by __CommonShared/rules/elements/el-error-state.md; sha256:d9ce3c200a3dee07; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-error-state.md; sha256:5824826508114c53; edit it there, put project rules in project-*.md -->
 # Error state rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -19,6 +22,9 @@ DESIGN.md and PRODUCT.md win on conflict.
 - After a failed submit keep what was typed and focus the first failing field. (docs/19 §7)
 - Form failures show inline at the form, not in a toast. (docs/19 §7)
 - Banners push content down above what they concern; no entrance animation on routine loads. (docs/19 §7, docs/21 §13)
+- Banner tier follows persistence and urgency: quiet soft fill in flow, solid strong fill when action is due now, a floating toast when transient. (docs/21 §13)
+- The same icon, word and sentence at every tier; one tier per message at a time. (docs/21 §13, docs/01 §1)
+- The tier sets the look only; one element announces the words once, and a toast handing over to a banner does not re-announce. (docs/19 §7, docs/21 §13)
 - Stale views say so with a time; never present old data as current. (docs/03 §3)
 - Retrying shows a spinner on the action while the message stays. (docs/21 §13)
 - Retry re-sends the failed request exactly: same call, same arguments, same steps after success. (docs/21 §13)

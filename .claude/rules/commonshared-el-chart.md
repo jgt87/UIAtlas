@@ -1,8 +1,21 @@
 ---
 paths:
   - "**/*{Chart,Graph,Sparkline,Plot,chart,graph,sparkline}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/charts/test/bar-list.test.mjs"
+  - "templates/ui-kit/charts/test/bar.test.mjs"
+  - "templates/ui-kit/charts/test/engine.test.mjs"
+  - "templates/ui-kit/charts/test/frame.test.mjs"
+  - "templates/ui-kit/charts/test/gauge.test.mjs"
+  - "templates/ui-kit/charts/test/heatmap.test.mjs"
+  - "templates/ui-kit/charts/test/line.test.mjs"
+  - "templates/ui-kit/charts/test/parts.test.mjs"
+  - "templates/ui-kit/charts/test/ring.test.mjs"
+  - "templates/ui-kit/charts/test/sparkline.test.mjs"
+  - "templates/ui-kit/examples.html#el-chart"
 ---
-<!-- managed by __CommonShared/rules/elements/el-chart.md; sha256:6b052b100b875831; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-chart.md; sha256:ec59b89f3c214966; edit it there, put project rules in project-*.md -->
 # Chart rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

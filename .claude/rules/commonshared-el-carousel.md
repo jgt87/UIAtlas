@@ -1,8 +1,13 @@
 ---
 paths:
   - "**/*{Carousel,carousel,Slideshow,slideshow}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/carousel.test.mjs"
+  - "templates/ui-kit/kit/test/guard.test.mjs"
+  - "templates/ui-kit/examples.html#el-carousel"
 ---
-<!-- managed by __CommonShared/rules/elements/el-carousel.md; sha256:c6b0b454a66166f8; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-carousel.md; sha256:438ad67a27534db4; edit it there, put project rules in project-*.md -->
 # Carousel rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

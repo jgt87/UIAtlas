@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{MultiSelect,multiSelect,multi-select,Multiselect,multiselect}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-multi-select"
 ---
-<!-- managed by __CommonShared/rules/elements/el-multi-select.md; sha256:f39546dd71a5c464; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-multi-select.md; sha256:5f801dbef72211d7; edit it there, put project rules in project-*.md -->
 # Multi-select rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

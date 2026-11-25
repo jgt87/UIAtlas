@@ -1,4 +1,4 @@
-<!-- managed by __CommonShared/rules/core.md; sha256:6d6f673deeaaa7ba; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/core.md; sha256:802eed302500a2ac; edit it there, put project rules in project-*.md -->
 # Core rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -18,7 +18,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - AGENTS.md is canonical; a tool-specific agent file only imports it (`@AGENTS.md`); own notes go outside tool-managed blocks. (docs/05 §3, docs/13 §6, L-AGENT)
 - AGENTS.md holds only what code can't show (check commands, misleading places, decisions); keep it < 200 lines. (docs/14 §2)
 - Each gotcha line reads: rule — reason (incident, YYYY-MM-DD); append, don't rewrite. (docs/05 §3)
-- Docs never state counts that drift (tools, tests) unless a test checks them. (L-GIT)
+- Docs never state counts that drift (tools, tests) unless a test checks them; generate the ones a script can count. (docs/07 §5, L-GIT)
 - "Document the change" means edit existing docs; don't create new doc files for it. (L-AGENT)
 - After a bulk change (line endings, renames), grep agent and project docs for notes on that property. (docs/07 §5)
 
@@ -47,7 +47,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 ## Working and verifying
 - State assumptions and name competing readings instead of picking silently; ask when unclear. (docs/14 §3)
 - Build the minimum asked; every changed line traces to the request; mention unrelated dead code, don't delete it. (docs/14 §3)
-- Turn tasks into checks: a failing test then green; a refactor passes the same tests before and after. (docs/14 §3)
+- Turn tasks into checks: a failing test then green (a fault only CI has: recreate its condition here first); a refactor passes the same tests before and after. (docs/14 §3, docs/07 §5)
 - "Done" means the project's own check scripts pass; report each command with its output. (docs/14 §5, L-TEST)
 - Call a failure "the environment" only after a probe reproduces it; never skip a gate on your own. (docs/07 §2)
 - Verify the live thing (served bundle, deployed function, device) with numbers; restart servers after backend edits. (docs/07 §5, L-AGENT)
@@ -62,20 +62,20 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Answer code questions from the code, and check each point of a critique against today's build; counts come from a command, never mental arithmetic. (docs/07 §2, L-AGENT)
 - Number every option, and only options (one numbered list a reply); letters under a number are alternatives of one decision; times are local first, UTC beside. (docs/07 §2)
 - Commands to paste use absolute paths, never environment variables. (docs/07 §2)
+- A side request answered mid-task is given again, in full, in the closing report; never only "my earlier findings stand". (docs/07 §2)
 
 ## Edits and shell
-- Edit with the edit tools after reading the file with the read tool; never `sed -i`, `node -e` or a heredoc. (docs/07 §3, docs/12 §4)
-- An edit script keeps the file's line ending, matches on `\n`, throws on a miss; check the file isn't mixed after. (docs/12 §4)
-- An edit script is safe to rerun: it skips a pair whose replacement is already in the file. (docs/07 §3)
+- Edit with the edit tools after reading the file, and in full every line you anchor on, with the read tool; never `sed -i`, `node -e` or a heredoc. (docs/07 §3, docs/12 §4)
+- An edit script keeps the file's line ending, matches on `\n`, throws on a miss, skips a pair whose replacement is already there (safe to rerun); check the file isn't mixed after. (docs/12 §4, docs/07 §3)
 - List the folder case-insensitively before creating a file; in a shared folder re-list right before writing. (docs/07 §3)
-- Shell state and `/tmp` don't survive calls: use absolute paths, the session's scratch directory or gitignored `temp/`. (docs/07 §4)
-- Probe downloads and captures go to the session's scratch directory, never into the repo. (docs/07 §4, docs/11 §3)
+- Shell state and `/tmp` don't survive calls: use absolute paths, the session's scratch directory or gitignored `temp/`; probe downloads and captures go to the scratch directory, never into the repo. (docs/07 §4, docs/11 §3)
+- In a web app with single-key shortcuts, confirm the focus (screenshot or focused element) before typing; never press Escape in a mail draft. (docs/07 §5)
 - Quote every path variable in a shell loop (`"$p"`) and check the first iteration's output. (docs/07 §4)
 - Clean up what your own work created once no longer needed (stop processes with their children, delete with retries, check for leftovers); never pipe a script that owns a browser or server into `head`, which skips its cleanup. (docs/07 §4)
 
 ## Subagents
 - Brief like a peer: goal, files, constraints, done, and the irreversible actions it must not take. (docs/14 §7, docs/07 §5)
 - Parallel agents get disjoint files and no git, build or coverage; the orchestrator runs combined checks after. (docs/07 §7)
-- Trust the measured diff over an agent's report; read its patch for duplicated blocks. (docs/07 §7, L-MCP)
+- Trust the measured diff over an agent's report; check its claims about what people see along the whole path before passing them on; read its patch for duplicated blocks. (docs/07 §7, L-MCP)
 - A stopped subagent: check `git status --short`, try resuming once, else restart with the same brief. (docs/07 §7)
 - Never run two builds in one checkout; use worktrees under gitignored `.worktrees/<track>`. (docs/14 §7)

@@ -2,7 +2,7 @@
 paths:
   - "**/*.{css,scss,html,tsx,jsx,vue,svelte,astro}"
 ---
-<!-- managed by __CommonShared/rules/elements.md; sha256:a899855803bed9ab; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements.md; sha256:342e587dd1637156; edit it there, put project rules in project-*.md -->
 # UI element index
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -17,6 +17,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Avatar: `el-avatar`; uses Icon, Tooltip, Menu. (docs/22)
 - Badge: `el-badge`; uses Icon, IconButton, Tooltip. (docs/21)
 - Board: `el-board`; uses Card, Badge, Menu, Toast, Tabs. (docs/22)
+- Breadcrumbs: `el-breadcrumbs`; uses Menu, Icon, Tooltip. (docs/22)
 - Button: `el-button`; uses Spinner, Tooltip, Icon. (docs/20)
 - Calendar: `el-calendar`; uses Button, Popover, Badge, Tooltip, List. (docs/22)
 - Card: `el-card`; uses Badge, Button, Menu, Avatar, Icon, Chart. (docs/22)
@@ -27,16 +28,20 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Confirm: `el-confirm`; uses Dialog, Button, Spinner. (docs/21)
 - Date range: `el-date-range`; uses Popover, Text field, Segmented control. (docs/20)
 - Dialog: `el-dialog`; uses Button, IconButton, form fields, Tabs, Spinner, error banner. (docs/21)
+- Disclosure: `el-disclosure`; uses Button, Icon, Badge, form fields. (docs/22)
 - Drawer: `el-drawer`; uses Dialog, IconButton, Overlay contract. (docs/21)
 - Drop zone: `el-drop-zone`; uses Button, Icon button, Toast. (docs/20)
 - Empty state: `el-empty-state`; uses Icon, Button, Command palette, Menu. (docs/21)
 - Error state: `el-error-state`; uses Icon, Button, Spinner, Toast. (docs/21)
+- Field types (name, email, password, phone, address, postcode, date, IBAN, card): `el-field-types`; uses Text field, Icon button, Select. (docs/20)
 - Hold button: `el-hold-button`; uses Button, Spinner. (docs/20)
 - Icon button: `el-icon-button`; uses Tooltip, Icon, Spinner. (docs/20)
 - Icon: `el-icon`; uses `currentColor`, `--icon`, Tooltip. (docs/22)
 - List: `el-list`; uses Avatar, Icon, Badge, Checkbox, Menu, Skeleton. (docs/22)
+- Metadata list: `el-metadata-list`; uses Icon, Icon button, Tooltip, Badge, Avatar, Timestamp, Skeleton. (docs/22)
 - Menu: `el-menu`; uses Kbd, Icon, Separator, Confirm, Overlay contract. (docs/21)
 - Multi-select: `el-multi-select`; uses Checkbox, Search box, Popover. (docs/20)
+- Pagination: `el-pagination`; uses Button, Icon button, Icon, Select, Number input, Tooltip, Skeleton. (docs/22)
 - Popover: `el-popover`; uses Button, IconButton, Spinner, Overlay contract. (docs/21)
 - Print: `el-print`; uses Table, Chart, Card. (docs/22)
 - Progress: `el-progress`; uses Button, Error state, Toast. (docs/21)
@@ -47,13 +52,16 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Select: `el-select`; uses Popover, Text field. (docs/20)
 - Slider: `el-slider`; uses Icon button, Text field. (docs/20)
 - Spinner and skeleton: `el-spinner`; uses Icon, `.motion-alt`, Empty state, error state. (docs/21)
+- Splitter: `el-splitter`; uses resize cursors, hit slop, App shell. (docs/22)
 - Stepper: `el-stepper`; uses Button, Spinner, Icon, Badge, form fields, Dialog. (docs/22)
 - Switch: `el-switch`; uses Spinner, Toast. (docs/20)
 - Table: `el-table`; uses Checkbox, Button, Menu, Pagination, Skeleton, Empty state. (docs/22)
 - Tabs: `el-tabs`; uses Badge, Icon, Scrollbar. (docs/22)
 - Tag input: `el-tag-input`; uses Chip, Search box. (docs/20)
-- Text field: `el-text-field`; uses Icon button, Spinner. (docs/20)
+- Text field and Number input: `el-text-field`; uses Icon button, Spinner. (docs/20)
 - Theme toggle: `el-theme-toggle`; uses Button, Segmented control. (docs/22)
+- Timestamp and timer: `el-timestamp`; uses Tooltip, Icon button, Badge, Progress. (docs/22)
 - Toast: `el-toast`; uses Icon, Button, IconButton, Error state. (docs/21)
+- Toolbar: `el-toolbar`; uses Icon button, Button, Segmented control, Tooltip, Menu. (docs/22)
 - Tooltip: `el-tooltip`; uses Kbd, Overlay contract. (docs/21)
 - Tree: `el-tree`; uses Icon, Spinner, Context menu with a visible `⋯` mirror, Tooltip. (docs/22)

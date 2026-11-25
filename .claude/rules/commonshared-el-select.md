@@ -1,8 +1,12 @@
 ---
 paths:
   - "**/*{Select,select,Dropdown,dropdown,Listbox,listbox,ListBox}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/data.test.mjs"
+  - "templates/ui-kit/examples.html#el-select"
 ---
-<!-- managed by __CommonShared/rules/elements/el-select.md; sha256:d33dc4ea2b468492; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-select.md; sha256:c980fb99028dd501; edit it there, put project rules in project-*.md -->
 # Select rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

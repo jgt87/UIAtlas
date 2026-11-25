@@ -1,15 +1,19 @@
 ---
 paths:
   - "**/*{Menu,menu,Dropdown,dropdown}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/menu.test.mjs"
+  - "templates/ui-kit/examples.html#el-menu"
 ---
-<!-- managed by __CommonShared/rules/elements/el-menu.md; sha256:f31a053a53111858; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-menu.md; sha256:5bde4d47837ce0ea; edit it there, put project rules in project-*.md -->
 # Menu rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
 DESIGN.md and PRODUCT.md win on conflict.
 
 ## Look
-- One shared menu component: `--raised`, 1px `--border`, `--shadow-menu`, radius 6–12px, layer `--z-dropdown`. (docs/01 §6, docs/21 §4)
+- One shared menu component: `--raised`, 1px `--border`, `--shadow-menu`, radius `--radius-container` (10px), rows `--radius-container` − padding (6px), layer `--z-dropdown`. (docs/01 §6, docs/21 §4)
 - Min width ~240px; rows 32–36px, 13–14px text, icon column ~36px; coarse pointer rows reach 44px. (docs/01 §4, §6, docs/19 §5)
 - Hover and focus fills `--hover`, inset and rounded; group labels 11–12px `--muted`, sentence case. (docs/19 §6, docs/21 §4)
 - Over about seven items: sections with labels, or rare items in a submenu; frequent items first. (docs/19 §7)

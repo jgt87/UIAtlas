@@ -1,8 +1,13 @@
 ---
 paths:
   - "**/*{Stepper,stepper,Wizard,wizard,StepList,step-list}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/guard.test.mjs"
+  - "templates/ui-kit/kit/test/stepper.test.mjs"
+  - "templates/ui-kit/examples.html#el-stepper"
 ---
-<!-- managed by __CommonShared/rules/elements/el-stepper.md; sha256:cc080b4d19833e74; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-stepper.md; sha256:760a0d6b1440179d; edit it there, put project rules in project-*.md -->
 # Stepper rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

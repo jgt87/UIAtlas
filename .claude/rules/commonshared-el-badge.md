@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{Badge,badge,Chip,chip,Tag,tag-,-tag,Pill,pill,Status,status}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-badge"
 ---
-<!-- managed by __CommonShared/rules/elements/el-badge.md; sha256:f9f78e4811c5a86b; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-badge.md; sha256:b6cc3a36574550e4; edit it there, put project rules in project-*.md -->
 # Badge rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

@@ -1,8 +1,13 @@
 ---
 paths:
   - "**/*{Slider,slider,Range,range}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/controls.test.mjs"
+  - "templates/ui-kit/kit/test/kit-entry.test.mjs"
+  - "templates/ui-kit/examples.html#el-slider"
 ---
-<!-- managed by __CommonShared/rules/elements/el-slider.md; sha256:009d122951818ac5; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-slider.md; sha256:17b162c5915dec49; edit it there, put project rules in project-*.md -->
 # Slider rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

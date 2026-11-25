@@ -2,7 +2,7 @@
 paths:
   - "**/*.{tsx,jsx,ts,js,vue,svelte}"
 ---
-<!-- managed by __CommonShared/rules/interaction.md; sha256:2e9cf65fe511d864; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/interaction.md; sha256:b3b113d90e04bb49; edit it there, put project rules in project-*.md -->
 # Interaction rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -29,6 +29,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Board focus rings and selection chrome show only for keyboard use or while the editor has focus, never mid-drag. (docs/17 §8)
 - On release, the settle continues the release velocity (a spring with no bounce), never a fixed transition from rest; resistance past an end grows with the pull. (docs/19 §7)
 - Every input shows a reaction within 100ms and a result or progress within 400ms; no spinner under ~300ms, kept ≥ 400ms once shown. (docs/19 §7)
+- Late async results never change what the person now sees: drop stale responses, only append, keep selection, focus and scroll. (docs/19 §7, docs/20 Search box)
 - Progressive disclosure: the common path is visible; rare and advanced options sit behind a named "More" or "Advanced" disclosure that remembers its state. (docs/19 §7)
 
 ## Snapping and modifiers
@@ -52,6 +53,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Right-click cancels an in-progress placement, otherwise opens the app's own menu. (docs/02 §4)
 - A context menu is never the only path: mirror it in a visible `⋯` menu or toolbar; Shift+F10 / ContextMenu key open it. (docs/02 §4)
 - Suppress the browser context menu only on surfaces that supply their own. (docs/01 §6)
+- "Copied" shows only after the clipboard write succeeded; a failed copy says so and offers another way. (L-UI)
 
 ## Keyboard
 - Ctrl/Cmd+K palette, Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo/redo, Ctrl+D duplicate, Ctrl+A select all, `?` shortcut help. (docs/02 §5)
@@ -59,6 +61,8 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Single-letter tool keys only when focus is outside text fields; match Shift chords on `event.code`. (docs/02 §5)
 - Enter sends and Shift+Enter adds a line in composers; ignore Enter during IME composition. (docs/02 §5)
 - Shortcuts complement visible controls and appear in their tooltips as `kbd`. (docs/02 §5)
+- Focus moved by code after pointer input shows no ring; never force a ring on from script. (docs/19 §7)
+- Live regions are mounted empty and stay; one owner per message, announced once per occasion; assertive only for errors. (docs/19 §7)
 - In React: keep dialog callbacks in a ref (`useLatest`) so focus effects don't rerun and steal focus each render. (docs/17 §6, L-UI)
 - Global listeners in hidden but mounted views are gated on an `isActive` flag and removed in cleanup. (L-UI)
 
@@ -68,6 +72,9 @@ DESIGN.md and PRODUCT.md win on conflict.
 - No information or action reachable only on hover: touch gets a tap or `:active` path. (docs/02 §7, docs/17 §7)
 - A highlight (search results, a selection) hides nothing: items outside it stay reachable by pointer. (docs/07 §5)
 - Busy actions disable the control, show an inline spinner and label, and lock against double submission. (docs/02 §7)
+- Hover-revealed surfaces share one timing: an entry delay and a 100–200ms exit guard cancelled on re-entry; focus shows at once, touch never waits. (docs/19 §7, docs/21 §2)
+- Press feedback only paints (colour, opacity): never layout or the hit area; only the innermost surface that will act shows it. (docs/19 §7)
+- A gesture competing with scroll decides its axis within ~10px; hit areas grow toward 44px but stop halfway to a neighbour. (docs/19 §7)
 
 ## Undo and destructive actions
 - Delete/Backspace and every destructive action route through the app's command layer with undo, not the library default. (docs/02 §5)

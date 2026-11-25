@@ -2,8 +2,12 @@
 paths:
   - "**/*{Table,DataGrid,DataTable,data-table,data-grid}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
   - "**/{table,tables}.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/table.test.mjs"
+  - "templates/ui-kit/examples.html#el-table"
 ---
-<!-- managed by __CommonShared/rules/elements/el-table.md; sha256:c4a9f086a7676655; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-table.md; sha256:d10d3c674f4b8bfa; edit it there, put project rules in project-*.md -->
 # Table rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

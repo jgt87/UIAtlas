@@ -1,8 +1,12 @@
 ---
 paths:
   - "**/*{Drawer,drawer,Sheet,bottom-sheet,SidePanel,sidePanel,side-panel}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/sheet.test.mjs"
+  - "templates/ui-kit/examples.html#el-drawer"
 ---
-<!-- managed by __CommonShared/rules/elements/el-drawer.md; sha256:88f612c62b108cd0; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-drawer.md; sha256:6c2341cbdee5a154; edit it there, put project rules in project-*.md -->
 # Drawer rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -20,6 +24,11 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Overlay variant: Esc closes, Tab trapped, focus returns; docked variant: Esc closes only when focus is inside. (docs/17 §6, docs/21 §7)
 - Sheets dismiss on velocity (~0.11px/ms) or distance, resist past the open position, ignore extra touches mid-drag; the settle keeps the release velocity. (docs/19 §7)
 - Every swipe has a close button too. (docs/02 §2)
+- A sheet with detents is one panel at its tallest stop; lower detents are `translateY` positions, never a resize. (docs/21 §7)
+- On release a sheet settles on the detent nearest ~0.1s of projected velocity; a reversed release returns to its start; past halfway below the lowest it closes. (docs/21 §7, docs/19 §7)
+- The body scrolls inside; a drag moves the sheet only from the top of the body's scroll, decided once within ~10px. (docs/21 §7, docs/19 §7)
+- Content below the screen at the current detent is `inert`; detent changes never move focus. (docs/21 §7)
+- Esc and mobile Back close the top sheet only; unsaved input asks first and a refused close returns to its detent. (docs/21 §7)
 - Height from its container's top and bottom offsets, never `100dvh` minus a guessed header. (docs/17 §5)
 - On phones the controls stay in place and only the opened panel changes. (docs/17 §9)
 ## Accessibility

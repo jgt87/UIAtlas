@@ -1,8 +1,13 @@
 ---
 paths:
   - "**/*{Icon,Icons,icon,icons}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/core.test.mjs"
+  - "templates/ui-kit/kit/test/theme.test.mjs"
+  - "templates/ui-kit/examples.html#el-icon"
 ---
-<!-- managed by __CommonShared/rules/elements/el-icon.md; sha256:e348d3e5a8ac298c; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-icon.md; sha256:7424b4abc5c1eef8; edit it there, put project rules in project-*.md -->
 # Icon rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

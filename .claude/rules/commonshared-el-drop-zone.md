@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{DropZone,dropZone,drop-zone,Dropzone,dropzone,Upload,upload,FileInput,fileInput,file-input}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-drop-zone"
 ---
-<!-- managed by __CommonShared/rules/elements/el-drop-zone.md; sha256:ddab59f570e51526; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-drop-zone.md; sha256:8c6dded2f69d470d; edit it there, put project rules in project-*.md -->
 # Drop zone rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -10,7 +13,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 
 ## Look
 - A `<label>` wrapping a native file input, so click, Enter and Space open the picker. (docs/20 Drop zone)
-- Zone: 2px dashed `--border-strong`, radius `--radius-lg`, one line of text, limits in 12px `--muted`. (docs/02 §7, docs/19 §5)
+- Zone: 2px dashed `--border-strong`, radius `--radius-container`, one line of text, limits in 12px `--muted`. (docs/02 §7, docs/19 §5)
 - Dragover: edge `--accent`, fill `--accent-soft`. (docs/02 §7)
 - A hidden native input over the zone takes full width and height, with `overflow:hidden` on the parent. (docs/17 §2)
 - File list: one row per file with name, size, status or progress and a remove button. (docs/20 Drop zone)

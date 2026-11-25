@@ -1,8 +1,12 @@
 ---
 paths:
   - "**/*{Segmented,segmented,ButtonGroup,buttonGroup,button-group}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/tabs.test.mjs"
+  - "templates/ui-kit/examples.html#el-segmented"
 ---
-<!-- managed by __CommonShared/rules/elements/el-segmented.md; sha256:9e5917b729d41a95; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-segmented.md; sha256:3a1764b48f2d692c; edit it there, put project rules in project-*.md -->
 # Segmented control rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

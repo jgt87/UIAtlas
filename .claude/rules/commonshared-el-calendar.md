@@ -1,8 +1,12 @@
 ---
 paths:
   - "**/*{Calendar,MonthView,WeekView,calendar}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/calendar.test.mjs"
+  - "templates/ui-kit/examples.html#el-calendar"
 ---
-<!-- managed by __CommonShared/rules/elements/el-calendar.md; sha256:64aad3a37506ac1c; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-calendar.md; sha256:f22d9b603ac84d4b; edit it there, put project rules in project-*.md -->
 # Calendar rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -11,7 +15,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 ## Look
 - Header: month and year 14–16px / 600, previous/next icon buttons and a Today button. (docs/22 Calendar)
 - Weekday names come from `Intl.DateTimeFormat`, 11–12px `--muted`, sentence case. (docs/22 Calendar, docs/19 §5)
-- Day cells 32px (44px coarse), numbers 13–14px `tabular-nums`, radius `--radius-sm`. (docs/22 Calendar)
+- Day cells 32px (44px coarse), numbers 13–14px `tabular-nums`, radius `--radius-inner`. (docs/22 Calendar)
 - Selected day `--accent` with `--on-accent`; range middle `--accent-soft`. (docs/22 Calendar)
 - Today has a ring or weight plus "Today" in its name, never colour alone. (docs/22 Calendar, docs/01 §1)
 - Event chips 11px, with a "+n more" chip listing the rest. (docs/17 §3)

@@ -1,8 +1,12 @@
 ---
 paths:
   - "**/*{IconButton,iconButton,icon-button,IconBtn}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/theme.test.mjs"
+  - "templates/ui-kit/examples.html#el-icon-button"
 ---
-<!-- managed by __CommonShared/rules/elements/el-icon-button.md; sha256:138792a583f2bc11; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-icon-button.md; sha256:f459c95836d0ea45; edit it there, put project rules in project-*.md -->
 # Icon button rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -19,7 +23,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - `aria-label` names the action (with row context when generated); `title` is not a name. (docs/17 §8, docs/01 §6)
 - Tooltip shows the name and shortcut: 500–800ms first hover, 0 on focus, instant on neighbours. (docs/19 §7)
 - Loading swaps the icon for a same-size spinner; the box does not change. (docs/20 Icon button)
-- Disabled may add `pointer-events:none` only when nothing must be explained; else `aria-disabled`. (docs/01 §5, docs/19 §7)
+- Disabled is focusable `aria-disabled`, never `pointer-events:none` (it would hide the tooltip that says why); the handler ignores the press. (docs/20 §Conflicts #2, docs/19 §7)
 - A short help note sits behind an info button, its sentence in `aria-label` and tooltip. (docs/17 §4)
 
 ## Uses

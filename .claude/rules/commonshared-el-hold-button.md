@@ -1,8 +1,13 @@
 ---
 paths:
   - "**/*{HoldButton,holdButton,hold-button,HoldToConfirm,holdToConfirm}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/controls.test.mjs"
+  - "templates/ui-kit/kit/test/guard.test.mjs"
+  - "templates/ui-kit/examples.html#el-hold-button"
 ---
-<!-- managed by __CommonShared/rules/elements/el-hold-button.md; sha256:b22f097447cc84b1; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-hold-button.md; sha256:58662c6aea91d6a5; edit it there, put project rules in project-*.md -->
 # Hold button rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

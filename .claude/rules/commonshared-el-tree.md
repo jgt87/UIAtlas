@@ -1,8 +1,12 @@
 ---
 paths:
   - "**/*{Tree,TreeView,TreeItem,tree,tree-view}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/tree.test.mjs"
+  - "templates/ui-kit/examples.html#el-tree"
 ---
-<!-- managed by __CommonShared/rules/elements/el-tree.md; sha256:12004008ddde806f; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-tree.md; sha256:81a28a4c2846e924; edit it there, put project rules in project-*.md -->
 # Tree rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -13,7 +17,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Indent 12–16px per level; leaves keep an empty disclosure box so labels align. (docs/22 Tree)
 - Chevrons are SVG in a fixed 16px box and rotate by `transform`. (docs/17 §1)
 - Labels 13–14px, truncate with `min-width:0` and the full name in `title`. (docs/19 §5, docs/17 §3)
-- Hover `--hover`, selection `--accent-soft`, inset and rounded `--radius-sm`; the focus ring is inset. (docs/22 Tree, docs/17 §8)
+- Hover `--hover`, selection `--accent-soft`, inset and rounded `--radius-inner`; the focus ring is inset. (docs/22 Tree, docs/17 §8)
 
 ## Behaviour
 - Roving tabindex: one row in the tab order. (docs/22 Tree)

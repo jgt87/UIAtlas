@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{TagInput,tagInput,tag-input,TagsInput,tagsInput,tags-input,ChipInput,chipInput,chip-input}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-tag-input"
 ---
-<!-- managed by __CommonShared/rules/elements/el-tag-input.md; sha256:a84a5f8cab411c28; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-tag-input.md; sha256:e72a54b826d5f2a2; edit it there, put project rules in project-*.md -->
 # Tag input rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

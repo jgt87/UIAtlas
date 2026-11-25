@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{DateRange,dateRange,date-range,DatePicker,datePicker,date-picker,PeriodFilter,periodFilter,period-filter}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-date-range"
 ---
-<!-- managed by __CommonShared/rules/elements/el-date-range.md; sha256:d90f25271329bf89; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-date-range.md; sha256:b676e6102d3a6776; edit it there, put project rules in project-*.md -->
 # Date range rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

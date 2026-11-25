@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{Confirm,confirm,AlertDialog,alertDialog,alert-dialog}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-confirm"
 ---
-<!-- managed by __CommonShared/rules/elements/el-confirm.md; sha256:d6553584523736d2; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-confirm.md; sha256:0e1ee3974e4d3aae; edit it there, put project rules in project-*.md -->
 # Confirm rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

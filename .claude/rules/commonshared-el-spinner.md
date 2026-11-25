@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{Spinner,spinner,Loading,loading,Loader,loader,Skeleton,skeleton}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-spinner"
 ---
-<!-- managed by __CommonShared/rules/elements/el-spinner.md; sha256:78c9067857d7e31e; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-spinner.md; sha256:0679d32d56c92b4e; edit it there, put project rules in project-*.md -->
 # Spinner and skeleton rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

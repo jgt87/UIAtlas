@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{EmptyState,emptyState,empty-state,Empty}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-empty-state"
 ---
-<!-- managed by __CommonShared/rules/elements/el-empty-state.md; sha256:ef411f596e6d3cb8; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-empty-state.md; sha256:cf5907c934d03100; edit it there, put project rules in project-*.md -->
 # Empty state rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

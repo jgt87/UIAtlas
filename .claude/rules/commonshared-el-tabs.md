@@ -1,8 +1,13 @@
 ---
 paths:
   - "**/*{Tabs,TabList,TabBar,tabs,tab-list,tab-bar}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/kit-entry.test.mjs"
+  - "templates/ui-kit/kit/test/tabs.test.mjs"
+  - "templates/ui-kit/examples.html#el-tabs"
 ---
-<!-- managed by __CommonShared/rules/elements/el-tabs.md; sha256:7f233cb47d6ac6bb; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-tabs.md; sha256:f67846be84355a32; edit it there, put project rules in project-*.md -->
 # Tabs rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,

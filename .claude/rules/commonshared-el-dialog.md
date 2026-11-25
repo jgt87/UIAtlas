@@ -1,23 +1,29 @@
 ---
 paths:
   - "**/*{Dialog,dialog,Modal,modal}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/kit/test/dialog.test.mjs"
+  - "templates/ui-kit/kit/test/palette.test.mjs"
+  - "templates/ui-kit/examples.html#el-dialog"
 ---
-<!-- managed by __CommonShared/rules/elements/el-dialog.md; sha256:8657ea3f570f2c24; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-dialog.md; sha256:324974751cf007f2; edit it there, put project rules in project-*.md -->
 # Dialog rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
 DESIGN.md and PRODUCT.md win on conflict.
 
 ## Look
-- Panel `--raised`, 1px `--border`, `--shadow-dialog`, radius `--radius-lg`, layer `--z-modal`; one shared `--backdrop`. (docs/01 §6, docs/17 §10a)
+- Panel `--raised`, 1px `--border`, `--shadow-dialog`, radius `--radius-page`, layer `--z-modal`; one shared `--backdrop`. (docs/01 §6, docs/17 §10a)
 - Width `min(680px, 100vw - 32px)`; centred horizontally, top-anchored at ~12vh, `max-height: 72vh`. (docs/01 §6, docs/21 §15)
 - Title 18–20px/600 in a fixed header with the close button; body 13–14px, 16px padding; footer actions right, primary last. (docs/19 §5, docs/21 §5)
 - One scroll area: the body; the header and footer stay put; height stays the same across tabs. (docs/17 §6)
 ## Behaviour
 - Native `<dialog>` with `showModal()`; on Electron an overlay modal instead. (docs/17 §6)
 - Esc closes (a nested popover or menu first), Tab is trapped, focus returns to the opener. (docs/17 §6)
+- Focus returns without scrolling the page (`focus({ preventScroll: true })`); Esc during IME composition closes nothing. (docs/21 §1)
 - Initial focus on the first field; a read-only dialog focuses its close button or primary action. (docs/21 §5)
-- A backdrop click closes only a dialog with nothing to lose; never one with unsaved input. (docs/21 §5)
+- A backdrop click closes only a dialog with nothing to lose, and only when the press started and ended on the backdrop. (docs/21 §1, §5)
 - Never stack two dialogs that ask the same question; queue the second. (docs/17 §6)
 - Stop wheel propagation only when the body can scroll. (docs/17 §6)
 - Enter ≤ 200ms with opacity + `scale(0.95)` from its centre, never from the trigger; exit faster; stay mounted until it ends. (docs/19 §7)

@@ -4,7 +4,7 @@ paths:
   - "package.json"
   - "tsconfig*.json"
 ---
-<!-- managed by __CommonShared/rules/stack/node.md; sha256:74e2f8e3a80e00d2; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/stack/node.md; sha256:1e514f7795d37df4; edit it there, put project rules in project-*.md -->
 # Node and TypeScript rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -30,7 +30,6 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Tool descriptions lead with the job; no funnel phrases like "run this first". (L-UI)
 - Write tools return a dry run; `confirm: true` on the second call acts; honour a `<APP>_READ_ONLY` switch. (docs/05 §5)
 - Contract tests: guides name only registered tools, every write tool documents `confirm`, README list equals code. (docs/04 §3)
-- Retry only idempotent calls on transport/408/429/5xx with jitter and a capped `Retry-After`; never a write. (docs/05 §5, L-DEPLOY)
 - Wrapped CLIs can print "failed" and exit 0: check output with per-command failure patterns. (L-MCP)
 - Run git plumbing with `-z`; re-read config on mtime change and never cache a missing file. (L-MCP)
 

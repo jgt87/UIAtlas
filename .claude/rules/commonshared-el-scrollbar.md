@@ -1,8 +1,11 @@
 ---
 paths:
   - "**/*{Scrollbar,ScrollArea,ScrollView,scrollbar,scroll-area}*.{tsx,jsx,ts,js,vue,svelte,css,scss,html}"
+status: current
+verified_by:
+  - "templates/ui-kit/examples.html#el-scrollbar"
 ---
-<!-- managed by __CommonShared/rules/elements/el-scrollbar.md; sha256:88bf0c24022c4614; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-scrollbar.md; sha256:59b0aac9638aaf68; edit it there, put project rules in project-*.md -->
 # Scrollbar rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -26,4 +29,4 @@ DESIGN.md and PRODUCT.md win on conflict.
 - A scroll region with no focusable content gets `tabindex="0"`, `role="region"` and a label. (docs/22 Scrollbar)
 
 ## Uses
-- `--scroll-thumb`, `--scroll-thumb-hover`, `--radius-pill` — the thumb. (docs/01 §8)
+- `--scroll-thumb`, `--scroll-thumb-hover`, `--radius-full` — the thumb. (docs/01 §8)

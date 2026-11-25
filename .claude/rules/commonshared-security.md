@@ -1,10 +1,11 @@
 ---
 paths:
-  - "**/*.{ts,js,mjs,py,ps1,psm1}"
+  - "**/*.{ts,tsx,js,jsx,mjs,cjs,py,ps1,psm1,cs,sql}"
+  - "**/*.{html,vue,svelte,astro}"
   - ".env*"
   - "**/*.{json,toml,yaml,yml}"
 ---
-<!-- managed by __CommonShared/rules/security.md; sha256:183688e2c1941902; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/security.md; sha256:1b6ae1389db02d10; edit it there, put project rules in project-*.md -->
 # Security rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -13,12 +14,26 @@ DESIGN.md and PRODUCT.md win on conflict.
 ## Local servers
 - Bind `127.0.0.1` unless LAN access is a documented feature of the app. (docs/05 §7)
 - Guard state-changing routes with an Origin/Host check plus a custom header (`X-<App>: 1`). (docs/05 §7, L-SEC)
-- Parse the Origin; accept scheme `http` and host exactly `127.0.0.1`, `localhost` or `::1`; never a prefix match. (docs/13 §2, L-SEC)
+- Parse the Origin; accept scheme `http` and a host that is exactly one of the loopback names the server binds (`127.0.0.1`, `localhost`, `::1`); never a prefix match. (docs/13 §2, L-SEC)
 - Test look-alike origins: `localhost.evil.example`, `127.0.0.1.evil.example`, `localhost@evil.example`, `https://localhost`, `null`. (docs/13 §2)
 - Serve UI files through an allow-list route, not a directory mount; test that source files and `..%2F` paths 404. (docs/13 §2)
 - Store uploads under a fixed name; the original name is display text only, printable, ≤ 80 chars. (docs/13 §2)
 - Before fixing a suspected injection, read the whole path; pin existing escaping with a test, never escape twice. (docs/13 §2)
 - A browser-side control counts only when the server enforces it; prove it with one harmless direct request. (docs/07 §5, L-SEC)
+
+## Injection
+- Make input safe at the sink that uses it, never at the field: the field checks shape for the person, the server parses types and limits. (docs/24 §1)
+- Store values as typed; encode once, at each sink, for that sink's context. (docs/24 §1, docs/13 §2)
+- SQL and query objects: bound parameters only; identifiers and sort keys from an allow-list; never a filter object straight from the request. (docs/24 §2)
+- HTML: text APIs and framework binding; untrusted HTML only through an allow-list sanitiser; URLs in `href`/`src` checked to http(s), mailto or relative. (docs/24 §2)
+- Processes: an argument array without a shell (`execFile`, `subprocess.run([...])`, splatting); never `shell: true`, `os.system` or `Invoke-Expression` with a value. (docs/24 §2)
+- Paths: resolve, then require the result inside the allowed base; never `eval`, `new Function` or a string timer on data. (docs/24 §2)
+- CSV export: a cell starting with `=`, `+`, `-`, `@`, tab or CR gets a leading `'`; headers and logs reject or escape CR/LF. (docs/24 §2)
+- Deserialise with schemas and safe loaders only; XML parsers with external entities off; redirects relative or to an allow-listed host. (docs/24 §2)
+- Text sent to a language model stays data: delimited, never followed as instructions; its output is untrusted input to every sink. (docs/24 §2)
+- A model's reply is parsed into the fields the code expects, checked and clamped, before it reaches state, storage or a response; the rest is dropped. (docs/24 §2, L-SEC)
+- A strict CSP (no `unsafe-inline` scripts, no `unsafe-eval`) and least-privilege database roles as second lines. (docs/24 §4)
+- Test each sink with hostile values (`'`, `<script>`, `$(id)`, `../`, CR/LF, `=1+1`) that must come back unchanged as data; run the injection copy-in check. (docs/24 §5)
 
 ## Ports
 - Give each app a fixed, documented port, passed explicitly; never a framework default or a port reserved on the machine. (docs/05 §7, docs/14 §10)
