@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+### Changed
+- Viewer: why Export is unavailable is now a real tooltip, shown when the button gets keyboard focus, on hover and on a tap, and read by screen readers with the button.
+- Viewer: the tokens view's pass switch is called "Mode" like everywhere else; with more than four options it becomes a select drawn like the atlas picker.
+- Viewer: switching atlases keeps the page's height while the next one loads; the loading spinner is a drawn ring with a smaller, quieter label.
+- Viewer: fonts the viewer can't find are described as "seems not installed", since that is measured, not known; Export ends with "Exported."; the browser tab names the view and the atlas.
+- Viewer: closing a dialog or the drawer returns focus without scrolling the page, and Esc while typing with an input method no longer closes them.
+- Robots.txt notes ("Crawl-delay of 10 s") keep the number and its unit together.
+- Viewer: with reduced motion switched on, the busy spinner keeps turning slowly instead of stopping, so you can still see that work goes on.
+- Viewer: on touch screens buttons keep their size and get a larger invisible tap area; only text fields and pickers grow to 44px.
+- Viewer: the Export and Create atlas buttons sit in a fixed footer below the dialog's scrolling body, so they are always in view, also with More options open.
+- Viewer: spacing follows one 4px scale (2 to 32px) that grows with the browser's text size, so some gaps and paddings moved by a few pixels; corners, layers, the dialog shadow and backdrop come from named tokens.
+- Viewer: the sidebar, dialog body, screenshot box, map and job log keep room for their scrollbar, so content no longer shifts when a scrollbar appears.
+- An error that comes without a message now says "The action stopped on an error that gave no message." instead of "Something went wrong."
+
+### Added
+- `DECISIONS.md`: every settled design and project decision in one place, each with its id, date, who decided, its goal and the solution chosen; the design notes, agent notes, stylesheet and audit config now point to these entries instead of repeating them.
+- `npm run check:a11y`: an automated WCAG A/AA scan (axe-core) of every viewer view with reduced motion, failing on any console error in the same run.
+
+### Fixed
+- The CSS and HTML exports are written in one step, like the JSON export, so an interrupted export never leaves a half-written file.
+- The "+ New" form checks modes and web addresses by exactly the rules the server uses, so they can't disagree.
+- The tests no longer write into `data/`; they run a temporary copy of the program instead.
+- Atlas files, the previous atlas and `package.json` are read correctly when an editor saved them with a byte-order mark.
+
 ## [0.8.3] - 2026-11-24
 
 ### Fixed

@@ -1,7 +1,7 @@
 // Token export: structured W3C JSON (primitives, typography/component aliases, typed source variables), CSS, and a real PDF.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpathSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { toDtcg, toCss, exportAtlas, sheetHtml } from '../src/export.mjs';
@@ -69,7 +69,8 @@ test('CSS: generated from the same structure; aliases become var() references', 
 });
 
 test('exportAtlas writes all three files, and the PDF is a PDF', async () => {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'atlas-test-')), atlasDir = path.join(dir, 'fictive');
+  // realpath: Windows CI hands out 8.3 short temp paths, and the paths below are compared
+  const dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'atlas-test-'))), atlasDir = path.join(dir, 'fictive');
   mkdirSync(atlasDir); writeFileSync(path.join(atlasDir, 'atlas.json'), JSON.stringify(atlas));
   const files = await exportAtlas({ atlasDir });
   assert.equal(files.length, 3);

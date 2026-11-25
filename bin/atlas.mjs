@@ -100,59 +100,78 @@ async function withModes(run, outDir) {
   return addModes({ atlasDir: outDir, specs: modeSpecs, run: (m, tmp) => run({ ...m, screenshots: false }, tmp, true) });
 }
 
-if (cmd === 'extract') {
-  const url = argv[1];
-  if (!url || !/^https?:\/\//.test(url)) { console.error('Usage: atlas extract <https url> [--pages N] [--name NAME] [--modes dark,mobile] [--delay MS] [--ignore-robots]   (local files: atlas import <path>)'); process.exit(1); }
-  const name = o.name || new URL(url).hostname;
-  const maxPages = pages(1);
-  const { extractSite } = await import('../src/web-extract.mjs');
-  console.log(`Extracting ${url} -> data/${safe(name)}  (up to ${maxPages} page${maxPages > 1 ? 's' : ''})`);
-  sayIfReplacing(name);
-  const atlas = await withModes(({ globals, ...m }, out, isMode) => extractSite({ startUrl: url, maxPages, outDir: out, screenshots: screenshots && !isMode, ...polite(1000), ...m }), outFor(name));
-  done(atlas); notes(atlas);
-} else if (cmd === 'import') {
-  const src = argv[1] && path.resolve(argv[1]);
-  if (!src || !existsSync(src)) { console.error(`Usage: atlas import <file or folder> [--name NAME] [--kind ${Object.keys(importers).join('|')}]`); process.exit(1); }
+// A wrong argument stops with the command's usage line.
+const stop = text => { console.error(text); process.exit(1); };
+
+// The importer for a source: --kind, else what src/detect.mjs reads it as; it must take --modes when they are given.
+async function importKind(src) {
   const { detectKind } = await import('../src/detect.mjs');
   const kind = o.kind || detectKind(src);
-  if (!importers[kind]) { console.error(`Can't tell what ${path.basename(src)} is. Pass --kind ${Object.keys(importers).join('|')}.`); process.exit(1); }
-  if (modeSpecs.length && !moddable.has(kind)) { console.error(`--modes needs something a browser renders (website, Storybook, HTML/SVG), not ${kind}.`); process.exit(1); }
-  const name = o.name || path.basename(src).replace(/\.[^.]+$/, '');
-  console.log(`Importing ${path.basename(src)} as ${kind} -> data/${safe(name)}`);
-  sayIfReplacing(name);
-  const atlas = await withModes((m, out) => importers[kind](src, out, m), outFor(name));
-  done(atlas, kind === 'retheme' || kind === 'pptx' ? 'layouts' : 'screens'); notes(atlas);
-} else if (cmd === 'storybook') {
-  const url = argv[1];
-  if (!url || !/^https?:\/\//.test(url)) { console.error('Usage: atlas storybook <https url> [--pages N] [--name NAME] [--modes dark,theme=g100] [--delay MS] [--ignore-robots]   (a local storybook-static folder: atlas import <folder>)'); process.exit(1); }
-  const name = o.name || new URL(url).hostname;
-  console.log(`Measuring stories of ${url} -> data/${safe(name)}`);
-  sayIfReplacing(name);
-  const atlas = await withModes((m, out) => importers.storybook(url, out, m), outFor(name));
-  done(atlas, 'stories'); notes(atlas);
-} else if (cmd === 'compare') {
-  const name = argv[1], against = o.against, previous = argv.includes('--previous');
-  if (!hasAtlas(name) || (!previous && !hasAtlas(against))) { console.error('Usage: atlas compare <atlas> --against <reference atlas>   or   atlas compare <atlas> --previous   [--delta-e N]'); process.exit(1); }
-  const { compareAtlases, formatReport, latestSnapshot } = await import('../src/compare.mjs');
-  const read = n => readAtlasFile(path.join(atlasDirOf(n), 'atlas.json'));
-  const reference = previous ? latestSnapshot(atlasDirOf(name)) : read(against);
-  if (!reference) { console.error(`No earlier snapshot of ${name} yet: history is kept from the next re-extract on.`); process.exit(1); }
-  const report = compareAtlases(read(name), reference, { deltaE: o['delta-e'] || 3 });
-  const dir = path.join(atlasDirOf(name), 'reports'); mkdirSync(dir, { recursive: true });
-  const file = writeJsonFile(path.join(dir, `compare-${previous ? 'previous' : safe(against)}.json`), report, 2);
-  console.log(formatReport(report) + `\nFull report: ${path.relative(process.cwd(), file)}`);
-} else if (cmd === 'export') {
-  const name = argv[1], atlasDir = atlasDirOf(name);
-  if (!hasAtlas(name)) { console.error(`Usage: atlas export <atlas name> [--format ${FORMATS}] [--out DIR]   (names: run atlas without arguments)`); process.exit(1); }
-  const formats = o.format || ['pdf', 'json', 'css'];
-  const { exportAtlas } = await import('../src/export.mjs');
-  const files = await exportAtlas({ atlasDir, formats, ...(o.out ? { outDir: path.resolve(o.out) } : {}) });
-  console.log('Exported:\n' + files.map(f => '  ' + path.relative(process.cwd(), f)).join('\n'));
-} else if (cmd === 'serve') {
-  const port = o.port ?? 4300;
-  const { serve } = await import('../src/serve.mjs');
-  serve({ root, dataDir, port });
-} else {
+  if (!importers[kind]) stop(`Can't tell what ${path.basename(src)} is. Pass --kind ${Object.keys(importers).join('|')}.`);
+  if (modeSpecs.length && !moddable.has(kind)) stop(`--modes needs something a browser renders (website, Storybook, HTML/SVG), not ${kind}.`);
+  return kind;
+}
+
+// One entry per command; anything else prints the usage and the list of atlases.
+const COMMANDS = {
+  async extract() {
+    const url = argv[1];
+    if (!url || !/^https?:\/\//.test(url)) stop('Usage: atlas extract <https url> [--pages N] [--name NAME] [--modes dark,mobile] [--delay MS] [--ignore-robots]   (local files: atlas import <path>)');
+    const name = o.name || new URL(url).hostname;
+    const maxPages = pages(1);
+    const { extractSite } = await import('../src/web-extract.mjs');
+    console.log(`Extracting ${url} -> data/${safe(name)}  (up to ${maxPages} page${maxPages > 1 ? 's' : ''})`);
+    sayIfReplacing(name);
+    const atlas = await withModes(({ globals, ...m }, out, isMode) => extractSite({ startUrl: url, maxPages, outDir: out, screenshots: screenshots && !isMode, ...polite(1000), ...m }), outFor(name));
+    done(atlas); notes(atlas);
+  },
+  async import() {
+    const src = argv[1] && path.resolve(argv[1]);
+    if (!src || !existsSync(src)) stop(`Usage: atlas import <file or folder> [--name NAME] [--kind ${Object.keys(importers).join('|')}]`);
+    const kind = await importKind(src);
+    const name = o.name || path.basename(src).replace(/\.[^.]+$/, '');
+    console.log(`Importing ${path.basename(src)} as ${kind} -> data/${safe(name)}`);
+    sayIfReplacing(name);
+    const atlas = await withModes((m, out) => importers[kind](src, out, m), outFor(name));
+    done(atlas, kind === 'retheme' || kind === 'pptx' ? 'layouts' : 'screens'); notes(atlas);
+  },
+  async storybook() {
+    const url = argv[1];
+    if (!url || !/^https?:\/\//.test(url)) stop('Usage: atlas storybook <https url> [--pages N] [--name NAME] [--modes dark,theme=g100] [--delay MS] [--ignore-robots]   (a local storybook-static folder: atlas import <folder>)');
+    const name = o.name || new URL(url).hostname;
+    console.log(`Measuring stories of ${url} -> data/${safe(name)}`);
+    sayIfReplacing(name);
+    const atlas = await withModes((m, out) => importers.storybook(url, out, m), outFor(name));
+    done(atlas, 'stories'); notes(atlas);
+  },
+  async compare() {
+    const name = argv[1], against = o.against, previous = argv.includes('--previous');
+    if (!hasAtlas(name) || (!previous && !hasAtlas(against))) stop('Usage: atlas compare <atlas> --against <reference atlas>   or   atlas compare <atlas> --previous   [--delta-e N]');
+    const { compareAtlases, formatReport, latestSnapshot } = await import('../src/compare.mjs');
+    const read = n => readAtlasFile(path.join(atlasDirOf(n), 'atlas.json'));
+    const reference = previous ? latestSnapshot(atlasDirOf(name)) : read(against);
+    if (!reference) stop(`No earlier snapshot of ${name} yet: history is kept from the next re-extract on.`);
+    const report = compareAtlases(read(name), reference, { deltaE: o['delta-e'] || 3 });
+    const dir = path.join(atlasDirOf(name), 'reports'); mkdirSync(dir, { recursive: true });
+    const file = writeJsonFile(path.join(dir, `compare-${previous ? 'previous' : safe(against)}.json`), report, 2);
+    console.log(formatReport(report) + `\nFull report: ${path.relative(process.cwd(), file)}`);
+  },
+  async export() {
+    const name = argv[1], atlasDir = atlasDirOf(name);
+    if (!hasAtlas(name)) stop(`Usage: atlas export <atlas name> [--format ${FORMATS}] [--out DIR]   (names: run atlas without arguments)`);
+    const formats = o.format || ['pdf', 'json', 'css'];
+    const { exportAtlas } = await import('../src/export.mjs');
+    const files = await exportAtlas({ atlasDir, formats, ...(o.out ? { outDir: path.resolve(o.out) } : {}) });
+    console.log('Exported:\n' + files.map(f => '  ' + path.relative(process.cwd(), f)).join('\n'));
+  },
+  async serve() {
+    const port = o.port ?? 4300;
+    const { serve } = await import('../src/serve.mjs');
+    serve({ root, dataDir, port });
+  },
+};
+
+function usage() {
   console.log(`UI Atlas
   atlas extract <url> [--pages N] [--name NAME]      website
   atlas storybook <url> [--pages N] [--name NAME]    deployed Storybook
@@ -174,3 +193,5 @@ Atlases store design tokens and text-free style samples only. Add --screenshots 
 command to also keep screenshots; text content is never stored.`);
   if (existsSync(dataDir)) { const sets = readdirSync(dataDir).filter(d => existsSync(path.join(dataDir, d, 'atlas.json'))); if (sets.length) console.log('\nExtracted atlases: ' + sets.join(', ')); }
 }
+
+await (Object.hasOwn(COMMANDS, cmd) ? COMMANDS[cmd] : usage)();

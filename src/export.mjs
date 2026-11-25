@@ -1,10 +1,10 @@
 // Exports an atlas's design tokens: a printable PDF token sheet (rendered by the browser from generated HTML),
 // a W3C design-tokens JSON file, and a CSS custom-properties file. Written to data/<name>/exports/ unless outDir is given.
 // Exports hold design tokens only: no source name, file name, URL, screenshots or text from the source.
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { launchBrowser, slug } from './atlas-util.mjs';
-import { readAtlasFile, writeJsonFile } from './atlas-file.mjs';
+import { readAtlasFile, writeJsonFile, writeTextFile } from './atlas-file.mjs';
 import { buildTokens, toCssVars } from './tokens-json.mjs';
 import { KINDS } from '../viewer/js/kinds.js';
 
@@ -132,8 +132,8 @@ export async function exportAtlas({ atlasDir, outDir = path.join(atlasDir, 'expo
   mkdirSync(outDir, { recursive: true });
   const base = slug(atlas.project.name), written = [], out = name => { const f = path.join(outDir, name); written.push(f); return f; };
   if (formats.includes('json')) writeJsonFile(out(`${base}.tokens.json`), toDtcg(atlas, opts), 2);
-  if (formats.includes('css') || formats.includes('html')) writeFileSync(out(`${base}-tokens.css`), toCss(atlas, opts));
-  if (formats.includes('html')) writeFileSync(out(`${base}-tokens.html`), sheetHtml(atlas, { webFonts: false, cssHref: `${base}-tokens.css`, markFallbacks: true }));
+  if (formats.includes('css') || formats.includes('html')) writeTextFile(out(`${base}-tokens.css`), toCss(atlas, opts));
+  if (formats.includes('html')) writeTextFile(out(`${base}-tokens.html`), sheetHtml(atlas, { webFonts: false, cssHref: `${base}-tokens.css`, markFallbacks: true }));
   if (formats.includes('pdf')) await printPdf(atlas, out(`${base}-tokens.pdf`));
   return written;
 }

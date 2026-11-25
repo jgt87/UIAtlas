@@ -25,3 +25,4 @@ desktop.ini
 .idea/
 .repowise/
 tasks/lessons.md
+**/.claude/settings.local.json

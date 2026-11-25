@@ -8,7 +8,7 @@ import path from 'node:path';
 import { tokenTally, toHex, prepareOut, writeAtlas } from './atlas-util.mjs';
 
 const isObj = v => v != null && typeof v === 'object' && !Array.isArray(v);
-const readJson = f => JSON.parse(readFileSync(f, 'utf8').replace(/^﻿/, ''));
+const readJson = f => JSON.parse(readFileSync(f, 'utf8').replace(/^\uFEFF/, '')); // a BOM (Windows editors) would break JSON.parse
 const deepMerge = (a, b) => { for (const [k, v] of Object.entries(b)) a[k] = isObj(v) && isObj(a[k]) ? deepMerge(a[k], v) : v; return a; };
 
 // A folder is merged at the root (split Style Dictionary / DTCG files), unless it is a Tokens Studio multi-file export

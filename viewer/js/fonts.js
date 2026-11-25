@@ -19,7 +19,8 @@ export function fontStatus(family, faces = []) {
   if (!usable) return 'missing';
   return faces.some(f => f.family.toLowerCase() === family.toLowerCase()) && [...document.fonts].some(f => f.family.replace(/"/g, '') === family && f.status === 'loaded') ? 'web' : 'installed';
 }
-export const STATUS_LABEL = { web: 'web font', installed: 'installed', missing: 'not available' };
+// A loaded web font is observed; installed or not is inferred from the measurement above, so it is worded as likely.
+export const STATUS_LABEL = { web: 'web font', installed: 'seems installed', missing: 'seems not installed' };
 // For a web font: is there a loaded face with this weight? If not, the browser synthesizes it (fake bold etc.).
 export const hasWeight = (family, weight) => [...document.fonts].some(f => {
   if (f.family.replace(/"/g, '') !== family || f.status !== 'loaded') return false;
@@ -27,5 +28,5 @@ export const hasWeight = (family, weight) => [...document.fonts].some(f => {
   return lo <= +weight && +weight <= hi;
 });
 // A visible marker wherever a font is shown in a stand-in instead of itself.
-export const fallbackTag = h => h('span', { class: 'tag-fallback', title: 'This font is not available here; a fallback font is shown instead.' }, 'fallback');
+export const fallbackTag = h => h('span', { class: 'tag-fallback', title: 'This font seems not to be installed here; a fallback font is probably shown instead.' }, 'fallback');
 export const fontCss = family => `font-family:"${String(family).replace(/"/g, '')}", system-ui, sans-serif`;

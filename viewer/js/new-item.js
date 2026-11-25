@@ -59,15 +59,18 @@ function build() {
   const st = { kind: 'extract', file: null, busy: false };
   const m = modal({ id: NEW_ITEM_DIALOG, cls: 'screen-modal new-item', titleId: 'new-item-title', descId: 'new-item-desc', isBusy: () => st.busy });
   const f = fields(st), go = busyButton('Create atlas', 'Creating…'), error = errorBanner(), status = statusLine(waited);
-  const log = h('pre', { class: 'job-log', hidden: '' }), actions = h('div', { class: 'form-actions' }, status, go);
+  const log = h('pre', { class: 'job-log', hidden: '' }), actions = h('footer', { class: 'form-actions modal-foot' }, status, go);
   const self = { st, m, f, go, error, status, log, actions };
   self.confirm = confirmPanel(() => { closeConfirm(self); submit(self, true); }, () => { closeConfirm(self); go.focus(); });
   f.more.append(field('Name', f.name), field('Pages', f.pages, 'How many pages (website) or stories (Storybook) to measure'), f.modes.el);
   const kinds = segmented({ label: 'Source', items: KINDS, value: st.kind, onSelect: k => { st.kind = k; error.show(null); show(self); } });
-  const form = h('form', { class: 'modal-body new-form', novalidate: '', onsubmit: e => { e.preventDefault(); submit(self); } },
-    h('p', { class: 'modal-desc', id: 'new-item-desc' }, 'Measure a website or Storybook by its URL, or import a file. Text content is never stored.'),
-    kinds, f.urlField, f.drop.el,
-    h('label', { class: 'check' }, f.shots, ' Keep screenshots'), f.more, error, self.confirm, actions, log);
+  // the body scrolls; the replace question and the footer (status, Create atlas) sit outside it, so they stay in view
+  const form = h('form', { class: 'modal-form', novalidate: '', onsubmit: e => { e.preventDefault(); submit(self); } },
+    h('div', { class: 'modal-body new-form' },
+      h('p', { class: 'modal-desc', id: 'new-item-desc' }, 'Measure a website or Storybook by its URL, or import a file. Text content is never stored.'),
+      kinds, f.urlField, f.drop.el,
+      h('label', { class: 'check' }, f.shots, ' Keep screenshots'), f.more, error, log),
+    self.confirm, actions);
   m.dialog.append(h('div', { class: 'modal-panel' }, m.head(h('h2', { id: 'new-item-title' }, 'New atlas')), form));
   show(self);
   return self;

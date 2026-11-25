@@ -1,8 +1,17 @@
-// The one segmented control of the viewer (HEX/RGB, the measurement pass, the New dialog's source): a radiogroup with
+// The one segmented control of the viewer (HEX/RGB, the mode, the New dialog's source): a radiogroup with
 // one tab stop. The checked segment is the tab stop (tabindex 0, the others -1); arrows, Home and End move and select
 // (rules in keys.js). items: [[value, label], ...]. Pass `el` to fill a group that is already in the page.
-import { h } from './dom.js';
-import { segmentIndex } from './keys.js';
+import { h, chevronIcon } from './dom.js';
+import { segmentIndex, fitsSegments } from './keys.js';
+
+// A segmented control holds 2-4 short options (keys.js SEGMENT_MAX); more become a select, drawn like the atlas
+// picker (a field with a drawn chevron). choice() takes segmented()'s arguments (not `el`) and returns whichever fits.
+export function choice({ label, items, value, onSelect, cls = '' }) {
+  if (fitsSegments(items.length)) return segmented({ label, items, value, onSelect, cls });
+  const select = h('select', { class: 'pick', 'aria-label': label, onchange: () => onSelect(select.value) }, items.map(([v, text]) => h('option', { value: v }, text)));
+  select.value = value;
+  return h('span', { class: `pick-wrap ${cls}`.trim() }, select, chevronIcon());
+}
 
 export function segmented({ label, items, value, onSelect, cls = '', el = h('div') }) {
   // data-label reserves the bold width, so selecting never shifts the neighbours (CSS ::before)

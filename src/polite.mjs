@@ -3,10 +3,11 @@
 // error, timeout) means "assume complete disallow" for that origin, as the RFC asks; 4xx means no restrictions.
 import { readFileSync } from 'node:fs';
 
-const version = (() => { try { return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version; } catch { return '0'; } })();
+const version = (() => { try { return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8').replace(/^\uFEFF/, '')).version; } catch { return '0'; } })(); // BOM stripped
 export const userAgentSuffix = `UIAtlas/${version} (+https://github.com/jgt87/UIAtlas)`;
 
 const MAX_BYTES = 500 * 1024, DELAY_CAP_S = 30;
+const NBSP = ' '; // between a number and its unit in the notes the viewer shows, so they never wrap apart
 const UNRESERVED = /[A-Za-z0-9\-._~]/;
 
 // Percent-encoding normalisation: escapes upper-cased, escaped unreserved chars decoded, non-ASCII/space/control encoded.
@@ -20,7 +21,7 @@ const agentToken = v => (v.match(/^[A-Za-z_*-]+/)?.[0] || '').toLowerCase();
 // → { groups: [{ agents: [lowercase tokens], rules: [{ allow, pattern }], crawlDelay? }] }
 export function parseRobots(text = '') {
   const st = { groups: [], cur: null, inRules: false };
-  for (const raw of String(text).slice(0, MAX_BYTES).replace(/^﻿/, '').split(/\r\n|\r|\n/)) {
+  for (const raw of String(text).slice(0, MAX_BYTES).replace(/^\uFEFF/, '').split(/\r\n|\r|\n/)) {
     const d = directive(raw);
     if (d && Object.hasOwn(DIRECTIVES, d.key)) DIRECTIVES[d.key](st, d.val, d.key); // hasOwn: a line "constructor: x" is no directive
   }
@@ -85,7 +86,7 @@ async function fetchRobots(origin, { ua, userAgent, timeoutMs }) {
     if (!res.ok) return { status: 'none' };
     return robotsFound(parseRobots(await res.text()), userAgent);
   } catch (e) {
-    return { status: 'unreachable', reason: e?.name === 'TimeoutError' || e?.name === 'AbortError' ? `timed out after ${Math.round(timeoutMs / 100) / 10} s` : 'network error' };
+    return { status: 'unreachable', reason: e?.name === 'TimeoutError' || e?.name === 'AbortError' ? `timed out after ${Math.round(timeoutMs / 100) / 10}${NBSP}s` : 'network error' };
   }
 }
 // a parsed robots.txt with its Crawl-delay for this agent, capped at DELAY_CAP_S (capped: the asked value)
@@ -138,7 +139,7 @@ export function createGate({ ignoreRobots = false, delayMs = 1000, userAgent = '
     if (ignoreRobots) out.push('robots.txt was not checked (ignoreRobots)');
     for (const [host, r] of done) {
       if (r.status === 'unreachable') out.push(`robots.txt on ${host} was unreachable (${r.reason}); treated as full disallow, ${skipped.get(host) || 0} URL(s) skipped`);
-      if (r.crawlDelay) out.push(r.capped ? `Crawl-delay of ${r.capped} s on ${host} capped at ${DELAY_CAP_S} s` : `Crawl-delay of ${r.crawlDelay} s honoured on ${host}`);
+      if (r.crawlDelay) out.push(r.capped ? `Crawl-delay of ${r.capped}${NBSP}s on ${host} capped at ${DELAY_CAP_S}${NBSP}s` : `Crawl-delay of ${r.crawlDelay}${NBSP}s honoured on ${host}`);
     }
     for (const [host, n] of blocked) out.push(`robots.txt disallows ${n} URL(s) on ${host}`);
     return out;

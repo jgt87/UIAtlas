@@ -25,26 +25,32 @@ function renameOver(from, to, tries = 10) {
 
 // The temp file as read back must be the text meant and parse, or the rename would put a bad file in place
 // (a full disk or a filter driver can cut a write short without an error).
-export function checkWritten(meant, back, file) {
+// The text check serves the CSS and HTML exports, the JSON check every kept JSON file.
+export function checkWrittenText(meant, back, file) {
   if (back !== meant) throw new Error(`${path.basename(file)}: the file read back differs from what was written; the old file is kept.`);
+}
+export function checkWritten(meant, back, file) {
+  checkWrittenText(meant, back, file);
   JSON.parse(back);
 }
 
-// Atomic replace of a JSON file: written next to it under a temp name, read back and checked, then renamed over it.
-export function writeJsonFile(file, value, space = 0) {
+// Atomic replace of a text file: written next to it under a temp name, read back and checked, then renamed over it.
+export function writeTextFile(file, text, check = checkWrittenText) {
   const tmp = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`);
   try {
-    const text = JSON.stringify(value, null, space);
     writeFileSync(tmp, text);
-    checkWritten(text, readFileSync(tmp, 'utf8'), file);
+    check(text, readFileSync(tmp, 'utf8'), file);
     renameOver(tmp, file);
   } catch (e) { rmSync(tmp, { force: true }); throw e; }
   return file;
 }
 
+// Atomic replace of a JSON file: writeTextFile, and what was written must parse too.
+export const writeJsonFile = (file, value, space = 0) => writeTextFile(file, JSON.stringify(value, null, space), checkWritten);
+
 // Reads an atlas.json of this or an older format; a newer one is refused rather than misread.
 export function readAtlasFile(file) {
-  const atlas = JSON.parse(readFileSync(file, 'utf8')), format = formatOf(atlas);
+  const atlas = JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, '')), format = formatOf(atlas); // a BOM (a hand-edited file) would break JSON.parse
   if (!Number.isInteger(format) || format < 0) throw new Error(`${path.basename(path.dirname(file))}: atlas.json has an unreadable format marker (${JSON.stringify(format)}).`);
   if (format > ATLAS_FORMAT) throw new Error(`${path.basename(path.dirname(file))} was written by a newer UI Atlas (format ${format}); update UI Atlas to read it.`);
   return atlas;

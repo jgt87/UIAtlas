@@ -7,7 +7,7 @@ verified_by:
   - "templates/ui-kit/kit/test/table.test.mjs"
   - "templates/ui-kit/examples.html#el-table"
 ---
-<!-- managed by __CommonShared/rules/elements/el-table.md; sha256:d10d3c674f4b8bfa; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-table.md; sha256:90cf184389607372; edit it there, put project rules in project-*.md -->
 # Table rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -15,7 +15,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 
 ## Look
 - Horizontal rules in `--border` only; no outer border, no vertical lines. (docs/19 §6)
-- Headers 11–12px `--muted` 600, sentence case, never wrap, sticky at `--z-sticky`. (docs/19 §5, docs/17 §3)
+- Headers 11–12px `--muted` 600, sentence case, never wrap, sticky at `--z-sticky` when the table can be taller than the box that scrolls it. (docs/19 §5, docs/17 §3)
 - Rows 34px default (28 dense, 44 coarse); cells 13–14px; first and last cell ≥ 12px from the edge. (docs/01 §4, docs/19 §6)
 - Numbers right-aligned with `tabular-nums`, headers too; a number and its unit never break. (docs/17 §1, docs/19 §5)
 - The sort arrow is SVG, after the header title. (docs/17 §1)

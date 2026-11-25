@@ -8,12 +8,22 @@ import { mkdtempSync, rmSync, createWriteStream } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { EXPORT_FORMAT_IDS, UPLOAD_EXTENSIONS, UPLOAD_KINDS_TEXT, isUploadName } from '../viewer/js/shared.js';
+import { EXPORT_FORMAT_IDS, UPLOAD_EXTENSIONS, UPLOAD_KINDS_TEXT, isUploadName, urlKind } from '../viewer/js/shared.js';
 import { validate } from './validate.mjs';
 import { parseMode } from './modes.mjs';
 import { atlasExists, atlasFolderName } from './atlas-file.mjs';
 
-const UPLOAD_MAX = 300 * 1024 * 1024;
+// The largest upload (bytes) and the longest progress log kept per job (lines). createJobs() takes others for tests.
+export const UPLOAD_MAX = 300 * 1024 * 1024;
+export const LOG_MAX = 400;
+const megabytes = bytes => `${Math.round(bytes / 1024 / 1024 * 10) / 10} MB`; // 300 MB, as the 400 answer says it
+// One chunk of a job's output into its log: one entry per non-empty line, `strip` (the temp folder) taken out, and
+// only the last `max` lines kept.
+export function appendLog(log, chunk, max = LOG_MAX, strip = '\0') {
+  for (const line of String(chunk).split(/\r?\n/)) if (line.trim()) log.push(line.replace(strip, ''));
+  if (log.length > max) log.splice(0, log.length - max);
+  return log;
+}
 // the name an uploaded file is saved under (and, without a name, what the CLI names the atlas after)
 const uploadName = filename => path.basename(String(filename || '')).replace(/[^\w .()-]/g, '_');
 const MODE = /^[\w:=+.-]+$/;
@@ -32,10 +42,9 @@ function modesProblem(text) {
   }
   return null;
 }
-function urlProblem(text) {
-  let u; try { u = new URL(text); } catch { return 'expected a full URL, e.g. https://example.com'; }
-  return /^https?:$/.test(u.protocol) ? null : 'only http(s) URLs can be measured, e.g. https://example.com';
-}
+// the same test as the viewer's form (shared.js urlKind), worded for the API
+const URL_PROBLEM = { http: null, other: 'only http(s) URLs can be measured, e.g. https://example.com', invalid: 'expected a full URL, e.g. https://example.com' };
+const urlProblem = text => URL_PROBLEM[urlKind(text)];
 const NAME = { type: 'string', maxLength: 80, example: 'example-site', check: v => /^[\s.]*$/.test(v) ? 'a name needs a letter or digit, e.g. example-site' : null };
 const OPTIONS = {
   name: NAME,
@@ -74,7 +83,7 @@ const JOB_TYPES = {
   },
 };
 
-export function createJobs({ root, dataDir = path.join(root, 'data'), node = process.execPath }) {
+export function createJobs({ root, dataDir = path.join(root, 'data'), node = process.execPath, uploadMax = UPLOAD_MAX, logMax = LOG_MAX }) {
   const jobs = new Map(), queue = [];
   let running = null;
 
@@ -108,7 +117,7 @@ export function createJobs({ root, dataDir = path.join(root, 'data'), node = pro
     running = job; job.status = 'running'; job.started = Date.now();
     let child;
     try { child = spawn(node, [path.join(root, 'bin', 'atlas.mjs'), ...job.args], { cwd: root, windowsHide: true }); } catch (e) { return finish(job, null, e); }
-    const take = chunk => { for (const line of String(chunk).split(/\r?\n/)) if (line.trim()) job.log.push(line.replace(job.tmp || '\0', '')); if (job.log.length > 400) job.log.splice(0, job.log.length - 400); };
+    const take = chunk => appendLog(job.log, chunk, logMax, job.tmp || '\0');
     child.stdout?.on('data', take); child.stderr?.on('data', take);
     child.on('error', e => finish(job, null, e)); // without an 'error' listener a failed spawn ends the whole server
     child.on('close', code => finish(job, code));
@@ -136,7 +145,7 @@ export function createJobs({ root, dataDir = path.join(root, 'data'), node = pro
     const tmp = mkdtempSync(path.join(os.tmpdir(), 'atlas-upload-')), file = path.join(tmp, clean);
     return new Promise((ok, fail) => {
       let size = 0; const out = createWriteStream(file);
-      reqStream.on('data', c => { size += c.length; if (size > UPLOAD_MAX) { reqStream.destroy(); out.destroy(); rmSync(tmp, { recursive: true, force: true }); fail(badRequest('File is larger than 300 MB.')); } });
+      reqStream.on('data', c => { size += c.length; if (size > uploadMax) { reqStream.destroy(); out.destroy(); rmSync(tmp, { recursive: true, force: true }); fail(badRequest(`File is larger than ${megabytes(uploadMax)}.`)); } });
       reqStream.pipe(out); out.on('finish', () => ok({ file, tmp })); out.on('error', e => { rmSync(tmp, { recursive: true, force: true }); fail(e); });
     });
   }

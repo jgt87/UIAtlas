@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ATLAS_FORMAT, writeJsonFile, checkWritten, readAtlasFile, atlasFolderName, isInside, withFormat } from '../src/atlas-file.mjs';
+import { ATLAS_FORMAT, writeJsonFile, writeTextFile, checkWritten, checkWrittenText, readAtlasFile, atlasFolderName, isInside, withFormat } from '../src/atlas-file.mjs';
 import { writeAtlas } from '../src/atlas-util.mjs';
 import { addModes } from '../src/modes.mjs';
 
@@ -19,6 +19,17 @@ test('writeJsonFile replaces the file through a temp file in the same folder and
   assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { a: 2, b: [1, 2] });
   assert.match(readFileSync(file, 'utf8'), /\n {2}"a": 2/, 'indentation as asked');
   assert.deepEqual(readdirSync(dir), ['atlas.json']);
+});
+
+test('writeTextFile (the CSS and HTML exports) replaces through a temp file too; a short read-back keeps the old file', t => {
+  const dir = tmp(t), file = path.join(dir, 'fictive-tokens.css');
+  writeTextFile(file, ':root { --a: 1px; }\n');
+  writeTextFile(file, ':root { --a: 2px; }\n');
+  assert.equal(readFileSync(file, 'utf8'), ':root { --a: 2px; }\n');
+  assert.deepEqual(readdirSync(dir), ['fictive-tokens.css'], 'no temp file left');
+  assert.throws(() => writeTextFile(file, ':root { --a: 3px; }\n', (meant, back, f) => checkWrittenText(meant, back.slice(0, 5), f)), /read back differs/);
+  assert.equal(readFileSync(file, 'utf8'), ':root { --a: 2px; }\n', 'the old file is kept');
+  assert.deepEqual(readdirSync(dir), ['fictive-tokens.css'], 'the temp file was removed');
 });
 
 test('checkWritten: a temp file read back short or different is refused before the rename', () => {

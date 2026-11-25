@@ -1,5 +1,5 @@
 // Speed tests without a clock limit, as a dependency-free node:test (docs/04 §3).
-// Copied from CommonShared templates/tests; run alone with `node --test test/speed-rules.test.mjs`.
+// Copy to tests/, adjust CONFIG, run with `node --test tests/speed-rules.test.mjs`.
 //
 // Two parts:
 // 1. growth(small, big): how many times longer `big` takes than `small`, both timed on the same
@@ -18,7 +18,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 
 const CONFIG = {
   // SPEED_RULES_SRC lets the same file run against another folder (a trial before copying it in).
@@ -27,8 +27,17 @@ const CONFIG = {
   testFile: /\.test\.(m?[jt]sx?)$/,
   // Files that may read the clock (the helper, this file).
   allow: [/speed-rules\.test\.mjs$/, /scaling\.[mc]?[jt]s$/],
-  clockRead: /performance\.now\(|Date\.now\(\)\s*-/,
-  skipDirs: new Set(['node_modules', 'dist', 'build', '.git', 'coverage']),
+  // A clock read that measures time: a timer (performance.now), Date.now() less a start (or a start
+  // less Date.now()), or an assertion on an elapsed time. A timestamp built as data is no timing:
+  // `new Date(Date.now() - 1000)`, `Date.now() - 5 * 60_000`, `Date.now() - ONE_DAY` (a fixture
+  // read as a timing check in a test audit, 24 Nov 2026).
+  clockRead: [
+    /performance\.now\(/,
+    /(?<!new Date\(\s*)Date\.now\(\)\s*-\s*(?![\d\s]|[A-Z][A-Z0-9_]*\b)[\w$(]|[\w$)\]]\s*-\s*Date\.now\(\)/,
+    /\b\w*(?:elapsed|duration|took)\w*\)?\s*(?:[<>]=?\s*[\d\w]|\.toBeLess|\.toBeGreater)/i,
+  ],
+  // .worktrees holds other checkouts of this repo (gitignored): their tests are not this tree's.
+  skipDirs: new Set(['node_modules', 'dist', 'build', '.git', 'coverage', '.worktrees']),
 };
 
 /** Mean time of one call, repeating the call until at least `minMs` has passed. */
@@ -55,12 +64,20 @@ export function growth(small, big, rounds = 3, minMs = 30) {
   return b / s;
 }
 
+// AUDIT_FILES (set by an audit): a text file with one project-relative path a line, the tracked
+// files minus vendored folders and minified files, under AUDIT_ROOT (default: the working folder).
+// When set, only those files are read.
+const pathKey = (p) => { const k = resolve(p).replace(/\\/g, '/'); return process.platform === 'win32' ? k.toLowerCase() : k; };
+const AUDIT = process.env.AUDIT_FILES && new Set(readFileSync(process.env.AUDIT_FILES, 'utf8').split(/\r?\n/)
+  .map((l) => l.trim()).filter(Boolean).map((l) => pathKey(join(process.env.AUDIT_ROOT || process.cwd(), l))));
+const audited = (p) => !AUDIT || AUDIT.has(pathKey(p));
+
 function testFiles(dir) {
   return readdirSync(dir).flatMap((name) => {
     if (CONFIG.skipDirs.has(name)) return [];
     const p = join(dir, name);
     if (statSync(p).isDirectory()) return testFiles(p);
-    return CONFIG.testFile.test(name) ? [p] : [];
+    return CONFIG.testFile.test(name) && audited(p) ? [p] : [];
   });
 }
 
@@ -83,12 +100,21 @@ export const blankComments = (text) => text.replace(/\/\*[\s\S]*?\*\/|(^|[^:])\/
 
 /** Each clock read in a file as "<file>:<line>". */
 export function clockReads(text, file) {
-  return blankComments(text).split('\n').flatMap((l, i) => (CONFIG.clockRead.test(l) ? [`${file}:${i + 1}`] : []));
+  return blankComments(text).split('\n').flatMap((l, i) => (CONFIG.clockRead.some((re) => re.test(l)) ? [`${file}:${i + 1}`] : []));
 }
 
 test('the clock check reads code, not comments, and names the line', () => {
   const text = '// performance.now() would be wrong here\nconst a = 1;\nconst t = Date.now() - start;\n/* Date.now() - x */';
   assert.deepEqual(clockReads(text, 'x.test.mjs'), ['x.test.mjs:3']);
+});
+
+test('the clock check flags timing, not a timestamp built as data (the check itself works)', () => {
+  const timing = ['const t0 = performance.now();', 'const ms = Date.now() - start;', 'const left = deadline - Date.now();',
+    'assert.ok(elapsed < 100);', 'expect(duration).toBeLessThan(50);'];
+  for (const l of timing) assert.deepEqual(clockReads(l, 't'), ['t:1'], l);
+  const data = ['const row = { at: new Date(Date.now() - 1000) };', 'const old = Date.now() - 5 * 60_000;',
+    'const day = Date.now() - ONE_DAY;', 'const at = new Date(Date.now() - offset).toISOString();', "const job = { duration: 300, name: 'x' };"];
+  for (const l of data) assert.deepEqual(clockReads(l, 't'), [], l);
 });
 
 test('no test file reads the clock itself (compare growth instead)', () => {

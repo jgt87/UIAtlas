@@ -4,7 +4,7 @@ paths:
   - "DESIGN.md"
   - "PRODUCT.md"
 ---
-<!-- managed by __CommonShared/rules/ui.md; sha256:f8b8f922d877eb11; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/ui.md; sha256:b6846e76d4b95609; edit it there, put project rules in project-*.md -->
 # UI rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -13,7 +13,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 ## Design system files
 - Read PRODUCT.md and DESIGN.md before UI work; a UI project without them writes them first. (docs/03 §4)
 - DESIGN.md holds YAML tokens plus short Named Rules; token files derived from it are regenerated, never hand-edited. (docs/03 §2)
-- Critique primary surfaces before release, fix P0/P1, and log accepted deviations with their reasons. (docs/03 §4)
+- Critique primary surfaces before release, fix P0/P1, and log accepted deviations as `DECISIONS.md` entries. (docs/03 §4, docs/09 §8)
 - If the project uses a design detector (`.impeccable/`): its `detect` ignores linked stylesheets, so confirm colour and type findings in the browser. (docs/03 §4)
 
 ## Tokens, colour, theme
@@ -66,11 +66,11 @@ DESIGN.md and PRODUCT.md win on conflict.
 - z-index from named band tokens listed once in DESIGN.md; two layers never share a value by accident. (docs/17 §5)
 - Layers that move with a canvas sit below fixed chrome; full-width transparent wrappers are `pointer-events:none`. (docs/17 §5)
 - Flex children holding text get `min-width:0`; user names truncate with `title` or use `overflow-wrap:anywhere`. (docs/17 §3)
-- Long lists and menus scroll inside themselves; table headers sticky; prose measure 60–75ch. (docs/17 §3)
+- Long lists and menus scroll inside themselves; a table taller than its box keeps a sticky header, in the box that scrolls it; prose measure 60–75ch. (docs/17 §3)
 - `scrollbar-gutter: stable` on panels that can scroll; toggles and close buttons keep their place in every state. (docs/17 §4)
 - Images carry `width`/`height`; never save a layout measured before fonts and images settle. (docs/17 §4)
 - Shell `100dvh`, width `100%` not `100vw`, PWAs pad `env(safe-area-inset-*)`; floating panels cap at `calc(100vw - 24px)`; bars wrap when narrow. (docs/17 §9)
-- Centre icon + label with `inline-flex; align-items:center`; arrows are SVG, not glyphs; one `ml-auto` per row. (docs/17 §1)
+- Centre icon + label with `inline-flex; align-items:center` in a one-line row; a row whose text can wrap keeps its icon, marks and controls on the first line; arrows are SVG, not glyphs; one `ml-auto` per row. (docs/17 §1)
 - Content in a bordered box = outer − 2×border − 2×padding; neighbours take their size from one shared class. (docs/17 §1)
 
 ## Motion, scrollbars, icons

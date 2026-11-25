@@ -10,7 +10,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+
+// AUDIT_FILES (set by an audit): a text file with one project-relative path a line, the tracked
+// files minus vendored folders and minified files, under AUDIT_ROOT (default: the working folder).
+// When set, only those files are read.
+const pathKey = (p) => { const k = resolve(p).replace(/\\/g, '/'); return process.platform === 'win32' ? k.toLowerCase() : k; };
+const AUDIT = process.env.AUDIT_FILES && new Set(readFileSync(process.env.AUDIT_FILES, 'utf8').split(/\r?\n/)
+  .map((l) => l.trim()).filter(Boolean).map((l) => pathKey(join(process.env.AUDIT_ROOT || process.cwd(), l))));
+const audited = (p) => !AUDIT || AUDIT.has(pathKey(p));
 
 const CONFIG = {
   // The project's source: INJECTION_SRC, else the first of src/, app/, lib/ next to this file's
@@ -53,6 +61,13 @@ export const RULES = [
   ['deserialise', CS, /\bnew\s+BinaryFormatter\s*\(|\bTypeNameHandling\.(?:All|Auto|Objects)\b/, 'System.Text.Json with known types'],
 ];
 
+// A detector spells what it detects: in a guard, lint or check file (by its name), a line that
+// holds a regex literal or a pattern string (new RegExp, re.compile, -match '…', [regex]) is the
+// guard, not a use. A guard's `-match 'Invoke-Expression'` was a finding (a test audit, 24 Nov 2026).
+const GUARD_FILE = /(guard|lint|detect|scan|saniti[sz]|validat|policy|audit|hooks?|checks?|rules?)[^/\\]*$/i;
+const PATTERN_LINE = /(^|[=(,:!&|?[\s])\/(?![/*\s])(?:\\.|\[(?:\\.|[^\]\\\n])*\]|[^/\\\n[])+\/[dgimsuyv]*(?=\s*[.,;)\]}:]|\s*$)|\bnew\s+RegExp\s*\(|\bre\.(?:compile|search|match|fullmatch|sub|findall)\s*\(|\[regex\]|\s-[ic]?(?:match|replace|split)\s+['"]/i;
+export const detectorLine = (file, line) => GUARD_FILE.test(file) && PATTERN_LINE.test(line);
+
 /** Findings for one file: "line [id] what to do". Comments are read too: a pattern in a comment
  *  is rare, and the marker clears it. */
 export function injectionFindings(file, text) {
@@ -63,7 +78,7 @@ export function injectionFindings(file, text) {
     const g = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
     for (const m of text.matchAll(g)) {
       const line = text.slice(0, m.index).split('\n').length;
-      if (/injection:/.test(lines[line - 1])) continue;
+      if (/injection:/.test(lines[line - 1]) || detectorLine(file, lines[line - 1])) continue;
       out.push(`${line} [${id}] ${fix}`);
     }
   }
@@ -71,7 +86,7 @@ export function injectionFindings(file, text) {
 }
 
 const walk = (dir) => (existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: 'utf8' }) : [])
-  .filter((f) => !CONFIG.skip.test(f) && !/\.test\.|(^|[\\/])test_/.test(f) && [JS, PY, PS, CS].some((r) => r.test(f)));
+  .filter((f) => !CONFIG.skip.test(f) && !/\.test\.|(^|[\\/])test_/.test(f) && [JS, PY, PS, CS].some((r) => r.test(f)) && audited(join(dir, f)));
 
 test('no injection sink built from strings in the source', () => {
   const bad = walk(CONFIG.srcDir).flatMap((f) => injectionFindings(f, readFileSync(join(CONFIG.srcDir, f), 'utf8')).map((x) => `${f}:${x}`));
@@ -111,6 +126,13 @@ test('each injection rule catches its case and leaves the safe form alone (the c
     ['load.py', 'data = yaml.load(f, Loader=yaml.SafeLoader)', []],
     ['load.py', 'obj = pickle.loads(blob)', ['deserialise']],
     ['view.js', "el.innerHTML = template; // injection: template is a constant built above", []],
+    // A guard spells its pattern; the same text outside a pattern, or outside a guard file, is a use.
+    ['tools/lint-scripts.ps1', "if ($line -match 'Invoke-Expression') { $bad++ }", []],
+    ['tools/lint-scripts.ps1', 'Invoke-Expression "git log $branch"', ['shell']],
+    ['tools/build.ps1', "if ($line -match 'Invoke-Expression') { $bad++ }", ['shell']],
+    ['src/sink-guard.js', "const SINK = new RegExp('el.innerHTML = x');", []],
+    ['src/sink-guard.js', 'el.innerHTML = note.text;', ['raw-html']],
+    ['src/view.js', "const SINK = new RegExp('el.innerHTML = x');", ['raw-html']],
   ];
   for (const [file, text, want] of cases) assert.deepEqual(ids(file, text), want, `${file}: ${text}`);
 });

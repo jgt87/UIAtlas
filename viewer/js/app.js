@@ -1,11 +1,12 @@
 // UI Atlas viewer. Fetches the list of extracted atlases, loads the selected one, and renders its views (Screens,
 // Design tokens, Elements, Components, Map) with hash routing and a live search filter.
 import { kindOf } from './kinds.js';
-import { h, esc, scrollBox, guardDisabled, setOff } from './dom.js';
+import { h, scrollBox, guardDisabled, setOff, chevronIcon } from './dom.js';
 import { contrastSection } from './contrast.js';
 import { loadFontFaces, fontStatus, STATUS_LABEL, fontCss, hasWeight, fallbackTag } from './fonts.js';
 import { fmtColor, colorFormat, setColorFormat } from './color-format.js';
-import { segmented } from './segmented.js';
+import { segmented, choice } from './segmented.js';
+import { tooltip } from './tooltip.js';
 import { renderComponents } from './components-view.js';
 import { renderFlow } from './flow-view.js';
 import { openScreen } from './screen-modal.js';
@@ -21,13 +22,17 @@ const pick = document.getElementById('atlasPick');
 const search = document.getElementById('search');
 const meta = document.getElementById('meta');
 const exportBtn = guardDisabled(document.getElementById('exportBtn')); // aria-disabled until an atlas has loaded
+const exportWhy = tooltip(exportBtn, document.getElementById('exportWhy')); // why it is unavailable
+pick.after(chevronIcon());
 // atlasName: the selected atlas folder, kept here and never written into the loaded document
 let atlas = null, atlasName = '', q = '', mode = '', loading = 0; // mode: '' = the base pass, else a key of atlas.modes
 const NO_SERVER_FIX = 'Check that `atlas serve` is still running in its terminal, then retry.';
 
 const getJson = url => fetch(url).then(r => { if (!r.ok) throw new Error(`The server answered ${r.status}.`); return r.json(); });
-const setExport = (on, why) => { setOff(exportBtn, !on); if (on) exportBtn.removeAttribute('title'); else exportBtn.title = why; };
+const setExport = (on, why) => { setOff(exportBtn, !on); exportWhy.set(on ? '' : why); };
 const show = (...nodes) => { main.removeAttribute('aria-busy'); announce(''); main.replaceChildren(...nodes); };
+// main keeps its height while the next atlas loads (CSS .main[aria-busy]), so the page doesn't collapse to an empty frame
+const holdHeight = () => main.style.setProperty('--held-height', `${main.offsetHeight}px`);
 const atlasBase = () => `/data/${encodeURIComponent(atlasName)}/`;
 
 // Runs work() (a fetch) with a loading state in main that appears only once the wait passes SHOW_AFTER and then stays
@@ -52,7 +57,7 @@ async function boot(select) {
     setExport(false, 'Export needs a loaded atlas');
     return show(errorState({ what: `The list of atlases could not be loaded (${err.message.replace(/\.$/, '')}).`, fix: NO_SERVER_FIX }, () => boot(select)));
   }
-  if (!names.length) { setExport(false, 'Create an atlas with + New first'); return show(h('div', { class: 'empty', html: 'No atlases yet. Click <b>+ New</b> to measure a website or import a file.' })); }
+  if (!names.length) { setExport(false, 'Create an atlas with + New first'); return show(h('div', { class: 'empty' }, 'No atlases yet. Click ', h('b', {}, '+ New'), ' to measure a website or import a file.')); }
   pick.replaceChildren(...names.map(n => h('option', { value: n }, n)));
   pick.onchange = () => load(pick.value);
   pick.value = names.includes(select) ? select : names[0];
@@ -61,18 +66,19 @@ async function boot(select) {
 document.getElementById('newItem').addEventListener('click', () => openNewItem(name => boot(name)));
 exportBtn.addEventListener('click', () => atlas && openExport(atlasName));
 
-function metaHtml(a) {
+// the sidebar's summary of the atlas; every value goes in as text
+function metaNodes(a) {
   const k = kindOf(a), p = a.project, notes = p.notes || [];
-  return `<b>${esc(p.name)}</b><br>${k.label}${p.previews === 'schematic' ? ' · schematic previews' : ''}<br>`
-    + `${a.screens.length ? `${p.pages} ${k.screens}<br>` : ''}${a.tokens.colors.length} colours · ${a.tokens.fonts.length} fonts<br>`
-    + `<span class="meta-date">${new Date(p.created).toLocaleString()}</span>${notes.length ? `<ul class="notes">${notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}`;
+  return [h('b', {}, p.name), h('br'), `${k.label}${p.previews === 'schematic' ? ' · schematic previews' : ''}`, h('br'),
+    ...(a.screens.length ? [`${p.pages} ${k.screens}`, h('br')] : []), `${a.tokens.colors.length} colours · ${a.tokens.fonts.length} fonts`, h('br'),
+    h('span', { class: 'meta-date' }, new Date(p.created).toLocaleString()), notes.length ? h('ul', { class: 'notes' }, notes.map(n => h('li', {}, n))) : null];
 }
 
-// Until the atlas arrives main is empty (and busy); the spinner only shows for a slow load.
+// Until the atlas arrives main is empty (and busy) but keeps its height; the spinner only shows for a slow load.
 async function load(name) {
   const ticket = ++loading; // a later pick wins over a slower earlier load
   atlas = null; setExport(false, 'Export opens once the atlas has loaded'); announce('', true);
-  main.setAttribute('aria-busy', 'true'); main.replaceChildren();
+  holdHeight(); main.setAttribute('aria-busy', 'true'); main.replaceChildren();
   let next;
   try { next = await withSpinner(`Loading ${name}…`, ticket, () => getJson(`/data/${encodeURIComponent(name)}/atlas.json`)); } catch {
     if (ticket !== loading) return;
@@ -87,7 +93,7 @@ async function load(name) {
 
 function showAtlas(ticket) {
   const k = kindOf(atlas);
-  meta.innerHTML = metaHtml(atlas);
+  meta.replaceChildren(...metaNodes(atlas).filter(Boolean));
   for (const a of document.querySelectorAll('.navitem')) if (a.dataset.nav === 'screens') a.textContent = k.screens[0].toUpperCase() + k.screens.slice(1);
   route();
   // web fonts load from their original URLs; re-render once they're in so names show in themselves
@@ -103,6 +109,8 @@ function route() {
     const on = a.dataset.nav === v; a.classList.toggle('active', on);
     if (on) { a.setAttribute('aria-current', 'page'); main.setAttribute('aria-label', a.textContent); } else a.removeAttribute('aria-current');
   }
+  // the tab and the history name the view and the atlas, so each entry can be told apart
+  document.title = atlas ? `${main.getAttribute('aria-label')} · ${atlasName} · UI Atlas` : 'UI Atlas';
   if (atlas) VIEWS[v]();
 }
 
@@ -149,7 +157,7 @@ const spacingBars = spacing => barsOf(spacing).map(s =>
 // each family shown in itself, with whether that's the real font (web font / installed) or a fallback
 const fontRow = f => { const st = fontStatus(f.value, atlas.fontFaces); return h('div', { class: 'font-row' + (st === 'missing' ? ' missing' : '') },
   h('span', { class: 'font-demo', style: fontCss(f.value) }, f.value), st === 'missing' ? fallbackTag(h) : h('small', {}, STATUS_LABEL[st]), h('span', { class: 'count' }, `${f.count}×`)); };
-const fallbackNote = (primary, status) => status === 'missing' ? h('p', { class: 'fallback-note' }, fallbackTag(h), ` ${primary} isn't available here, so these samples use a fallback font.`) : null;
+const fallbackNote = (primary, status) => status === 'missing' ? h('p', { class: 'fallback-note' }, fallbackTag(h), ` ${primary} seems not to be installed here, so these samples probably show a fallback font.`) : null;
 // weights in the primary font; a web font without that weight is drawn synthesized, which is marked
 const weightTag = (primary, status, w) => status === 'web' && !hasWeight(primary, w.value) ? h('span', { class: 'tag-fallback', title: `${primary} has no ${w.value} weight loaded; the browser fakes it.` }, 'synthesized')
   : status === 'missing' ? fallbackTag(h) : null;
@@ -157,10 +165,11 @@ const weightPill = (primary, status) => w => pill([h('span', { style: `font-weig
 const radiusPill = r => pill([h('span', { class: 'dot radius-dot', style: `border-radius:${r.value}` }), r.value], r.count);
 const shadowBox = s => h('div', { class: 'shadow-box', style: `box-shadow:${s.value}`, title: s.value });
 const varRow = v => h('tr', {}, h('td', {}, v.name), h('td', {}, /^#|rgb|hsl/.test(v.value) ? colorValue(v.value) : v.value));
-// light/dark, screen sizes, themes: switch which pass's tokens are shown (the same segmented control as HEX/RGB)
-// the view is drawn again for the new pass, so focus goes back to the checked segment of the new group
-const pickMode = m => { mode = m; renderTokens(); main.querySelector('.modes [aria-checked="true"]')?.focus(); };
-const modeButtons = modes => modes.length ? segmented({ cls: 'modes', label: 'Measurement pass', items: ['', ...modes].map(m => [m, m || 'Base']), value: mode, onSelect: pickMode }) : null;
+// light/dark, screen sizes, themes: switch which mode's tokens are shown (the same segmented control as HEX/RGB, or a
+// select once there are more than four options); the view is drawn again for the new mode, so focus goes back to the
+// checked segment, or the select, of the new control
+const pickMode = m => { mode = m; renderTokens(); main.querySelector('.modes [aria-checked="true"], .modes select')?.focus(); };
+const modeButtons = modes => modes.length ? choice({ cls: 'modes', label: 'Mode', items: ['', ...modes].map(m => [m, m || 'Base']), value: mode, onSelect: pickMode }) : null;
 
 // the tokens and contrast of the selected pass: the base extraction, or one of its modes
 const shownPass = () => { const current = mode && atlas.modes?.[mode];

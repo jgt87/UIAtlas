@@ -113,7 +113,7 @@ test('gate: slow robots.txt times out → disallowed; network error → disallow
   try {
     const g = createGate({ delayMs: 0, timeoutMs: 100 });
     const r = await g.allow(`${s.base}/page`); // the server answers after 1 s; the reason proves it gave up first
-    assert.equal(r.ok, false); assert.match(r.reason, /timed out after 0\.1 s/);
+    assert.equal(r.ok, false); assert.match(r.reason, /timed out after 0\.1 s/); // a no-break space: number and unit never wrap apart
     const dead = await serve(() => {}); const deadBase = dead.base; await dead.close();
     const n = await g.allow(`${deadBase}/page`);
     assert.equal(n.ok, false); assert.match(n.reason, /unreachable/);
@@ -147,7 +147,8 @@ test('pacing: same origin waits ≥ delay, other origins do not, Crawl-delay is 
     assert.deepEqual(await sleeps(`${c.base}/2`), [300], 'Crawl-delay above delayMs wins');
     assert.equal(await g.crawlDelay(`${d.base}/x`), 30);
     const host = h => new URL(h).host, notes = g.notes();
-    assert.ok(notes.includes(`Crawl-delay of 0.3 s honoured on ${host(c.base)}`));
-    assert.ok(notes.includes(`Crawl-delay of 120 s on ${host(d.base)} capped at 30 s`));
+    // number and unit joined by a no-break space: the sidebar shows these notes
+    assert.ok(notes.includes(`Crawl-delay of 0.3 s honoured on ${host(c.base)}`), notes.join('; '));
+    assert.ok(notes.includes(`Crawl-delay of 120 s on ${host(d.base)} capped at 30 s`), notes.join('; '));
   } finally { for (const s of [a, b, c, d]) await s.close(); }
 });

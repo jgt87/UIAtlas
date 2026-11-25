@@ -27,14 +27,16 @@ const IS = {
 const NOUN = { string: 'text', integer: 'a whole number', number: 'a number', boolean: 'true or false', array: 'a list' };
 const BOOLEAN_TEXT = { 1: true, true: true, yes: true, 0: false, false: false, no: false };
 
-// text -> the rule's type, when it reads as one; anything else is left for the type check to refuse
-function coerceText(rule, v) {
-  if (rule.type === 'integer' || rule.type === 'number') return v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : v;
-  if (rule.type === 'boolean') return BOOLEAN_TEXT[v.trim().toLowerCase()] ?? v;
-  if (rule.type === 'array') return v.split(',').map(s => s.trim()).filter(Boolean);
-  return v;
-}
-const coerceValue = (rule, v) => typeof v === 'string' ? coerceText(rule, v) : v;
+// text -> the rule's type, when it reads as one; anything else is left for the type check to refuse. Keyed by type
+// like IS and NOUN; a type without an entry keeps the text as it is.
+const toNumber = v => v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : v;
+const FROM_TEXT = {
+  integer: toNumber,
+  number: toNumber,
+  boolean: v => BOOLEAN_TEXT[v.trim().toLowerCase()] ?? v,
+  array: v => v.split(',').map(s => s.trim()).filter(Boolean),
+};
+const coerceValue = (rule, v) => typeof v === 'string' && Object.hasOwn(FROM_TEXT, rule.type) ? FROM_TEXT[rule.type](v) : v;
 const isMissing = v => v == null || v === '';
 
 // "a whole number from 1 to 500", "text of at most 80 characters", "one of pdf, json"

@@ -1,7 +1,8 @@
 {
   "base": "http://127.0.0.1:4391",
   "primary": ".primary",
-  "lintIgnore": ".flow svg, .shot, .variant-stage",
+  "lintIgnore": ".variant-stage",
+  "lintIgnoreReason": "The component samples draw the source's own measured padding (a plain link sample has none), so the layout lint would judge the source's design, not the viewer's (DESIGN.md, The Sample Is The Source's).",
   "a11yExclude": [".contrast .sample", ".variant-sample"],
   "a11yReason": "The contrast table's sample and the component samples draw the source's own measured colours, so a failing pair is shown under 4.5:1 on purpose (DESIGN.md, The Sample Is The Source's).",
   "elements": {
@@ -13,8 +14,12 @@
     "el-segmented": "#colorFmt"
   },
   "accept": {
-    "button-heights": "DESIGN.md known gap: controls are 34px (CommonShared steps 24/28/32/36), one height across the viewer.",
-    "nav-current": "DESIGN.md: accent = ink, so the current nav item is an ink fill with white text, not a soft accent."
+    "button-heights": "D-011 (DECISIONS.md): controls are 34px, one height across the viewer.",
+    "nav-current": "D-016 (DECISIONS.md): accent = ink, so the current nav item is an ink fill, not a soft accent."
+  },
+  "acceptRules": {
+    "design:a-bar-holds-actions-and-navigation": "D-004",
+    "node:a-call-that-may-pass-about": "D-008"
   },
   "views": [
     { "name": "screens", "path": "/#/screens", "ready": ".card", "main": ".search" },

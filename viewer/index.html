@@ -10,11 +10,12 @@
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="topbar">
-    <button id="menuBtn" type="button" class="ghost-btn menu-btn" aria-expanded="false" aria-controls="side">Menu</button>
+    <button id="menuBtn" type="button" class="ghost-btn menu-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="side">Menu</button>
     <div class="brand"><img class="logo" src="favicon.svg" alt="" width="24" height="24"> UI Atlas</div>
-    <span class="pick-wrap"><select id="atlasPick" class="pick" aria-label="Atlas"></select><svg class="chevron" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></span>
+    <span class="pick-wrap"><select id="atlasPick" class="pick" aria-label="Atlas"></select></span><!-- its chevron: chevronIcon() in js/dom.js -->
     <button id="newItem" type="button" class="primary" aria-haspopup="dialog" aria-controls="new-item-dialog">+ New</button>
-    <button id="exportBtn" type="button" class="ghost-btn" aria-haspopup="dialog" aria-controls="export-dialog" aria-disabled="true" title="Export opens once an atlas has loaded">Export</button>
+    <button id="exportBtn" type="button" class="ghost-btn" aria-haspopup="dialog" aria-controls="export-dialog" aria-disabled="true" aria-describedby="exportWhy">Export</button><!-- #exportWhy: its tooltip (js/tooltip.js) -->
+    <span id="exportWhy" role="tooltip" class="tooltip" hidden>Export opens once an atlas has loaded</span>
     <div id="colorFmt" class="seg" role="radiogroup" aria-label="Colour notation"></div><!-- filled by segmented() in js/app.js -->
   </header>
   <div class="layout">

@@ -17,7 +17,7 @@ export const clean = message => String(message || '').replace(/^Error:\s*/, '').
 export function describe(err, fix) {
   if (err instanceof Problem) return { what: err.what, fix: err.fix || fix };
   if (err instanceof TypeError) return { what: NO_SERVER.what, fix: NO_SERVER.fix };
-  return { what: clean(err?.message) || 'Something went wrong.', fix };
+  return { what: clean(err?.message) || 'The action stopped on an error that gave no message.', fix };
 }
 
 // The server answers 409 { error, exists: true, name } when the atlas name is taken and replace wasn't asked for.

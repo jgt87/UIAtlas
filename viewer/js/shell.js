@@ -11,12 +11,12 @@ export function initShell() {
   const side = $('side'), btn = $('menuBtn'), backdrop = $('drawerBackdrop'), narrow = matchMedia('(max-width: 760px)');
   const isOpen = () => side.classList.contains('open');
   const setOpen = on => { side.classList.toggle('open', on); backdrop.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
-  const close = returnFocus => { if (!isOpen()) return; setOpen(false); if (returnFocus) btn.focus(); };
+  const close = returnFocus => { if (!isOpen()) return; setOpen(false); if (returnFocus) btn.focus({ preventScroll: true }); };
   btn.addEventListener('click', () => { if (isOpen()) close(true); else { setOpen(true); side.querySelector('.navitem')?.focus(); } });
   backdrop.addEventListener('click', () => close(true));
   side.addEventListener('keydown', e => {
     if (!isOpen()) return;
-    if (isDismiss(e.key)) { e.preventDefault(); close(true); } else trapTab(side, e);
+    if (isDismiss(e.key) && !e.isComposing) { e.preventDefault(); close(true); } else trapTab(side, e);
   });
   // a view link: the drawer closes and focus goes to the view (also on a wide screen)
   side.addEventListener('click', e => { if (e.target.closest('.navitem')) { close(false); focusMain(); } });

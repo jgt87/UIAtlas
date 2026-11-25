@@ -55,7 +55,7 @@ test('Hover Where It Exists: :hover rules sit only inside @media (hover: hover)'
   assert.deepEqual(outside, [], `:hover outside @media (hover: hover) at ${outside.join(', ')}`);
 });
 
-test('Motion: every transition or animation stops under prefers-reduced-motion', () => {
+test('Motion: every transition or animation stops under prefers-reduced-motion, except a .motion-alt calm variant', () => {
   const moving = all(/\b(transition|animation)\s*:/);
   if (!moving.length) return;
   const blocks = mediaBlocks('(prefers-reduced-motion: reduce)');
@@ -63,4 +63,10 @@ test('Motion: every transition or animation stops under prefers-reduced-motion',
     `motion at ${moving.map(m => where(m.index)).join(', ')} but no global prefers-reduced-motion rule`);
   const slow = all(/transition:[^;}]*?(\d+)ms/).filter(m => +m[1] > 300).map(m => where(m.index));
   assert.deepEqual(slow, [], `transitions over 300ms at ${slow.join(', ')}`);
+  // the opt-out is the only one, and whatever takes it gets its calm variant inside the same block
+  const reduced = blocks.map(b => css.slice(css.indexOf('{', b.start) + 1, b.end - 1)).join('\n');
+  const stops = reduced.match(/([^{}]*)\{[^}]*animation:\s*none/)?.[1].trim() ?? '';
+  assert.equal(stops, '*:not(.motion-alt), *::before, *::after', `the reduced-motion stop's selector: ${stops}`);
+  assert.match(reduced, /\.spinner\.motion-alt\s*\{\s*animation-duration:\s*(\d{4})ms/, 'no slow spinner variant under reduced motion');
+  assert.ok(+reduced.match(/\.spinner\.motion-alt\s*\{\s*animation-duration:\s*(\d+)ms/)[1] >= 2000, 'the reduced-motion spinner turns at least 2s a turn');
 });

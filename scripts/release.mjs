@@ -173,12 +173,29 @@ function preflight(root, version, o) {
   return p;
 }
 
+/** A commit CI skips on purpose: it changes Markdown only (the ci-triggers rule has CI skip those). */
+export const docsOnly = (files) => files.length > 0 && files.every((f) => /\.md$/i.test(f));
+
+/** The commit whose CI run speaks for HEAD: HEAD itself, or the newest commit before a run of
+ *  Markdown-only commits. `commits` is newest first, each { sha, files }. Null when none is in reach. */
+export function ciCommit(commits) {
+  for (const c of commits) if (!docsOnly(c.files)) return c.sha;
+  return null;
+}
+
 function ciProblems(root) {
-  const head = run('git', ['rev-parse', 'HEAD'], { cwd: root });
+  // A Markdown-only HEAD has no CI run (the workflow skips it, as the ci-triggers rule asks), so the
+  // run of the newest commit that changed anything else speaks for it. Without this the release
+  // refused such a HEAD, and a project dropped the skip to get its release out (a test audit, 24 Nov 2026).
+  const log = run('git', ['log', '-20', '--format=%x00%H', '--name-only'], { cwd: root });
+  const commits = log.split('\0').filter(Boolean).map((b) => { const [sha, ...files] = b.split('\n').map((l) => l.trim()).filter(Boolean); return { sha, files }; });
+  const sha = ciCommit(commits) ?? commits[0]?.sha;
+  const head = commits[0]?.sha;
   let runs;
-  try { runs = JSON.parse(run('gh', ['run', 'list', '--commit', head, '--json', 'status,conclusion,workflowName'], { cwd: root })); } catch { return ['gh run list failed: is gh signed in?']; }
-  if (!runs.length) return [`no CI run for HEAD (${head.slice(0, 7)}): push and let CI finish first`];
-  return runs.filter((r) => r.status !== 'completed' || r.conclusion !== 'success').map((r) => `CI ${r.workflowName}: ${r.status}/${r.conclusion || '-'}`);
+  try { runs = JSON.parse(run('gh', ['run', 'list', '--commit', sha, '--json', 'status,conclusion,workflowName'], { cwd: root })); } catch { return ['gh run list failed: is gh signed in?']; }
+  const which = sha === head ? 'HEAD' : `${sha.slice(0, 7)} (the commits after it change Markdown only)`;
+  if (!runs.length) return [`no CI run for ${which}: push and let CI finish first`];
+  return runs.filter((r) => r.status !== 'completed' || r.conclusion !== 'success').map((r) => `CI ${r.workflowName} on ${which}: ${r.status}/${r.conclusion || '-'}`);
 }
 
 const failText = (e) => `${String(e.stdout || '').slice(-2000)}${String(e.stderr || '').slice(-2000)}`;

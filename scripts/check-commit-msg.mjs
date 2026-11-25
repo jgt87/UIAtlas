@@ -2,7 +2,7 @@
 // check_project: assistant names allowed (this file is the guard: it has to spell the names it refuses)
 // Run by the commit-msg hook in .githooks/ (enable once per clone: npm run hooks).
 // The pattern matches the CommonShared audit (check_project.py TRAILER_RE, lesson L-GIT); keep the two in step.
-// Only new commits are checked; existing history is left as it is (operator, 2026-11-10).
+// Only new commits are checked; existing history is left as it is (D-001 in DECISIONS.md).
 //
 //   node scripts/check-commit-msg.mjs <commit-message-file>
 import { readFileSync } from 'node:fs';

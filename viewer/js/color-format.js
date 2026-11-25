@@ -1,9 +1,11 @@
 // Colour notation toggle (HEX / RGB) for every colour the viewer prints. The choice is remembered per browser.
+// Storage can be blocked (private windows, site settings): the catches are safe because the choice then stays in
+// memory for this visit and HEX is the default; nothing the person made is lost.
 let format = 'hex';
-try { format = localStorage.getItem('atlas-color-format') === 'rgb' ? 'rgb' : 'hex'; } catch {}
+try { format = localStorage.getItem('atlas-color-format') === 'rgb' ? 'rgb' : 'hex'; } catch { /* storage blocked: HEX, see above */ }
 
 export const colorFormat = () => format;
-export function setColorFormat(f) { format = f === 'rgb' ? 'rgb' : 'hex'; try { localStorage.setItem('atlas-color-format', format); } catch {} }
+export function setColorFormat(f) { format = f === 'rgb' ? 'rgb' : 'hex'; try { localStorage.setItem('atlas-color-format', format); } catch { /* storage blocked: kept in memory, see above */ } }
 
 // '#10069f' -> 'rgb(16 6 159)', '#10069f80' -> 'rgb(16 6 159 / 0.5)'; anything that isn't a hex colour is returned as is.
 export function fmtColor(v) {

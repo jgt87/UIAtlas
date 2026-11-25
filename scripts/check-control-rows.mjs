@@ -7,8 +7,13 @@
 // small buttons beside 32px fields; screenshots judged by eye had missed both.
 //
 //   node scripts/check-control-rows.mjs <url> [<url> ...] [--widths 1440,390] [--port 9558]
-//        [--wait 1500] [--selector "<css>"] [--ignore "<css>"] [--browser <path>]
+//        [--wait 1500] [--selector "<css>"] [--ignore "<css>"] [--browser <path>] [--config <file>]
 //   node scripts/check-control-rows.mjs --self-test     proves the scan catches a mixed row
+//
+// --config design-check.json: its "api" answers the app's data as in every other browser check, and
+// a write (POST/PUT/PATCH/DELETE) to a path it does not list is blocked and listed (api-stubs.mjs,
+// which sits beside this file). Without it, writes are still blocked. The row check once opened the
+// app with no stubs at all while the other checks answered "api" (a test audit, 24 Nov 2026).
 //
 // Run it against the dev server or the built app on a test port, never the person's live instance.
 // Pages that need clicks to reach a state (a dialog, an edit form): copy this file and add the steps
@@ -16,10 +21,11 @@
 // Exit 0 = every row has one height; 1 = a row mixes heights (named with its heights); 2 = setup.
 // No dependencies (Node 22+: global WebSocket and fetch). Writes nothing but a temp browser profile.
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { blockedReport, stubs } from './api-stubs.mjs';
 
 const DEFAULT_SELECTOR = 'button, select, input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]), a[class*="btn"], a[class*="button"], [role="button"], .field';
 const BROWSERS = [
@@ -32,7 +38,7 @@ const BROWSERS = [
 ].filter(Boolean);
 
 export function parseArgs(argv) {
-  const o = { urls: [], widths: [1440, 390], port: 9558, wait: 1500, selector: DEFAULT_SELECTOR, ignore: '', browser: '', selfTest: false };
+  const o = { urls: [], widths: [1440, 390], port: 9558, wait: 1500, selector: DEFAULT_SELECTOR, ignore: '', browser: '', selfTest: false, config: '' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => argv[++i];
@@ -42,6 +48,7 @@ export function parseArgs(argv) {
     else if (a === '--selector') o.selector = next();
     else if (a === '--ignore') o.ignore = next();
     else if (a === '--browser') o.browser = next();
+    else if (a === '--config') o.config = next();
     else if (a === '--self-test') o.selfTest = true;
     else o.urls.push(a);
   }
@@ -111,7 +118,27 @@ async function removeProfile(profile, wait) {
   console.error(`Could not delete the temp browser profile ${profile}; delete it by hand.`);
 }
 
+/** A DevTools client: send(method, params, sessionId) resolves with the result; a paused request is
+ *  answered from "api" or blocked as a write (api-stubs.mjs). */
+function devtools(ws, stub) {
+  let id = 0;
+  const pending = new Map();
+  const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => { const i = ++id; pending.set(i, { resolve, reject }); ws.send(JSON.stringify({ id: i, method, params, sessionId })); });
+  ws.addEventListener('message', (e) => {
+    const m = JSON.parse(e.data);
+    if (m.method === 'Fetch.requestPaused') { stub.paused(send, m); return; }
+    if (!m.id || !pending.has(m.id)) return;
+    const p = pending.get(m.id); pending.delete(m.id);
+    if (m.error) p.reject(new Error(m.error.message)); else p.resolve(m.result);
+  });
+  return send;
+}
+
+/** The config's "api" (--config), or none. */
+const configApi = (o) => (o.config ? JSON.parse(readFileSync(o.config, 'utf8')).api ?? null : null);
+
 async function withBrowser(o, fn) {
+  const stub = stubs(configApi(o));
   const exe = o.browser || BROWSERS.find((p) => existsSync(p));
   if (!exe) { console.error('No Edge or Chrome found: pass --browser <path> or set CHROME_PATH.'); process.exit(2); }
   if (!existsSync(exe)) { console.error(`No browser at ${exe}: pass --browser <path> or set CHROME_PATH.`); process.exit(2); }
@@ -128,20 +155,14 @@ async function withBrowser(o, fn) {
     if (!info) throw new Error(`the browser did not open its debug port ${o.port}`);
     ws = new WebSocket(info.webSocketDebuggerUrl);
     await new Promise((res, rej) => { ws.addEventListener('open', res); ws.addEventListener('error', rej); });
-    let id = 0;
-    const pending = new Map();
-    ws.addEventListener('message', (e) => {
-      const m = JSON.parse(e.data);
-      if (!m.id || !pending.has(m.id)) return;
-      const p = pending.get(m.id); pending.delete(m.id);
-      if (m.error) p.reject(new Error(m.error.message)); else p.resolve(m.result);
-    });
-    const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => { const i = ++id; pending.set(i, { resolve, reject }); ws.send(JSON.stringify({ id: i, method, params, sessionId })); });
+    const send = devtools(ws, stub);
     const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
     const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
     const page = { send: (m, p) => send(m, p, sessionId), wait };
+    await stub.enable(page.send);
     return await fn(page);
   } finally {
+    if (stub.blocked.length) console.log(blockedReport(stub.blocked));
     await closeBrowser(ws, wait);
     proc.kill();
     await wait(300);

@@ -26,7 +26,7 @@ try {
   const colors = atlas.tokens.colors.map(c => c.value);
   if (!colors.includes('#2b5f8c') || !colors.includes('#14161a')) fail(`colours not imported: ${colors.join(', ')}`);
   if (!atlas.tokens.spacing.some(s => s.value === '16px')) fail('spacing not imported');
-  const onDisk = JSON.parse(readFileSync(path.join(atlasDir, 'atlas.json'), 'utf8'));
+  const onDisk = JSON.parse(readFileSync(path.join(atlasDir, 'atlas.json'), 'utf8').replace(/^\uFEFF/, '')); // BOM stripped
   if (onDisk.format !== 1) fail(`atlas.json format marker is ${JSON.stringify(onDisk.format)}, expected 1`);
 
   const files = await exportAtlas({ atlasDir, outDir: path.join(dir, 'out'), formats: ['json', 'css', 'html'] });
@@ -39,7 +39,7 @@ try {
     // the slugged project name (smoke-fictive-tokens-tokens.css), see tasks/todo.md
     for (const s of [path.basename(source), atlas.project.name]) if (text.includes(s)) fail(`${path.basename(f)} names the source (${s})`);
   }
-  JSON.parse(readFileSync(files.find(f => f.endsWith('.json')), 'utf8'));
+  JSON.parse(readFileSync(files.find(f => f.endsWith('.json')), 'utf8').replace(/^\uFEFF/, '')); // BOM stripped
   if (!process.exitCode) console.log(`[smoke] ok: tokens detected, imported (${colors.length} colours) and exported (${ext})`);
 } catch (err) {
   fail(err.stack || err.message);

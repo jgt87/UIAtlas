@@ -1,4 +1,4 @@
-<!-- managed by __CommonShared/rules/core.md; sha256:802eed302500a2ac; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/core.md; sha256:a512bc74ebdfa045; edit it there, put project rules in project-*.md -->
 # Core rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -10,7 +10,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Write "the target machine"; never name or describe the operator's own machines, in repos or replies. (docs/14 §10, L-SEC)
 - Stay read-only first toward any integration or source system that can write. (docs/14 §10, L-SEC)
 - A change that lowers a limit users feel (retention, history, quotas) is asked as its own question. (docs/07 §2)
-- Pricing, tier and other settled decisions are the operator's; record them as "operator, <date>" and don't reopen. (docs/09 §1)
+- Settled decisions (pricing, tiers, deviations from a shared rule) are the operator's: one `DECISIONS.md` entry each, cited elsewhere by its id, never restated or reopened. (docs/09 §1, §8)
 
 ## Docs in step
 - Every user-relevant change adds a CHANGELOG `## [Unreleased]` line (Added/Changed/Fixed, user language) in the same change. (docs/05 §3, L-GIT)

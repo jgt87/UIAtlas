@@ -12,6 +12,10 @@ export function trapIndex(count, current, shift) {
   return -1;
 }
 
+// A segmented control is for 2-4 short options; with more, segmented.js choice() draws a select instead.
+export const SEGMENT_MAX = 4;
+export const fitsSegments = count => count <= SEGMENT_MAX;
+
 // Arrow keys inside a segmented control of `count` segments, with focus on index `current`: Left/Up and Right/Down
 // move one segment (wrapping at the ends), Home and End go to the first and last. Returns the index to move to and
 // select, or -1 when the key is not one of these (the browser then handles it).

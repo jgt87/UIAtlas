@@ -26,3 +26,8 @@ export const UPLOAD_KINDS_TEXT = 'PowerPoint, PDF, Sketch, design-token JSON, im
 // 0 = a file without the field (the shape before the marker; identical otherwise). Raise it only when a reader
 // would misread the old shape, and teach every reader the old one.
 export const ATLAS_FORMAT = 1;
+
+// What a URL to measure is: 'http' (an http(s) address UI Atlas can open), 'other' (a URL of another scheme) or
+// 'invalid' (not a URL at all). The "+ New" form and the server's job check both ask this; each words its own answer.
+export const urlKind = (text) => { try { return /^https?:$/.test(new URL(text).protocol) ? 'http' : 'other'; } catch { return 'invalid'; } };
+export const isHttpUrl = (text) => urlKind(text) === 'http';

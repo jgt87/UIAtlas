@@ -4,7 +4,7 @@ paths:
   - "DESIGN.md"
   - "PRODUCT.md"
 ---
-<!-- managed by __CommonShared/rules/design.md; sha256:b2775a4edc5000e7; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/design.md; sha256:9a4ba739052ce278; edit it there, put project rules in project-*.md -->
 # Design quality rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -14,7 +14,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - DESIGN.md names the register per surface: app (dense tools) or brand (marketing); rules below say which. (docs/19 §2)
 - Plan before code: surface, job, focal element, what's left out, states, each motion with its purpose; ask whether a similar brief would give the same plan; revise the generic parts and say what changed. (docs/19 §3)
 - Use the project's component for every standard element; never a lookalike, never reshaped from outside. (docs/19 §3)
-- Mark an intentional deviation in place (`/* design: <why> */`) so it isn't reverted. (docs/19 §3)
+- Mark an intentional deviation in place (`/* design: <why> */`; the `D-<n>` id when it is a logged decision) so it isn't reverted. (docs/19 §3, docs/09 §8)
 - Fix in order: layout, hierarchy, states, motion, polish; the largest visible fault first; hand over with what was checked, what was assumed and what was not checked. (docs/19 §3)
 
 ## Anti-slop (each ban has its replacement)

@@ -25,7 +25,7 @@ async function submit(self) {
   try {
     const { job } = await runJob({ send: () => postJson('/api/jobs', { type: 'export', atlas: self.atlasName, formats }), poll: pollJob, sleep: () => pause(700) });
     if (job?.status !== 'done') throw new Problem(clean(job?.error) || 'The export failed.', 'Try again; if it fails again, run `atlas export` in a terminal to see the full message.');
-    self.status.set('Ready.');
+    self.status.set('Exported.'); // one name through the flow: Export → Exporting… → Exported.
     self.files.replaceChildren(...downloads(job.files));
   } catch (err) { self.status.set(''); self.error.show(describe(err, 'Try again.')); }
   finally { setBusy(self, false); }
@@ -37,10 +37,13 @@ function build() {
   const boxes = EXPORT_FORMATS.map(([k, label, hint]) => { const box = h('input', { type: 'checkbox', value: k });
     return { k, box, row: h('label', { class: 'check format' }, box, h('span', {}, h('b', {}, label), h('small', {}, ` ${hint}`))) }; });
   const self = { st, m, atlasName: '', nameEl: h('b'), boxes, go: busyButton('Export', 'Exporting…'), error: errorBanner(), status: statusLine(waited), files: h('div', { class: 'downloads' }) };
-  const form = h('form', { class: 'modal-body new-form', onsubmit: e => { e.preventDefault(); submit(self); } },
-    h('p', { class: 'modal-desc', id: 'export-desc' }, 'Atlas ', self.nameEl, '. Exports hold design tokens only: no source name, screenshots or text.'),
-    h('fieldset', { class: 'fieldset formats' }, h('legend', {}, 'Formats'), boxes.map(b => b.row)),
-    self.error, h('div', { class: 'form-actions' }, self.status, self.go), self.files);
+  // the body scrolls; the footer with the status and Export sits outside it, so it stays in view
+  const form = h('form', { class: 'modal-form', onsubmit: e => { e.preventDefault(); submit(self); } },
+    h('div', { class: 'modal-body new-form' },
+      h('p', { class: 'modal-desc', id: 'export-desc' }, 'Atlas ', self.nameEl, '. Exports hold design tokens only: no source name, screenshots or text.'),
+      h('fieldset', { class: 'fieldset formats' }, h('legend', {}, 'Formats'), boxes.map(b => b.row)),
+      self.error, self.files),
+    h('footer', { class: 'form-actions modal-foot' }, self.status, self.go));
   m.dialog.append(h('div', { class: 'modal-panel' }, m.head(h('h2', { id: 'export-title' }, 'Export design tokens')), form));
   return self;
 }

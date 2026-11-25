@@ -88,7 +88,7 @@ export function sanitize(atlas, { screenshots = false } = {}) {
 // (History holds the same token-only data as atlas.json; screenshots are never archived.)
 export function archivePrevious(outDir) {
   const file = path.join(outDir, 'atlas.json'); if (!existsSync(file)) return null;
-  let previous; try { previous = JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
+  let previous; try { previous = JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); } catch { return null; } // BOM stripped
   const dir = path.join(outDir, 'history'), to = path.join(dir, `${String(previous.project?.created || Date.now()).replace(/:/g, '-')}.json`);
   mkdirSync(dir, { recursive: true }); return writeJsonFile(to, previous); // kept as it was, format marker or not
 }

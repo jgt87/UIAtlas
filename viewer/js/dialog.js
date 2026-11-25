@@ -1,6 +1,6 @@
 // Shared pieces of the viewer's native <dialog>s: opened with showModal(), Tab kept inside, a click on the backdrop
 // or Esc closes them unless a job is running, and focus goes back to what opened them.
-import { h, closeIcon, guardDisabled, setOff } from './dom.js';
+import { h, closeIcon, spinnerIcon, guardDisabled, setOff } from './dom.js';
 import { isDismiss, trapIndex } from './keys.js';
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
@@ -23,10 +23,11 @@ export function modal({ id, cls, titleId, descId, isBusy = () => false }) {
   const close = () => { if (!isBusy()) dialog.close(); };
   dialog.addEventListener('click', e => { if (e.target === dialog) close(); }); // the backdrop is the dialog itself
   dialog.addEventListener('cancel', e => { if (isBusy()) e.preventDefault(); });
-  dialog.addEventListener('keydown', e => { if (isDismiss(e.key) && isBusy()) e.preventDefault(); trapTab(dialog, e); });
+  // Esc while an input method is composing ends the composition, not the dialog
+  dialog.addEventListener('keydown', e => { if (isDismiss(e.key) && (e.isComposing || isBusy())) e.preventDefault(); trapTab(dialog, e); });
   dialog.addEventListener('close', () => {
     if (isBusy()) return dialog.showModal();
-    if (opener?.isConnected) opener.focus();
+    if (opener?.isConnected) opener.focus({ preventScroll: true }); // the page stays where it was
   });
   const lock = on => dialog.setAttribute('closedby', on ? 'none' : 'closerequest');
   document.body.append(dialog);
@@ -43,7 +44,7 @@ export function modal({ id, cls, titleId, descId, isBusy = () => false }) {
 // it is aria-disabled (still focusable, announced as busy) and a press does nothing, Enter in a field included.
 export function busyButton(label, busyLabel) {
   const b = guardDisabled(h('button', { type: 'submit', class: 'primary stack' }, h('span', { class: 'idle' }, label),
-    h('span', { class: 'busy' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), busyLabel)));
+    h('span', { class: 'busy' }, spinnerIcon(), busyLabel)));
   b.setBusy = on => { setOff(b, on); b.classList.toggle('is-busy', on); if (on) b.setAttribute('aria-busy', 'true'); else b.removeAttribute('aria-busy'); };
   return b;
 }
