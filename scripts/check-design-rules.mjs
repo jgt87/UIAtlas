@@ -710,43 +710,46 @@ export function applyWaivers(cfg, result) {
 }
 
 // ---------- self-test: one page that breaks every rule, one that keeps them ----------
-const selfPage = (ok) => 'data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><style>
+const selfPage = (ok) => {
+  // v(kept, broken): the value on the page that keeps the rule, then on the one that breaks it.
+  const v = (kept, broken = '') => (ok ? kept : broken);
+  return 'data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><style>
   body { margin: 0; font: 13px/1.45 sans-serif; }
   .btn { box-sizing: border-box; height: 32px; padding: 0 12px; border: 1px solid #888; font-size: 13px; }
-  .rail { height: ${ok ? 30 : 900}px; }
-  .stage { position: relative; height: ${ok ? '60px' : '100vh'}; }
-  .dot { position: absolute; left: 100px; top: ${ok ? 42 : 20}px; width: 10px; height: 10px; border-radius: 50%; background: #333; }
+  .rail { height: ${v(30, 900)}px; }
+  .stage { position: relative; height: ${v('60px', '100vh')}; }
+  .dot { position: absolute; left: 100px; top: ${v(42, 20)}px; width: 10px; height: 10px; border-radius: 50%; background: #333; }
   .name { position: absolute; left: 80px; top: 16px; }
-  .card { border: 1px solid #888; border-radius: 8px; padding: ${ok ? 12 : 2}px; width: 300px; min-height: 60px; ${ok ? '' : 'box-shadow: 0 2px 4px #0004;'} }
-  .fine { font-size: ${ok ? 12 : 9}px; }
-  .long { width: 90px; border: 1px solid #888; padding: 8px; ${ok ? 'overflow-wrap: anywhere;' : 'white-space: nowrap;'} }
-  .wide { width: ${ok ? 'auto' : '1700px'}; }
-  .off { margin-left: ${ok ? 0 : 3}px; }
-  h2 { font-size: 16px; margin: ${ok ? '24px 0 8px' : '2px 0 24px'}; }
-  .reveal { ${ok ? '' : 'opacity: 0; animation: show 0.05s forwards;'} }
-  .note { box-sizing: border-box; width: 300px; font: inherit; padding: 8px; ${ok ? 'border: 1px solid #767676;' : 'border: 0; background: transparent;'} }
-  .pair { display: flex; align-items: center; width: 300px; ${ok ? 'gap: 8px;' : 'justify-content: space-between;'} }
-  .groups > div { margin: ${ok ? '16px 0' : '2px 0'}; }
-  .groups p { margin: ${ok ? '4px 0' : '12px 0'}; }
-  .tickrow { position: absolute; top: 0; right: 16px; display: flex; align-items: center; gap: 8px; min-height: ${ok ? 44 : 20}px; }
-  .tip { display: inline-block; padding: 2px 8px; border: 1px solid #888; font-size: ${ok ? 12 : 15}px; }
+  .card { border: 1px solid #888; border-radius: 8px; padding: ${v(12, 2)}px; width: 300px; min-height: 60px; ${v('', 'box-shadow: 0 2px 4px #0004;')} }
+  .fine { font-size: ${v(12, 9)}px; }
+  .long { width: 90px; border: 1px solid #888; padding: 8px; ${v('overflow-wrap: anywhere;', 'white-space: nowrap;')} }
+  .wide { width: ${v('auto', '1700px')}; }
+  .off { margin-left: ${v(0, 3)}px; }
+  h2 { font-size: 16px; margin: ${v('24px 0 8px', '2px 0 24px')}; }
+  .reveal { ${v('', 'opacity: 0; animation: show 0.05s forwards;')} }
+  .note { box-sizing: border-box; width: 300px; font: inherit; padding: 8px; ${v('border: 1px solid #767676;', 'border: 0; background: transparent;')} }
+  .pair { display: flex; align-items: center; width: 300px; ${v('gap: 8px;', 'justify-content: space-between;')} }
+  .groups > div { margin: ${v('16px 0', '2px 0')}; }
+  .groups p { margin: ${v('4px 0', '12px 0')}; }
+  .tickrow { position: absolute; top: 0; right: 16px; display: flex; align-items: center; gap: 8px; min-height: ${v(44, 20)}px; }
+  .tip { display: inline-block; padding: 2px 8px; border: 1px solid #888; font-size: ${v(12, 15)}px; }
   .heads { position: absolute; top: 60px; right: 16px; width: 280px; }
-  .head { display: flex; align-items: ${ok ? 'flex-start' : 'center'}; gap: 8px; margin-bottom: 16px; }
+  .head { display: flex; align-items: ${v('flex-start', 'center')}; gap: 8px; margin-bottom: 16px; }
   .head > span, .head > b { line-height: 20px; white-space: nowrap; }
   .head .title { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
   .ico { display: flex; align-items: center; height: 20px; }
   .who { display: flex; align-items: center; gap: 8px; }
   .face { width: 32px; height: 32px; border-radius: 50%; background: #999; flex: none; }
-  ${ok ? 'p { text-wrap: pretty; }' : ''}
+  ${v('p { text-wrap: pretty; }')}
   @keyframes show { to { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .reveal { animation: none; } }
-  @media (pointer: coarse) { .btn, .note { ${ok ? 'min-height: 44px; font-size: 16px;' : ''} } }
+  @media (pointer: coarse) { .btn, .note { ${v('min-height: 44px; font-size: 16px;')} } }
 </style>
 <div class="rail">side bar</div>
-<div class="main"><input class="box btn" placeholder="main control"><button class="btn btn--primary">Send</button>${ok ? '<button class="btn">Save</button>' : '<button class="btn btn--primary">Save</button>'}</div>
+<div class="main"><input class="box btn" placeholder="main control"><button class="btn btn--primary">Send</button>${v('<button class="btn">Save</button>', '<button class="btn btn--primary">Save</button>')}</div>
 <div class="stage"><span class="dot"></span><b class="name">Topic</b></div>
-<div class="wide"><p>Intro text of the section.</p><h2>A heading</h2><p class="off">Text under the heading${ok ? '' : ' \u{1F680}'}.</p><p>${ok ? 'It doesn’t open “here”' : 'It doesn\'t open "here"'}; <code>"code" keeps its quotes</code></p></div>
-<div class="card"><span class="fine">Fine print in a card</span>${ok ? '' : '<div class="card">a card in a card</div>'}</div>
+<div class="wide"><p>Intro text of the section.</p><h2>A heading</h2><p class="off">Text under the heading${v('', ' \u{1F680}')}.</p><p>${v('It doesn’t open “here”', 'It doesn\'t open "here"')}; <code>"code" keeps its quotes</code></p></div>
+<div class="card"><span class="fine">Fine print in a card</span>${v('', '<div class="card">a card in a card</div>')}</div>
 <div class="long">Averyveryverylongwordwithoutspaces</div>
 <textarea class="note" aria-label="A note" autofocus></textarea>
 <div class="pair"><input type="checkbox" id="keep" aria-label="Keep me signed in"><span>Keep me signed in</span></div>
@@ -759,6 +762,7 @@ const selfPage = (ok) => 'data:text/html;charset=utf-8,' + encodeURIComponent(`<
   <div class="who"><span class="face"></span><div><div>Ana Lopes</div><div>Last seen this week</div></div></div>
 </div>
 <p class="reveal">${'This paragraph is revealed by an animation and must stay readable without it. '.repeat(6)}</p>`);
+};
 
 const SELF_FAILS = ['primary', 'label', 'page-scroll', 'first-screen', 'touch', ...LINT_FAILS, 'motion-hides', 'zoom-reflow'];
 // first-line is both: the header with marks fails, the header with only an icon is listed, and the

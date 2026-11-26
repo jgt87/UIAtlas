@@ -31,6 +31,11 @@ button, a, input, select, summary, [role="button"] { touch-action: manipulation;
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* One focus ring for everything; components do not remove it. */
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+/* The ring is for keyboard navigation: js/modality.js records the last input on <html data-modality>, and while
+   it is "pointer" no ring shows, since a browser also turns it on for Shift, Control or Escape after a click and
+   for a focus set at load. A field a person types in (:read-write) keeps its ring. The only rule that hides the
+   ring; it returns with the next navigation key (One Focus Ring). */
+:root[data-modality="pointer"] :focus-visible:not(:read-write) { outline: none; }
 /* Fields and selects keep the ring's room at rest (a transparent outline), so taking focus only colours it in.
    :where() has no weight, so the global :focus-visible above always wins. */
 :where(.pick, .search, .field input, .field select) { outline: 2px solid transparent; outline-offset: 2px; }

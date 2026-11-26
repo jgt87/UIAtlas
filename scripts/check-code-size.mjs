@@ -24,13 +24,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-// Adjust per project. UI Atlas: the CLI, the adapters, the scripts and the viewer's browser modules.
-const GLOBS = ['bin/**/*.mjs', 'src/**/*.mjs', 'scripts/**/*.mjs', 'viewer/js/**/*.js'];
-// Rendered checkers and the reader copied verbatim from CommonShared templates/scripts: kept identical to the
-// template so a refresh is a plain copy, and their long functions are scans that run in the page.
-const UPSTREAM = ['scripts/check-design-rules.mjs', 'scripts/probe-scan.mjs', 'scripts/check-control-rows.mjs', 'scripts/api-stubs.mjs',
-  'scripts/code-size-reader.mjs', 'scripts/check-a11y.mjs'];
-const isUpstream = (f) => UPSTREAM.includes(f.split(path.sep).join('/'));
+// Adjust per project, here only: a copy that differs from this template outside the CONFIG block
+// is reported as stale by the audit, so a refresh stays a plain copy plus this block (a project
+// had to edit three more lines to leave out its copied-in checkers, 26 Nov 2026).
+//   globs    what to measure, from the project root
+//   exclude  files left out, project-relative with forward slashes: copies of another repo's
+//            scripts, held by that repo's own ratchet (CommonShared's rendered checkers)
+const CONFIG = {
+  // UI Atlas: the CLI, the adapters, the scripts and the viewer's browser modules.
+  globs: ['bin/**/*.mjs', 'src/**/*.mjs', 'scripts/**/*.mjs', 'viewer/js/**/*.js'],
+  // Copied verbatim from CommonShared templates/scripts and held by its ratchet: their long
+  // functions are scans that run in the page.
+  exclude: ['scripts/check-design-rules.mjs', 'scripts/probe-scan.mjs', 'scripts/check-control-rows.mjs', 'scripts/api-stubs.mjs',
+    'scripts/code-size-reader.mjs', 'scripts/check-a11y.mjs'],
+};
+const GLOBS = CONFIG.globs;
 const IS_TEST = /\.(test|spec)\.[cm]?[jt]sx?$/;
 const MAX_LINES = 80;
 const MAX_COMPLEXITY = 10;
@@ -82,12 +90,19 @@ export function ratchetFailures(counts, baseline) {
   return failures;
 }
 
+/** The files the globs find, project-relative with forward slashes, without node_modules and CONFIG.exclude. */
+export function sourceFiles(base = root, { globs = GLOBS, exclude = CONFIG.exclude } = {}) {
+  return fs.globSync(globs, { cwd: base, exclude: (f) => /node_modules/.test(f) })
+    .map((f) => f.split(path.sep).join('/'))
+    .filter((f) => !exclude.includes(f));
+}
+
 // A silent skip would report zero violations: a config that does not cover .ts/.tsx drops
 // those files from the results without a message, and a file that fails to parse yields no
 // rule results. So every extension the globs find must be linted, and every file must parse.
 function requireFullCoverage(results) {
   const extensionsOf = (files) => new Set(files.map((f) => path.extname(f).toLowerCase()));
-  const found = extensionsOf(fs.globSync(GLOBS, { cwd: root, exclude: (f) => /node_modules/.test(f) }).filter((f) => !isUpstream(f)));
+  const found = extensionsOf(sourceFiles());
   const linted = extensionsOf(results.map((r) => r.filePath));
   const uncovered = [...found].filter((ext) => !linted.has(ext));
   const unparsed = results.filter((r) => r.messages.some((m) => m.fatal));
@@ -117,13 +132,17 @@ async function eslintResults() {
   // Loaded here, not at the top: the tests import the pure parts above without ESLint installed.
   let ESLint;
   try { ({ ESLint } = await import('eslint')); } catch { return null; }
+  // A project without an ESLint config of its own runs only the two rules: without this, ESLint
+  // refuses to start ("Could not find config file"). The coverage guard then still fails a run
+  // that skipped an extension (the defaults lint JS only).
+  const ownConfig = fs.readdirSync(root).some((f) => /^eslint\.config\.[cm]?[jt]s$/.test(f));
   const eslint = new ESLint({
     cwd: root,
-    overrideConfigFile: true, // UI Atlas has no ESLint config of its own; only these two rules run
+    overrideConfigFile: !ownConfig,
     overrideConfig: { rules: RULES },
+    ignorePatterns: CONFIG.exclude,
     ruleFilter: ({ ruleId }) => ruleId in RULES,
     errorOnUnmatchedPattern: false,
-    ignorePatterns: UPSTREAM,
   });
   try { return await eslint.lintFiles(GLOBS); } catch (e) {
     if (/parser|typescript|Cannot find (module|package)/i.test(e.message)) return null;
@@ -138,8 +157,7 @@ async function readerRun() {
     process.exit(1);
   }
   const { measureJs } = await import(pathToFileURL(reader).href);
-  const files = fs.globSync(GLOBS, { cwd: root, exclude: (f) => /node_modules/.test(f) }).map((f) => f.split(path.sep).join('/')).filter((f) => !isUpstream(f));
-  return readerResults(files, root, measureJs);
+  return readerResults(sourceFiles(), root, measureJs);
 }
 
 async function main() {

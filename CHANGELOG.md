@@ -14,6 +14,7 @@
 - Viewer: the Export and Create atlas buttons sit in a fixed footer below the dialog's scrolling body, so they are always in view, also with More options open.
 - Viewer: spacing follows one 4px scale (2 to 32px) that grows with the browser's text size, so some gaps and paddings moved by a few pixels; corners, layers, the dialog shadow and backdrop come from named tokens.
 - Viewer: the sidebar, dialog body, screenshot box, map and job log keep room for their scrollbar, so content no longer shifts when a scrollbar appears.
+- Viewer: the focus ring shows only while you move with the keyboard (Tab, the arrow keys). After a click, pressing Shift, Ctrl or Esc no longer lights it up on the button or in a dialog; text fields keep theirs.
 - An error that comes without a message now says "The action stopped on an error that gave no message." instead of "Something went wrong."
 
 ### Added

@@ -49,7 +49,9 @@ export const RULES = [
   ['raw-html', JS, /\sv-html\s*=|\{@html\s/, 'text binding, or sanitise with an allow-list first'],
   ['eval', JS, /(?<![\w.$])eval\s*\(|\bnew\s+Function\s*\(|\bset(?:Timeout|Interval)\s*\(\s*['"`]/, 'data is data: parse it, never run it'],
   ['eval', PY, /(?<![\w.])(?:eval|exec)\s*\(/, 'ast.literal_eval for literals; never run input'],
-  ['shell', JS, /\bexec(?:Sync)?\s*\(\s*(?:`[^`]*\$\{|[^)\n]*\+)/, 'execFile / spawn with an argument array'],
+  // A bare exec() or one on child_process; a method `.exec(` on anything else is RegExp's (a
+  // regex constant run on a template URL was flagged, a test audit, 26 Nov 2026).
+  ['shell', JS, /(?:(?<![\w$.])|(?<=\b(?:child_process|childProcess|cp)\.))exec(?:Sync)?\s*\(\s*(?:`[^`]*\$\{|[^)\n]*\+)/, 'execFile / spawn with an argument array'],
   ['shell', JS, /\bshell\s*:\s*true\b/, 'spawn without a shell'],
   ['shell', PY, /\bshell\s*=\s*True\b|\bos\.(?:system|popen)\s*\(/, 'subprocess.run([...]) without a shell'],
   ['shell', PS, /(?<![\w-])(?:Invoke-Expression|iex)(?![\w-])/i, 'call the command with parameters or splatting'],
@@ -68,8 +70,13 @@ const GUARD_FILE = /(guard|lint|detect|scan|saniti[sz]|validat|policy|audit|hook
 const PATTERN_LINE = /(^|[=(,:!&|?[\s])\/(?![/*\s])(?:\\.|\[(?:\\.|[^\]\\\n])*\]|[^/\\\n[])+\/[dgimsuyv]*(?=\s*[.,;)\]}:]|\s*$)|\bnew\s+RegExp\s*\(|\bre\.(?:compile|search|match|fullmatch|sub|findall)\s*\(|\[regex\]|\s-[ic]?(?:match|replace|split)\s+['"]/i;
 export const detectorLine = (file, line) => GUARD_FILE.test(file) && PATTERN_LINE.test(line);
 
-/** Findings for one file: "line [id] what to do". Comments are read too: a pattern in a comment
- *  is rare, and the marker clears it. */
+// A whole-line comment (//, /* … */ lines, #, <# … #>) explains a sink rather than being one. A
+// comment naming `shell: true` while explaining why the code avoids it was a finding twice in one
+// project (a test audit, 25 Nov 2026), so comment lines are left out; code lines and trailing
+// comments are still read.
+const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*|#|<#)/;
+
+/** Findings for one file: "line [id] what to do". Whole-line comments are left out. */
 export function injectionFindings(file, text) {
   const out = [];
   const lines = text.split('\n');
@@ -78,11 +85,12 @@ export function injectionFindings(file, text) {
     const g = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
     for (const m of text.matchAll(g)) {
       const line = text.slice(0, m.index).split('\n').length;
-      if (/injection:/.test(lines[line - 1]) || detectorLine(file, lines[line - 1])) continue;
+      const src = lines[line - 1];
+      if (COMMENT_LINE.test(src) || /injection:/.test(src) || detectorLine(file, src)) continue;
       out.push(`${line} [${id}] ${fix}`);
     }
   }
-  return out;
+  return [...new Set(out)]; // one finding per line and rule, however often its pattern matches there
 }
 
 const walk = (dir) => (existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: 'utf8' }) : [])
@@ -114,6 +122,11 @@ test('each injection rule catches its case and leaves the safe form alone (the c
     ['git.js', 'execSync(`git log ${branch}`)', ['shell']],
     ['git.js', "execFileSync('git', ['log', '--', branch])", []],
     ['git.js', "spawn(cmd, args, { shell: true })", ['shell']],
+    // RegExp.prototype.exec is no process: only a bare exec() or one on child_process is.
+    ['match.ts', 'const m = SITE_URL.exec(`https://${value}`)', []],
+    ['match.ts', 'const m = /^x/.exec(prefix + value)', []],
+    ['git.js', 'cp.exec(`git log ${branch}`)', ['shell']],
+    ['git.js', "child_process.execSync('git log ' + branch)", ['shell']],
     ['run.py', 'subprocess.run(cmd, shell=True)', ['shell']],
     ['run.py', "subprocess.run(['git', 'log', '--', branch])", []],
     ['run.ps1', 'Invoke-Expression "git log $branch"', ['shell']],
@@ -126,6 +139,12 @@ test('each injection rule catches its case and leaves the safe form alone (the c
     ['load.py', 'data = yaml.load(f, Loader=yaml.SafeLoader)', []],
     ['load.py', 'obj = pickle.loads(blob)', ['deserialise']],
     ['view.js', "el.innerHTML = template; // injection: template is a constant built above", []],
+    // A whole-line comment explains a sink; code and a trailing comment are still read.
+    ['run.js', "// never `shell: true` here: the path would reach the shell", []],
+    ['run.js', "/**\n * no shell: true, and no eval(input) either\n */", []],
+    ['run.py', '# subprocess.run(cmd, shell=True) would be wrong here', []],
+    ['run.ps1', '<# never Invoke-Expression "git log $branch" #>', []],
+    ['run.js', "spawn(cmd, args, { shell: true }); // shell: true for the .cmd shim", ['shell']],
     // A guard spells its pattern; the same text outside a pattern, or outside a guard file, is a use.
     ['tools/lint-scripts.ps1', "if ($line -match 'Invoke-Expression') { $bad++ }", []],
     ['tools/lint-scripts.ps1', 'Invoke-Expression "git log $branch"', ['shell']],

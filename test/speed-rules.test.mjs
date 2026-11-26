@@ -98,9 +98,16 @@ test('growth tells linear work from work that compares every item with every oth
 export const blankComments = (text) => text.replace(/\/\*[\s\S]*?\*\/|(^|[^:])\/\/[^\n]*/g,
   (m, pre = '') => pre + m.slice(pre.length).replace(/[^\n]/g, ' '));
 
+// Under fake timers an "elapsed" value is state the test advanced by hand, not a clock reading:
+// `expect(introElapsed).toBeGreaterThan(0)` in such a file was a finding (a test audit, 25 Nov
+// 2026). The timer and Date.now() patterns still apply there.
+const FAKE_TIMERS = /\b(?:vi|jest)\.useFakeTimers\(|\bmock\.timers\.enable\(|\bsinon\.useFakeTimers\(/;
+
 /** Each clock read in a file as "<file>:<line>". */
 export function clockReads(text, file) {
-  return blankComments(text).split('\n').flatMap((l, i) => (CONFIG.clockRead.some((re) => re.test(l)) ? [`${file}:${i + 1}`] : []));
+  const code = blankComments(text);
+  const rules = FAKE_TIMERS.test(code) ? CONFIG.clockRead.slice(0, 2) : CONFIG.clockRead;
+  return code.split('\n').flatMap((l, i) => (rules.some((re) => re.test(l)) ? [`${file}:${i + 1}`] : []));
 }
 
 test('the clock check reads code, not comments, and names the line', () => {
@@ -115,6 +122,9 @@ test('the clock check flags timing, not a timestamp built as data (the check its
   const data = ['const row = { at: new Date(Date.now() - 1000) };', 'const old = Date.now() - 5 * 60_000;',
     'const day = Date.now() - ONE_DAY;', 'const at = new Date(Date.now() - offset).toISOString();', "const job = { duration: 300, name: 'x' };"];
   for (const l of data) assert.deepEqual(clockReads(l, 't'), [], l);
+  const faked = 'vi.useFakeTimers();\nact(() => vi.advanceTimersByTime(500));\nexpect(result.current.introElapsed).toBeGreaterThan(0);';
+  assert.deepEqual(clockReads(faked, 't'), [], 'an elapsed value under fake timers is state');
+  assert.deepEqual(clockReads(`${faked}\nconst t0 = performance.now();`, 't'), ['t:4'], 'a timer under fake timers still counts');
 });
 
 test('no test file reads the clock itself (compare growth instead)', () => {

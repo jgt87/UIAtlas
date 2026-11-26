@@ -27,7 +27,7 @@ import { execFileSync, execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateRawSync } from 'node:zlib';
 
@@ -52,7 +52,8 @@ export function lastReleased(changelog) {
   return m[1];
 }
 
-/** Moves the Unreleased entries under "## [version] - date"; { text, section }. Refuses an empty one. */
+/** Moves the Unreleased entries under "## [version] - date"; { text, section }. Refuses an empty one.
+ *  The heading keeps the style of the last released one ("## [v1.2.0]" or "## [1.2.0]"). */
 export function moveUnreleased(changelog, version, date) {
   const text = changelog.replace(/\r\n/g, '\n');
   const at = text.indexOf('## [Unreleased]');
@@ -62,8 +63,10 @@ export function moveUnreleased(changelog, version, date) {
   const bodyEnd = next < 0 ? text.length : bodyStart + next;
   const section = text.slice(bodyStart, bodyEnd).trim();
   if (!/^- /m.test(section)) throw new Error('CHANGELOG.md: Unreleased has no entries to release');
-  if (text.includes(`## [${version}]`)) throw new Error(`CHANGELOG.md already has ## [${version}]`);
-  const out = `${text.slice(0, bodyStart)}\n## [${version}] - ${date}\n\n${section}\n\n${text.slice(bodyEnd)}`;
+  const had = [version, `v${version}`].find((v) => text.includes(`## [${v}]`));
+  if (had) throw new Error(`CHANGELOG.md already has ## [${had}]`);
+  const v = /^## \[v\d+\.\d+\.\d+\]/m.test(text) ? 'v' : '';
+  const out = `${text.slice(0, bodyStart)}\n## [${v}${version}] - ${date}\n\n${section}\n\n${text.slice(bodyEnd)}`;
   return { text: out.replace(/\n{3,}/g, '\n\n'), section };
 }
 
@@ -140,9 +143,26 @@ export function zip(entries) {
   return Buffer.concat([...local, cd, end]);
 }
 
+/** npm as [command, args] with no shell (rules/stack/node.md, L-WIN): node running npm's own CLI
+ *  script. On Windows `npm` is a `.cmd` shim that execFile cannot start without the shell option, which
+ *  concatenates the arguments unescaped (Node 22+ warns DEP0190 on every call). Under `npm run`,
+ *  npm_execpath names the script; else it sits beside node (Windows, nvm) or in ../lib (Unix). With
+ *  none found: plain `npm` off Windows, an error on Windows. */
+export function npmInvocation(args, { env = process.env, execPath = process.execPath, platform = process.platform, exists = existsSync } = {}) {
+  const home = dirname(execPath);
+  const candidates = [env.npm_execpath, join(home, 'node_modules', 'npm', 'bin', 'npm-cli.js'), join(home, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js')];
+  const cli = candidates.find((p) => p && /npm-cli\.js$/.test(p) && exists(p));
+  if (cli) return [execPath, [cli, ...args]];
+  if (platform === 'win32') throw new Error("npm's npm-cli.js was not found next to node: run this through `npm run release`");
+  return ['npm', args];
+}
+
 // ---------- the steps ----------
 
-const run = (cmd, args, o = {}) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' && cmd === 'npm', ...o }).trim();
+const run = (cmd, args, o = {}) => {
+  const [file, argv] = cmd === 'npm' ? npmInvocation(args) : [cmd, args];
+  return execFileSync(file, argv, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...o }).trim();
+};
 const GATES = ['typecheck', 'lint', 'test', 'build', 'smoke'];
 
 // Flags: true sets the key; a key that holds a list collects each value; any other key takes one value.

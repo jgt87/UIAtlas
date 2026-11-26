@@ -30,8 +30,13 @@ const lum = hex => {
 };
 const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
 
+// The one rule allowed to hide the ring: while the last input was the pointer (js/modality.js), fields excepted.
+const MODALITY_RULE = /:root\[data-modality="pointer"\] :focus-visible:not\(:read-write\)\s*\{\s*outline:\s*none;\s*\}/;
+
 test('One Focus Ring: no rule removes the focus outline, and one global ring exists', () => {
-  const removed = all(/outline:\s*(none|0)\b/).map(m => where(m.index));
+  const allowed = css.match(MODALITY_RULE);
+  const allowedAt = allowed ? css.indexOf('outline', allowed.index) : -1;
+  const removed = all(/outline(-style)?:\s*(none|0)\b/).filter(m => m.index !== allowedAt).map(m => where(m.index));
   assert.deepEqual(removed, [], `outline removed at ${removed.join(', ')}`);
   assert.match(css, /(^|\n):focus-visible\s*\{\s*outline:\s*2px solid/, `${FILE}: no global :focus-visible { outline: 2px solid … }`);
 });

@@ -62,7 +62,9 @@ FALLBACK tag are uppercase with letter-spacing; everything else is sentence case
 
 ## Named Rules
 Rules enforced by `test/viewer-css.test.mjs` use the same names there and in AGENTS.md:
-- **One Focus Ring** — one global `:focus-visible` (2px solid ink, 2px offset); no rule removes the outline.
+- **One Focus Ring** — one global `:focus-visible` (2px solid ink, 2px offset), shown for keyboard navigation:
+  no rule removes the outline except one, which hides it while the last input was the pointer
+  (`<html data-modality="pointer">`, set by `js/modality.js`); fields a person types in keep theirs.
   Test: "One Focus Ring: no rule removes the focus outline, and one global ring exists".
 - **Contrast Floors** — muted text ≥ 4.5:1 and field edges ≥ 3:1 on both `--bg` and `--panel`.
   Test: "Contrast Floors: muted text >= 4.5:1 and field edges >= 3:1 on both backgrounds".

@@ -13,6 +13,7 @@ import { openScreen } from './screen-modal.js';
 import { openNewItem, mountNewItem } from './new-item.js';
 import { openExport, mountExport } from './export-dialog.js';
 import { initShell, focusMain } from './shell.js';
+import { initModality } from './modality.js';
 import { loadingState, errorState, noMatches, announce } from './states.js';
 import { spacingBars as barsOf, roleCounts, formatProblem } from './view-model.js';
 import { SHOW_AFTER, holdResult } from './loading-timing.js';
@@ -225,6 +226,7 @@ function renderElements() {
 // HEX / RGB toggle in the top bar
 segmented({ el: document.getElementById('colorFmt'), label: 'Colour notation', items: [['hex', 'HEX'], ['rgb', 'RGB']], value: colorFormat(),
   onSelect: f => { setColorFormat(f); if (atlas) route(); } });
+initModality();
 initShell();
 // the dialogs the top bar's aria-controls name exist (closed) from the start
 mountNewItem(); mountExport();
