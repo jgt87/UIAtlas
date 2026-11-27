@@ -673,6 +673,12 @@ const VIEW_CHECKS = [
   [shots, (view, cfg) => cfg.shots],
 ];
 
+/** The view's checks from VIEW_CHECKS, in order; none for a probe-only view. */
+async function viewChecks(c, view) {
+  if (view.probeOnly) return;
+  for (const [check, wanted] of VIEW_CHECKS) if (wanted(view, c.cfg)) await check(c, view);
+}
+
 async function run(page, cfg) {
   const problems = [];
   const judge = [];
@@ -681,7 +687,7 @@ async function run(page, cfg) {
   const list = async (expr) => JSON.parse(await page.js(expr));
   const c = { page, cfg, list, expect, judge };
   for (const view of cfg.views) {
-    if (!view.probeOnly) for (const [check, wanted] of VIEW_CHECKS) if (wanted(view, cfg)) await check(c, view);
+    await viewChecks(c, view);
     if (cfg.probe && view.probe !== false) await checkProbe(c, view);
   }
   return { problems, judge, checks };
