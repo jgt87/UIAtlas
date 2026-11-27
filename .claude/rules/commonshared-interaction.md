@@ -2,7 +2,7 @@
 paths:
   - "**/*.{tsx,jsx,ts,js,vue,svelte}"
 ---
-<!-- managed by __CommonShared/rules/interaction.md; sha256:b3b113d90e04bb49; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/interaction.md; sha256:8173bfe118914d78; edit it there, put project rules in project-*.md -->
 # Interaction rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -61,7 +61,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Single-letter tool keys only when focus is outside text fields; match Shift chords on `event.code`. (docs/02 §5)
 - Enter sends and Shift+Enter adds a line in composers; ignore Enter during IME composition. (docs/02 §5)
 - Shortcuts complement visible controls and appear in their tooltips as `kbd`. (docs/02 §5)
-- Focus moved by code after pointer input shows no ring; never force a ring on from script. (docs/19 §7)
+- Focus moved by code after pointer input shows no ring, nor does a key that is not navigation (Shift, Ctrl, a shortcut, Esc) or a focus set at load: record the last input on the root (Tab, arrows, Home/End, Page keys = keyboard) and hide the ring while it is the pointer, text fields excepted; never force a ring on from script. (docs/19 §7, docs/17 §8)
 - Live regions are mounted empty and stay; one owner per message, announced once per occasion; assertive only for errors. (docs/19 §7)
 - In React: keep dialog callbacks in a ref (`useLatest`) so focus effects don't rerun and steal focus each render. (docs/17 §6, L-UI)
 - Global listeners in hidden but mounted views are gated on an `isActive` flag and removed in cleanup. (L-UI)

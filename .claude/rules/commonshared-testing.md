@@ -9,7 +9,7 @@ paths:
   - "e2e/**"
   - ".github/workflows/**"
 ---
-<!-- managed by __CommonShared/rules/testing.md; sha256:d2975f2e9c38a6c4; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/testing.md; sha256:4ac7d203d5ab816b; edit it there, put project rules in project-*.md -->
 # Testing rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -32,7 +32,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Pin randomness, time zone and locale (`hourCycle`); never fix a flake with a longer timer. (L-TEST)
 - Each test sets up its own state and passes when run alone. (L-TEST)
 - On Windows: resolve temp paths with `realpath`; CI runners hand out 8.3 short paths. (L-WIN)
-- Before changing code for a failing gate, run that test file alone twice; if it passes, report it flaky. (L-TEST)
+- Before changing code for a failing gate, run that test file alone twice; if it passes, report it flaky, and look for a short limit: a test that expects success gives a child process 10 s or more, never a second or two. (L-TEST, docs/07 §5)
 
 ## Smoke and contracts
 - Ship a smoke entrypoint that checks end to end without UI: `scripts/smoke.*`, `doctor`, `--selftest` or `--dry-run`. (docs/04 §3, §6)

@@ -1,4 +1,4 @@
-<!-- managed by __CommonShared/rules/core.md; sha256:a512bc74ebdfa045; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/core.md; sha256:f756ea647907fac1; edit it there, put project rules in project-*.md -->
 # Core rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -16,7 +16,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Every user-relevant change adds a CHANGELOG `## [Unreleased]` line (Added/Changed/Fixed, user language) in the same change. (docs/05 §3, L-GIT)
 - Update the README, AGENTS.md and any roadmap or status file in the same turn the code or state changes. (docs/14 §10, L-AGENT)
 - AGENTS.md is canonical; a tool-specific agent file only imports it (`@AGENTS.md`); own notes go outside tool-managed blocks. (docs/05 §3, docs/13 §6, L-AGENT)
-- AGENTS.md holds only what code can't show (check commands, misleading places, decisions); keep it < 200 lines. (docs/14 §2)
+- AGENTS.md holds only what code can't show (check commands, misleading places, decisions); keep it < 200 lines; when it is over, move text that matters for one area word for word into a rule file loaded by path before shortening anything. (docs/14 §2, docs/07 §1)
 - Each gotcha line reads: rule — reason (incident, YYYY-MM-DD); append, don't rewrite. (docs/05 §3)
 - Docs never state counts that drift (tools, tests) unless a test checks them; generate the ones a script can count. (docs/07 §5, L-GIT)
 - "Document the change" means edit existing docs; don't create new doc files for it. (L-AGENT)
@@ -32,7 +32,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Release assets carry `SHA256SUMS`; zip entries use `/` (`git archive`, `tar`); binaries never go in git. (docs/05 §6, L-GIT)
 
 ## Git
-- Stage by explicit path, the files you changed, never a list built from `git status`; never `git add -A` or `git add -u`; another session may share the tree. (docs/07 §5, docs/09 §6)
+- Stage by explicit path, the files you changed, never a list built from `git status`; never `git add -A` or `git add -u`; another session may share the tree, so a build or suite that fails there is proven yours or not on a clean worktree of HEAD holding only your diff. (docs/07 §5, docs/09 §6)
 - Commit messages describe the change. On Windows: pass a message with quotes via `git commit -F <file>`, never `-m`. (L-GIT, L-WIN)
 - Never `git stash`, `git checkout -- .` or `git reset` in a shared tree; compare with `git show HEAD:<path>`. (docs/07 §7)
 - Comment each `.gitignore` block with its kind: regenerable, machine-local, secret, not ours, or reference-only. (docs/11 §1)

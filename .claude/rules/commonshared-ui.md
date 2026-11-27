@@ -4,7 +4,7 @@ paths:
   - "DESIGN.md"
   - "PRODUCT.md"
 ---
-<!-- managed by __CommonShared/rules/ui.md; sha256:b6846e76d4b95609; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/ui.md; sha256:e62885746800fdc7; edit it there, put project rules in project-*.md -->
 # UI rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -59,7 +59,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - One shared menu component: rows 32–36px, keyboard navigable, closes on outside pointerdown, Esc, Tab, scroll and wheel. (docs/01 §6)
 - Clamp popovers and menus to the viewport with 4px margin and flip; max height = measured space left, with a floor. (docs/17 §5, §6)
 - Popovers inside a scroll container portal to `body` with fixed coordinates, re-anchored on resize and scroll. (docs/17 §5)
-- Dialogs: native `<dialog>` (overlay on Electron); Esc closes, Tab trapped, focus returns, `aria-modal` + label. (docs/01 §6, docs/17 §6)
+- Dialogs: native `<dialog>` (overlay on Electron), or the app's one overlay part where the native one cannot do the job (a draggable panel, stacked modals); either way Esc closes, Tab trapped, focus returns, `aria-modal` + label. (docs/01 §6, docs/17 §6, docs/21 §5)
 - One scroll area per dialog, height stable across tabs, close in a header; queue a second dialog asking the same thing. (docs/17 §6)
 
 ## Layout, overflow, stacking

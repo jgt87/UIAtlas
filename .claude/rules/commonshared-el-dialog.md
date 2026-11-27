@@ -7,7 +7,7 @@ verified_by:
   - "templates/ui-kit/kit/test/palette.test.mjs"
   - "templates/ui-kit/examples.html#el-dialog"
 ---
-<!-- managed by __CommonShared/rules/elements/el-dialog.md; sha256:324974751cf007f2; edit it there, put project rules in project-*.md -->
+<!-- managed by __CommonShared/rules/elements/el-dialog.md; sha256:097cd9bd09d77318; edit it there, put project rules in project-*.md -->
 # Dialog rules
 
 Shared defaults from CommonShared. The project's own `.claude/rules/project-*.md`, AGENTS.md,
@@ -19,7 +19,7 @@ DESIGN.md and PRODUCT.md win on conflict.
 - Title 18–20px/600 in a fixed header with the close button; body 13–14px, 16px padding; footer actions right, primary last. (docs/19 §5, docs/21 §5)
 - One scroll area: the body; the header and footer stay put; height stays the same across tabs. (docs/17 §6)
 ## Behaviour
-- Native `<dialog>` with `showModal()`; on Electron an overlay modal instead. (docs/17 §6)
+- Native `<dialog>` with `showModal()`; on Electron an overlay modal instead, as is the app's one overlay part where the native one cannot do the job (a draggable panel, stacked modals with their own motion): `role="dialog"` + `aria-modal="true"` and the same behaviour. (docs/17 §6, docs/21 §5)
 - Esc closes (a nested popover or menu first), Tab is trapped, focus returns to the opener. (docs/17 §6)
 - Focus returns without scrolling the page (`focus({ preventScroll: true })`); Esc during IME composition closes nothing. (docs/21 §1)
 - Initial focus on the first field; a read-only dialog focuses its close button or primary action. (docs/21 §5)

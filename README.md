@@ -123,6 +123,12 @@ npm test
 npm run lint    # function size/complexity ratchet and line endings
 npm run smoke   # import and export a generated token file, no browser needed
 ```
+Viewer changes are also checked in a browser against `node bin/atlas.mjs serve --port 4391` (the viewer's API is answered from an invented atlas, so `data/` doesn't matter):
+```
+npm run check:design  # rendered design rules per view
+npm run check:rows    # one height per row of controls
+npm run check:a11y    # WCAG A/AA scan (axe-core) and no console errors, per view
+```
 Fixtures are generated at test time; the browser-based tests need the same browser as the extractor.
 
 Contributors: run `npm run hooks` once per clone. It enables the commit-msg hook in `.githooks/`, which refuses agent co-author trailers.
@@ -136,3 +142,4 @@ Contributors: run `npm run hooks` once per clone. It enables the commit-msg hook
 ## Notes
 - A fresh browser context is used (signed out); pages are only measured, never modified. Source files are only read.
 - Respect sites' terms and robots when crawling; this is for design/UX review of pages and files you're allowed to access.
+- Settled design and project decisions are listed in `DECISIONS.md`, each with its id, date, goal and the solution chosen.

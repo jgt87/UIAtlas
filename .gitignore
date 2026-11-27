@@ -24,5 +24,6 @@ desktop.ini
 .vscode/
 .idea/
 .repowise/
+/.githooks/post-commit
 tasks/lessons.md
 **/.claude/settings.local.json

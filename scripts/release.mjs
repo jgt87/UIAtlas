@@ -6,6 +6,9 @@
 //   node scripts/release.mjs [x.y.z | patch | minor | major] [--apply] [--dir dist]
 //        [--title <app name>] [--carrier <file.json>]... [--gate "<command>"]... [--archive]
 //        [--name <package name>] [--not-verified "<what was not checked live>"] [--no-ci-gate]
+//        [--tool-file <path>]...
+// --tool-file names a tracked file a local tool rewrites after every commit (a code index stamping
+// its notes file): its change does not make the tree unclean, and the release commit leaves it out.
 // With no version it is the patch: the operator's default, also when the CHANGELOG has an Added
 // section; minor or major only when the operator asks (rules/core.md, docs/07 §2).
 // package.json is the version source, and its typecheck, lint, test, build and smoke scripts are the
@@ -32,6 +35,13 @@ import { fileURLToPath } from 'node:url';
 import { deflateRawSync } from 'node:zlib';
 
 // ---------- pure parts (tested in templates/scripts/test/release.test.mjs) ----------
+
+/** The paths `git status --porcelain` lists, less the --tool-file ones (a file a local tool rewrites
+ *  after every commit, such as a code index stamping its notes file). The output may come trimmed. */
+export function uncleanPaths(porcelain, toolFiles = []) {
+  const skip = new Set(toolFiles.map((f) => f.replace(/\\/g, '/')));
+  return porcelain.split('\n').filter((l) => l.trim()).map((l) => l.replace(/^\s*\S{1,2}\s+/, '')).filter((f) => !skip.has(f));
+}
 
 /** The next version from the current one and "x.y.z" or "patch" | "minor" | "major". */
 export function nextVersion(current, arg) {
@@ -167,10 +177,10 @@ const GATES = ['typecheck', 'lint', 'test', 'build', 'smoke'];
 
 // Flags: true sets the key; a key that holds a list collects each value; any other key takes one value.
 const FLAGS = { '--apply': ['apply', true], '--no-ci-gate': ['ciGate', false], '--archive': ['archive', true] };
-const VALUES = { '--dir': 'dir', '--not-verified': 'notVerified', '--carrier': 'carriers', '--title': 'title', '--gate': 'gates', '--name': 'name' };
+const VALUES = { '--dir': 'dir', '--not-verified': 'notVerified', '--carrier': 'carriers', '--title': 'title', '--gate': 'gates', '--name': 'name', '--tool-file': 'toolFiles' };
 
 function parseArgs(argv) {
-  const o = { apply: false, dir: 'dist', notVerified: 'nothing beyond the gates above.', ciGate: true, bump: null, title: null, carriers: [], gates: [], name: null };
+  const o = { apply: false, dir: 'dist', notVerified: 'nothing beyond the gates above.', ciGate: true, bump: null, title: null, carriers: [], gates: [], toolFiles: [], name: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (FLAGS[a]) o[FLAGS[a][0]] = FLAGS[a][1];
@@ -185,7 +195,8 @@ function parseArgs(argv) {
 /** Clean, pushed, CI green for HEAD, tag free. Returns the problems (empty = ready). */
 function preflight(root, version, o) {
   const p = [];
-  if (run('git', ['status', '--porcelain'], { cwd: root })) p.push('the working tree is not clean');
+  const unclean = uncleanPaths(run('git', ['status', '--porcelain'], { cwd: root }), o.toolFiles);
+  if (unclean.length) p.push(`the working tree is not clean: ${unclean.slice(0, 5).join(', ')}${unclean.length > 5 ? ', …' : ''}`);
   try { if (run('git', ['rev-list', '@{u}..HEAD'], { cwd: root })) p.push('HEAD is not pushed'); } catch { p.push('the branch has no upstream'); }
   if (run('git', ['tag', '-l', `v${version}`], { cwd: root })) p.push(`tag v${version} exists`);
   try { run('git', ['check-ignore', '-q', 'release/SHA256SUMS'], { cwd: root }); } catch { p.push('release/ is not in .gitignore (the package is written there)'); }
