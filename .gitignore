@@ -25,5 +25,6 @@ desktop.ini
 .idea/
 .repowise/
 /.githooks/post-commit
+/.claude/CLAUDE.md
 tasks/lessons.md
 **/.claude/settings.local.json
