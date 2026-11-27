@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.8.4] - 2026-11-27
+
 ### Changed
 - Viewer: why Export is unavailable is now a real tooltip, shown when the button gets keyboard focus, on hover and on a tap, and read by screen readers with the button.
 - Viewer: the tokens view's pass switch is called "Mode" like everywhere else; with more than four options it becomes a select drawn like the atlas picker.

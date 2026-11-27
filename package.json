@@ -1,6 +1,6 @@
 {
   "name": "ui-atlas",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "private": true,
   "type": "module",
   "description": "Extract any website's screens, UI elements and design tokens into an ordered, browsable atlas.",
@@ -16,7 +16,7 @@
     "release": "node scripts/release.mjs --archive --name uiatlas --title \"UI Atlas\" --tool-file .claude/CLAUDE.md",
     "check:design": "node scripts/check-design-rules.mjs --config scripts/design-check.json",
     "check:a11y": "node scripts/check-a11y.mjs --config scripts/design-check.json",
-    "check:rows":"node scripts/check-control-rows.mjs --config scripts/design-check.json http://127.0.0.1:4391/#/screens http://127.0.0.1:4391/#/tokens --widths 1440,390",
+    "check:rows": "node scripts/check-control-rows.mjs --config scripts/design-check.json http://127.0.0.1:4391/#/screens http://127.0.0.1:4391/#/tokens --widths 1440,390",
     "hooks": "git config core.hooksPath .githooks"
   },
   "engines": {
